@@ -47,15 +47,15 @@ export function MergedMessageViewer({ uuid }: MergedMessageViewerProps) {
     if (error) return <div className="p-4 text-center text-red-500">Error: {error}</div>;
 
     return (
-        <div className="w-full min-h-screen bg-slate-50 flex justify-center py-4 px-2">
+        <div className="w-full min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex justify-center py-2 px-2">
             <div className="w-full max-w-4xl">
-                <Card className="shadow-sm border-slate-200 bg-white/70 backdrop-blur">
-                    <CardHeader className="pb-2">
-                        <CardTitle className="text-lg font-semibold text-slate-800">Chat History</CardTitle>
+                <Card className="shadow-lg border-slate-200/50 bg-white/90 backdrop-blur-md">
+                    <CardHeader className="pb-3 border-b border-slate-100">
+                        <CardTitle className="text-xl font-bold text-slate-700">聊天记录</CardTitle>
                     </CardHeader>
-                    <CardContent className="pt-0">
-                        <ScrollArea className="h-[85vh] pr-2">
-                            <div className="space-y-3">
+                    <CardContent className="pt-2 px-3">
+                        <ScrollArea className="h-[88vh] pr-1">
+                            <div className="space-y-1">
                                 {messages.map((msg, idx) => (
                                     <MessageBubble key={idx} msg={msg} idx={idx} />
                                 ))}
@@ -68,25 +68,68 @@ export function MergedMessageViewer({ uuid }: MergedMessageViewerProps) {
     );
 }
 
+// 根据用户ID生成一致的颜色
+function getUserColor(id: string | number): string {
+    const colors = [
+        '#FF516A',
+        '#FFA85C',
+        '#D669ED',
+        '#54CB68',
+        '#28C9B7',
+        '#2A9EF1',
+        '#FF719A'
+    ];
+
+    // 简单的哈希函数
+    const hash = typeof id === 'string'
+        ? id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
+        : id;
+
+    return colors[Math.abs(Number(hash)) % 7];
+}
+
 function MessageBubble({ msg, idx }: { msg: Message; idx: number }) {
     const senderId = msg.user_id ?? msg.sender_id ?? msg.sender?.id ?? `#${idx}`;
     const name = msg.nickname || msg.card || msg.sender?.name || `Unknown`;
     const avatar = msg.avatar || (senderId ? `/api/avatar/qq/${senderId}` : undefined);
-    const timeStr = msg.time ? new Date(msg.time * 1000).toLocaleString() : '';
+    const timeStr = msg.time ? new Date(msg.time * 1000).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : '';
+    const userColor = getUserColor(senderId);
 
     return (
-        <div className="flex items-start gap-3">
-            <Avatar className="h-10 w-10 shadow-sm border border-slate-200 bg-white">
-                <AvatarImage src={avatar} />
-                <AvatarFallback>{name[0] || '?'}</AvatarFallback>
-            </Avatar>
-            <div className="flex-1">
-                <div className="flex items-center gap-2 mb-1">
-                    <span className="font-semibold text-sm text-slate-800">{name}</span>
-                    <span className="text-xs text-slate-400">{timeStr}</span>
+        <div className="flex gap-2 my-2">
+            {/* 头像列 */}
+            <div className="flex flex-col items-center w-12 min-w-[48px]">
+                <Avatar className="h-9 w-9 shadow-md border-2 border-white sticky bottom-2">
+                    <AvatarImage src={avatar} alt={name} />
+                    <AvatarFallback className="text-xs font-semibold bg-gradient-to-br from-blue-400 to-purple-500 text-white">
+                        {name[0] || '?'}
+                    </AvatarFallback>
+                </Avatar>
+            </div>
+
+            {/* 消息内容列 */}
+            <div className="flex-1 min-w-0">
+                {/* 昵称 - 使用彩色显示 */}
+                <div
+                    className="inline-block px-3 py-1 mb-1 rounded-lg text-xs font-bold backdrop-blur-sm sticky top-0 z-10"
+                    style={{
+                        color: userColor,
+                        backgroundColor: 'rgba(255, 255, 255, 0.8)'
+                    }}
+                >
+                    {name}
                 </div>
-                <div className="bg-slate-100 border border-slate-200 shadow-sm rounded-2xl px-4 py-3 text-sm leading-relaxed whitespace-pre-wrap break-words">
+
+                {/* 消息气泡 */}
+                <div className="relative bg-white/40 backdrop-blur-sm border border-slate-200/60 shadow-sm rounded-tr-2xl rounded-b-2xl px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap break-words max-w-[calc(100vw-120px)]">
                     {renderMessageContent(msg.message || [])}
+
+                    {/* 时间显示在气泡右下角 */}
+                    {timeStr && (
+                        <div className="mt-1 text-right text-xs text-slate-400">
+                            {timeStr}
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
