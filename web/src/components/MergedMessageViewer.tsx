@@ -22,6 +22,26 @@ interface MergedMessageViewerProps {
     uuid: string;
 }
 
+// 根据用户ID生成一致的颜色
+function getUserColor(userId: string | number): string {
+    const colors = [
+        'bg-blue-500',
+        'bg-purple-500',
+        'bg-pink-500',
+        'bg-rose-500',
+        'bg-orange-500',
+        'bg-amber-500',
+        'bg-lime-500',
+        'bg-emerald-500',
+        'bg-teal-500',
+        'bg-cyan-500',
+        'bg-indigo-500',
+        'bg-violet-500',
+    ];
+    const hash = String(userId).split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
+    return colors[hash % colors.length];
+}
+
 export function MergedMessageViewer({ uuid }: MergedMessageViewerProps) {
     const [messages, setMessages] = useState<Message[]>([]);
     const [loading, setLoading] = useState(true);
@@ -43,19 +63,19 @@ export function MergedMessageViewer({ uuid }: MergedMessageViewerProps) {
             });
     }, [uuid]);
 
-    if (loading) return <div className="p-4 text-center">Loading...</div>;
-    if (error) return <div className="p-4 text-center text-red-500">Error: {error}</div>;
+    if (loading) return <div className="p-4 text-center text-slate-600">加载中...</div>;
+    if (error) return <div className="p-4 text-center text-red-500">错误: {error}</div>;
 
     return (
-        <div className="w-full min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex justify-center py-2 px-2">
+        <div className="w-full min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex justify-center py-6 px-3">
             <div className="w-full max-w-4xl">
-                <Card className="shadow-lg border-slate-200/50 bg-white/90 backdrop-blur-md">
+                <Card className="shadow-lg border-slate-200/60 bg-white/90 backdrop-blur-sm">
                     <CardHeader className="pb-3 border-b border-slate-100">
-                        <CardTitle className="text-xl font-bold text-slate-700">聊天记录</CardTitle>
+                        <CardTitle className="text-xl font-bold text-slate-800">聊天记录</CardTitle>
                     </CardHeader>
-                    <CardContent className="pt-2 px-3">
-                        <ScrollArea className="h-[88vh] pr-1">
-                            <div className="space-y-1">
+                    <CardContent className="pt-4">
+                        <ScrollArea className="h-[82vh] pr-3">
+                            <div className="space-y-4">
                                 {messages.map((msg, idx) => (
                                     <MessageBubble key={idx} msg={msg} idx={idx} />
                                 ))}
@@ -68,68 +88,58 @@ export function MergedMessageViewer({ uuid }: MergedMessageViewerProps) {
     );
 }
 
-// 根据用户ID生成一致的颜色
-function getUserColor(id: string | number): string {
-    const colors = [
-        '#FF516A',
-        '#FFA85C',
-        '#D669ED',
-        '#54CB68',
-        '#28C9B7',
-        '#2A9EF1',
-        '#FF719A'
-    ];
-
-    // 简单的哈希函数
-    const hash = typeof id === 'string'
-        ? id.split('').reduce((acc, char) => acc + char.charCodeAt(0), 0)
-        : id;
-
-    return colors[Math.abs(Number(hash)) % 7];
-}
-
 function MessageBubble({ msg, idx }: { msg: Message; idx: number }) {
-    const senderId = msg.user_id ?? msg.sender_id ?? msg.sender?.id ?? `#${idx}`;
-    const name = msg.nickname || msg.card || msg.sender?.name || `Unknown`;
-    const avatar = msg.avatar || (senderId ? `/api/avatar/qq/${senderId}` : undefined);
-    const timeStr = msg.time ? new Date(msg.time * 1000).toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' }) : '';
+    const senderId = msg.user_id ?? msg.sender_id ?? msg.sender?.id ?? `user${idx}`;
+    const name = msg.nickname || msg.card || msg.sender?.name || `未知用户`;
+    const avatar = msg.avatar || (senderId && senderId !== `user${idx}` ? `/api/avatar/qq/${senderId}` : undefined);
+    const timeStr = msg.time ? new Date(msg.time * 1000).toLocaleString('zh-CN', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false
+    }) : '';
     const userColor = getUserColor(senderId);
 
     return (
-        <div className="flex gap-2 my-2">
-            {/* 头像列 */}
-            <div className="flex flex-col items-center w-12 min-w-[48px]">
-                <Avatar className="h-9 w-9 shadow-md border-2 border-white sticky bottom-2">
-                    <AvatarImage src={avatar} alt={name} />
-                    <AvatarFallback className="text-xs font-semibold bg-gradient-to-br from-blue-400 to-purple-500 text-white">
-                        {name[0] || '?'}
-                    </AvatarFallback>
-                </Avatar>
-            </div>
-
-            {/* 消息内容列 */}
-            <div className="flex-1 min-w-0">
-                {/* 昵称 - 使用彩色显示 */}
-                <div
-                    className="inline-block px-3 py-1 mb-1 rounded-lg text-xs font-bold backdrop-blur-sm sticky top-0 z-10"
-                    style={{
-                        color: userColor,
-                        backgroundColor: 'rgba(255, 255, 255, 0.8)'
+        <div className="flex items-start gap-3 group">
+            {/* 头像 */}
+            <Avatar className="h-11 w-11 shadow-md border-2 border-white ring-1 ring-slate-200 flex-shrink-0">
+                <AvatarImage
+                    src={avatar}
+                    alt={name}
+                    referrerPolicy="no-referrer"
+                    onError={(e) => {
+                        // 头像加载失败时使用 fallback
+                        e.currentTarget.style.display = 'none';
                     }}
-                >
-                    {name}
+                />
+                <AvatarFallback className={`${userColor} text-white font-semibold text-sm`}>
+                    {name[0] || '?'}
+                </AvatarFallback>
+            </Avatar>
+
+            {/* 消息内容区域 */}
+            <div className="flex-1 min-w-0">
+                {/* 用户信息栏 */}
+                <div className="flex items-baseline gap-2 mb-1.5 flex-wrap">
+                    <span className={`inline-block px-2 py-0.5 rounded text-xs font-semibold text-white ${userColor} shadow-sm`}>
+                        {name}
+                    </span>
+                    {timeStr && (
+                        <span className="text-xs text-slate-400 font-medium">
+                            {timeStr}
+                        </span>
+                    )}
                 </div>
 
                 {/* 消息气泡 */}
-                <div className="relative bg-white/40 backdrop-blur-sm border border-slate-200/60 shadow-sm rounded-tr-2xl rounded-b-2xl px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap break-words max-w-[calc(100vw-120px)]">
-                    {renderMessageContent(msg.message || [])}
-
-                    {/* 时间显示在气泡右下角 */}
-                    {timeStr && (
-                        <div className="mt-1 text-right text-xs text-slate-400">
-                            {timeStr}
-                        </div>
-                    )}
+                <div className="relative">
+                    <div className="bg-white border border-slate-200/80 shadow-sm rounded-2xl rounded-tl-sm px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap break-words transition-all duration-200 hover:shadow-md hover:border-slate-300/80">
+                        {renderMessageContent(msg.message || [])}
+                    </div>
                 </div>
             </div>
         </div>

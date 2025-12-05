@@ -24,10 +24,11 @@ else if (env.UI_PATH) {
       return fs.createReadStream(path.join(env.UI_PATH, 'assets', asset));
     });
   }
+  // @ts-expect-error - Elysia type inference limitation with dynamic route building
   app = app.get('/ui/*', ({ set }) => {
     set.headers['content-type'] = 'text/html';
     return fs.createReadStream(path.join(env.UI_PATH, 'index.html'));
   });
 }
 
-export default app as unknown as Elysia;
+export default app;

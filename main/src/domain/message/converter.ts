@@ -413,7 +413,7 @@ export class MessageConverter {
         }
 
         // 回退到内部 HTTP 服务
-        const tempDir = path.join(process.cwd(), 'data', 'temp');
+        const tempDir = path.join(env.DATA_DIR, 'temp');
         await fs.mkdir(tempDir, { recursive: true });
         const name = filename || `${type}-${Date.now()}-${Math.random().toString(16).slice(2)}${ext}`;
         const filePath = path.join(tempDir, name);

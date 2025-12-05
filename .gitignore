@@ -691,6 +691,10 @@ dist
 .yarn/install-state.gz
 .pnp.*
 
+# pnpm
+# pnpm-lock.yaml  # 建议提交此文件以确保依赖版本一致
+.pnpm-store/
+
 ### KDevelop4 template
 *.kdev4
 .kdev4/
@@ -756,3 +760,32 @@ scripts/
 compose.yaml
 docs/mtcute_refactor_log.md
 docs/ROADMAP_MTCUTE.md
+cloudflare/
+Dockerfile.edge
+compose.dev.yaml
+compose.test.yaml
+compose.edge.yaml
+compose.dev.yaml.bak
+compose.example.yaml
+
+# Strict Ignores for NapGram
+main/data/
+main/build/
+main/dist/
+main/.env
+main/.env.*
+!main/.env.example
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+.DS_Store
+Thumbs.db
+node_modules/
+.idea/
+.vscode/
+*.tsbuildinfo
+coverage/
+temp/
+tmp/
+.pnpm-store/

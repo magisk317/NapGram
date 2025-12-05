@@ -30,6 +30,23 @@ const consoleLevel = normalizeLevel(env.LOG_LEVEL);
 const fileLevel = normalizeLevel(env.LOG_FILE_LEVEL);
 const consoleThreshold = levelId[consoleLevel];
 const fileThreshold = levelId[fileLevel];
+const tz = process.env.TZ || 'Asia/Shanghai';
+const timeFormatter = new Intl.DateTimeFormat('sv-SE', {
+  timeZone: tz,
+  hour12: false,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+  hour: '2-digit',
+  minute: '2-digit',
+  second: '2-digit',
+});
+const dateFormatter = new Intl.DateTimeFormat('sv-SE', {
+  timeZone: tz,
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit',
+});
 
 const logDir = path.dirname(env.LOG_FILE);
 if (!fs.existsSync(logDir)) {
@@ -37,16 +54,15 @@ if (!fs.existsSync(logDir)) {
 }
 
 const buildDatedFile = (dateStr: string) => {
-  const { dir, name, ext } = path.parse(env.LOG_FILE);
-  const filename = ext ? `${name}${ext}.${dateStr}` : `${name}.${dateStr}`;
-  return path.join(dir, filename);
+  // Always name file as YYYY-MM-DD.1.log
+  return path.join(logDir, `${dateStr}.1.log`);
 };
 
-let currentDate = new Date().toISOString().slice(0, 10);
+let currentDate = dateFormatter.format(new Date());
 let fileStream = fs.createWriteStream(buildDatedFile(currentDate), { flags: 'a' });
 
 const rotateIfNeeded = () => {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = dateFormatter.format(new Date());
   if (today === currentDate) return;
   fileStream.end();
   currentDate = today;
@@ -70,7 +86,7 @@ const resetColor = '\x1b[0m';
 const logToConsole = (logger: string, level: LogLevel, args: unknown[]) => {
   const id = levelId[level];
   if (id < consoleThreshold || consoleThreshold >= levelId.off) return;
-  const time = new Date().toISOString();
+  const time = timeFormatter.format(new Date()).replace(' ', 'T');
   const color = levelColor[level] || '';
   const formattedArgs = formatArgs(args, true);
   console.log(`${color}[${time}] ${level.toUpperCase()} ${logger}:${resetColor}`, ...formattedArgs);
@@ -80,7 +96,7 @@ const logToFile = (logger: string, level: LogLevel, args: unknown[]) => {
   if (fileThreshold >= levelId.off || levelId[level] < fileThreshold) return;
   rotateIfNeeded();
   const payload = {
-    time: new Date().toISOString(),
+    time: timeFormatter.format(new Date()).replace(' ', 'T'),
     level,
     logger,
     messages: formatArgs(args, false),

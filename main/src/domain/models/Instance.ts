@@ -63,7 +63,7 @@ export default class Instance {
       this.log.debug('正在登录 TG Bot');
       const token = botToken ?? env.TG_BOT_TOKEN;
       if (this.botSessionId) {
-        this.tgBot = await Telegram.connect(this._botSessionId);
+        this.tgBot = await Telegram.connect(this._botSessionId, 'NapGram', token);
       }
       else {
         if (!token) {

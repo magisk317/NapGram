@@ -1,4 +1,4 @@
-import { getLogger } from '../shared/logger';
+import { getLogger } from '../shared/utils/logger';
 import Instance from '../domain/models/Instance';
 import db from '../domain/models/db';
 import api from '../interfaces/api';
@@ -8,12 +8,12 @@ import posthog from '../domain/models/posthog';
   const log = getLogger('Main');
 
   process.on('unhandledRejection', error => {
-    log.error('UnhandledRejection: ', error);
+    log.error(error, 'UnhandledRejection: ');
     posthog.capture('UnhandledRejection', { error });
   });
 
   process.on('uncaughtException', error => {
-    log.error('UncaughtException: ', error);
+    log.error(error, 'UncaughtException: ');
     posthog.capture('UncaughtException', { error });
   });
 

@@ -8,6 +8,8 @@ export interface ForwardPairRecord {
   flags: number;
   instanceId: number;
   apiKey: string;
+  ignoreRegex?: string | null;
+  ignoreSenders?: string | null;
 }
 
 /**
@@ -30,7 +32,7 @@ export class ForwardMap {
   static async load(instanceId: number) {
     const rows = await db.forwardPair.findMany({
       where: { instanceId },
-      select: { id: true, qqRoomId: true, tgChatId: true, tgThreadId: true, flags: true, instanceId: true, apiKey: true },
+      select: { id: true, qqRoomId: true, tgChatId: true, tgThreadId: true, flags: true, instanceId: true, apiKey: true, ignoreRegex: true },
     });
     return new ForwardMap(rows as ForwardPairRecord[], instanceId);
   }
@@ -76,7 +78,7 @@ export class ForwardMap {
           tgChatId: BigInt(tgChatId),
           tgThreadId: normalizedThreadId,
         },
-        select: { id: true, qqRoomId: true, tgChatId: true, tgThreadId: true, flags: true, instanceId: true, apiKey: true },
+        select: { id: true, qqRoomId: true, tgChatId: true, tgThreadId: true, flags: true, instanceId: true, apiKey: true, ignoreRegex: true, ignoreSenders: true },
       });
       const rec = updated as ForwardPairRecord;
       this.refreshMaps(existingByQQ, rec);
@@ -90,7 +92,7 @@ export class ForwardMap {
         tgThreadId: normalizedThreadId,
         instanceId: this.instanceId,
       },
-      select: { id: true, qqRoomId: true, tgChatId: true, tgThreadId: true, flags: true, instanceId: true, apiKey: true },
+      select: { id: true, qqRoomId: true, tgChatId: true, tgThreadId: true, flags: true, instanceId: true, apiKey: true, ignoreRegex: true, ignoreSenders: true },
     });
     const rec = row as ForwardPairRecord;
     this.byQQ.set(rec.qqRoomId.toString(), rec);

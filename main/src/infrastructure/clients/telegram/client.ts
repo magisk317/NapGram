@@ -1,10 +1,12 @@
-import { TelegramClient } from '@mtcute/node';
+import { TelegramClient, HttpProxyTcpTransport } from '@mtcute/node';
 import { Dispatcher } from '@mtcute/dispatcher';
 import { User, Message, InputPeerLike } from '@mtcute/core';
 import TelegramSession from '../../../domain/models/TelegramSession';
 import env from '../../../domain/models/env';
 import { getLogger } from '../../../shared/logger';
 import os from 'os';
+import fs from 'fs';
+import path from 'path';
 
 // Define types for handlers
 type MessageHandler = (message: Message) => Promise<boolean | void>;
@@ -27,11 +29,28 @@ export default class Telegram {
     return this.me !== undefined;
   }
 
-  private constructor(private session: TelegramSession, appName: string) {
+  private constructor(private session: TelegramSession, appName: string, storage?: any) {
+    const dataDir = env.DATA_DIR || '/app/data';
+    if (!fs.existsSync(dataDir)) {
+      fs.mkdirSync(dataDir, { recursive: true });
+    }
+    const defaultStorage = path.join(dataDir, 'session.db');
+    const finalStorage = storage || defaultStorage;
+    const proxyTransport =
+      env.PROXY_IP && env.PROXY_PORT
+        ? new HttpProxyTcpTransport({
+          host: env.PROXY_IP,
+          port: env.PROXY_PORT,
+          user: env.PROXY_USERNAME,
+          password: env.PROXY_PASSWORD,
+        })
+        : undefined;
+
     this.client = new TelegramClient({
       apiId: Number(env.TG_API_ID),
       apiHash: env.TG_API_HASH,
-      storage: session.sessionString,
+      storage: finalStorage,
+      ...(proxyTransport ? { transport: proxyTransport } : {}),
       // deviceModel: `${appName} On ${os.hostname()}`,
       // appVersion: 'sleepyfox',
       // langCode: 'zh',
@@ -44,18 +63,33 @@ export default class Telegram {
     this.dispatcher = Dispatcher.for(this.client);
   }
 
-  public static async create(startArgs: any, appName = 'Q2TG') {
+  public static async create(startArgs: any, appName = 'NapGram') {
     const session = new TelegramSession();
     await session.load();
 
+    // Use specific storage path for new sessions to avoid permission issues
     const bot = new this(session, appName);
 
-    await bot.client.start({
-      phone: startArgs.phoneNumber,
-      code: startArgs.phoneCode,
-      password: startArgs.password,
-      botToken: startArgs.botToken,
-    });
+    // If we already have a stored session string, import it into sqlite storage
+    if (session.sessionString) {
+      await bot.client.importSession(session.sessionString, true);
+    }
+
+    const botToken = startArgs.botToken ?? startArgs.botAuthToken ?? env.TG_BOT_TOKEN;
+    bot.logger.info('开始登录 TG Bot');
+    try {
+      await bot.client.start({
+        phone: startArgs.phoneNumber,
+        code: startArgs.phoneCode,
+        password: startArgs.password,
+        botToken,
+      });
+      bot.logger.info('TG Bot 登录成功');
+    }
+    catch (err) {
+      bot.logger.error('TG Bot 登录失败', err);
+      throw err;
+    }
 
     const sessionStr = await bot.client.exportSession();
     await session.save(sessionStr);
@@ -65,7 +99,7 @@ export default class Telegram {
     return bot;
   }
 
-  public static async connect(sessionId: number, appName = 'Q2TG') {
+  public static async connect(sessionId: number, appName = 'NapGram', botToken?: string) {
     if (this.existedBots[sessionId]) {
       return this.existedBots[sessionId];
     }
@@ -75,7 +109,22 @@ export default class Telegram {
     const bot = new this(session, appName);
     Telegram.existedBots[sessionId] = bot;
 
-    await bot.client.start();
+    if (session.sessionString) {
+      await bot.client.importSession(session.sessionString, true);
+    }
+
+    // 当数据库里没有有效 session 时，用 botToken 重新登录
+    const effectiveBotToken = botToken ?? env.TG_BOT_TOKEN;
+    try {
+      bot.logger.info('开始登录 TG Bot（已有 session）');
+      await bot.client.start({ botToken: effectiveBotToken });
+      bot.logger.info('TG Bot 登录成功');
+      const sessionStr = await bot.client.exportSession();
+      await session.save(sessionStr);
+    } catch (err) {
+      bot.logger.error('TG Bot 登录失败', err);
+      throw err;
+    }
     await bot.config();
     return bot;
   }

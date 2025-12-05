@@ -61,8 +61,8 @@ export class NapCatAdapter extends EventEmitter implements IQQClient {
         });
 
         this.ws.on('error', (error) => {
-            // logger.error('NapCat WebSocket error:', error); // ReconnectingWebSocket already logs this
-            this.emit('error', new Error('WebSocket error'));
+            logger.error('NapCat WebSocket error:', error);
+            // avoid throwing unhandled error; reconnecting websocket will retry
         });
     }
 

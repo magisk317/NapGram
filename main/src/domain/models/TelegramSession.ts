@@ -45,7 +45,8 @@ export default class TelegramSession {
       // mtcute session strings usually start with a DC ID and some alphanumeric chars.
       // GramJS authKey is raw bytes.
       // We'll assume if it looks like a string, it is. Otherwise ignore (force re-login).
-      if (str.match(/^[a-zA-Z0-9+/=]+$/) || str.includes(':')) {
+      // Allow base64/base64url chars or colon-delimited strings
+      if (str.match(/^[a-zA-Z0-9+/=_-]+$/) || str.includes(':')) {
         this._sessionString = str;
       } else {
         this.log.warn('Existing authKey does not look like a valid session string. Ignoring.');

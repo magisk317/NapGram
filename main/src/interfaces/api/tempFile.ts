@@ -1,8 +1,9 @@
 import { Elysia } from 'elysia';
 import path from 'path';
 import fs from 'fs';
+import env from '../../domain/models/env';
 
-const tempDir = path.join(process.cwd(), 'data', 'temp');
+const tempDir = path.join(env.DATA_DIR, 'temp');
 
 if (!fs.existsSync(tempDir)) {
     fs.mkdirSync(tempDir, { recursive: true });

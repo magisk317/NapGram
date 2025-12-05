@@ -7,7 +7,7 @@ const forwardCache = new Map<string, any>();
 
 let app = new Elysia()
   .post('/Q2tgServlet/GetForwardMultipleMessageApi', async ({ body }) => {
-    // @ts-ignore
+    // @ts-ignore 
     const uuid = body.uuid;
     if (!forwardCache.has(uuid)) {
       const data = await db.forwardMultiple.findFirst({

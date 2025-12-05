@@ -19,6 +19,8 @@ import { promisify } from 'util';
 import { execFile } from 'child_process';
 import { fileTypeFromBuffer } from 'file-type';
 
+import { TelegramSender } from './senders/TelegramSender';
+
 const logger = getLogger('ForwardFeature');
 const execFileAsync = promisify(execFile);
 
@@ -27,6 +29,7 @@ const execFileAsync = promisify(execFile);
  */
 export class ForwardFeature {
     private forwardMap: ForwardMap;
+    private telegramSender: TelegramSender;
 
     constructor(
         private readonly instance: Instance,
@@ -41,6 +44,7 @@ export class ForwardFeature {
             throw new Error('Forward map is not initialized for NapCat pipeline.');
         }
         this.forwardMap = pairs as ForwardMap;
+        this.telegramSender = new TelegramSender(instance, media);
         this.setupListeners();
         logger.info('ForwardFeature initialized');
 
@@ -79,6 +83,37 @@ export class ForwardFeature {
                 return;
             }
 
+            // Sender Blocklist Filter
+            if (pair.ignoreSenders) {
+                const senders = pair.ignoreSenders.split(',').map(s => s.trim());
+                // Check if current sender is in the blocklist
+                // Provide fallback for msg.sender.id (though it should exist)
+                const senderId = String(msg.sender?.id || '');
+                if (senders.includes(senderId)) {
+                    logger.info(`Ignored QQ message ${msg.id} from sender ${senderId} (in blocklist)`);
+                    return;
+                }
+            }
+
+            // Regex Deduplication Filter
+            if (pair.ignoreRegex) {
+                try {
+                    const regex = new RegExp(pair.ignoreRegex);
+                    // Extract text content for matching
+                    const textContent = msg.content
+                        .filter(c => c.type === 'text')
+                        .map(c => (c.data as any).text || '')
+                        .join('');
+
+                    if (regex.test(textContent)) {
+                        logger.info(`Ignored QQ message ${msg.id} matched regex: ${pair.ignoreRegex}`);
+                        return;
+                    }
+                } catch (e) {
+                    logger.warn(`Invalid ignoreRegex for pair ${pair.id}: ${pair.ignoreRegex}`, e);
+                }
+            }
+
             const tgChatId = Number(pair.tgChatId);
             const chat = await this.instance.tgBot.getChat(tgChatId);
 
@@ -90,7 +125,7 @@ export class ForwardFeature {
                 replyToMsgId = await this.findTgMsgId(pair.instanceId, pair.qqRoomId, qqMsgId);
             }
 
-            const sentMsg = await this.sendToTelegram(chat, msg, pair, replyToMsgId);
+            const sentMsg = await this.telegramSender.sendToTelegram(chat, msg, pair, replyToMsgId, this.nicknameMode);
 
             if (sentMsg) {
                 await this.saveMessage(msg, sentMsg, pair.instanceId, pair.qqRoomId, BigInt(tgChatId));
@@ -473,318 +508,7 @@ export class ForwardFeature {
         return file;
     }
 
-    private async sendToTelegram(chat: any, msg: UnifiedMessage, pair?: any, replyToMsgId?: number) {
-        logger.debug(`Forwarding message to TG (sendToTelegram):\n${JSON.stringify(msg, null, 2)}`);
-        // 使用 RichHeader 展示头像/昵称，同时保留文字昵称兜底（仅文本消息）
-        const showQQToTGNickname = this.nicknameMode[0] === '1';
-        let header = showQQToTGNickname ? `${msg.sender.name}:\n` : '';
-        let textParts: string[] = [];
 
-        // Avatar / Rich Header Logic
-        let richHeaderUsed = false;
-        let webPagePreview: any = undefined;
-
-        const disableFlag = pair ? ((pair.flags | this.instance.flags) & flags.DISABLE_RICH_HEADER) : 0;
-        const useRichHeader = pair && env.WEB_ENDPOINT && !disableFlag && showQQToTGNickname;
-        let richHeaderUrl: string | undefined = undefined;
-        if (useRichHeader) {
-            richHeaderUrl = this.generateRichHeaderUrl(pair.apiKey, msg.sender.id, showQQToTGNickname ? (msg.sender.name || '') : ' ');
-            richHeaderUsed = true;
-        }
-
-        // 如果有 threadId 且没有指定 replyToMsgId，使用 threadId 作为 replyTo
-        // 这样消息会发送到指定的话题
-        const effectiveReplyTo = replyToMsgId || pair?.tgThreadId;
-        const replyTo = this.buildReplyTo(pair, effectiveReplyTo);
-
-        let lastSent: any = null;
-        for (const content of msg.content) {
-            switch (content.type) {
-                case 'reply':
-                    if (!replyToMsgId) {
-                        textParts.push(this.renderContent(content));
-                    }
-                    break;
-                case 'text':
-                case 'at':
-                case 'face':
-                    if (content.type === 'text' && content.data.text) {
-                        const text = content.data.text.trim();
-                        if (text === '[图片]' || text === '[视频]' || text === '[语音]') {
-                            break;
-                        }
-                    }
-                    textParts.push(this.renderContent(content));
-                    break;
-                case 'forward':
-                    // Send pending text parts first
-                    if (textParts.length > 0) {
-                        const messageText = (header + textParts.join(' ')).replace(/\\n/g, '\n');
-                        await chat.sendMessage(messageText, {
-                            linkPreview: richHeaderUsed ? {} : { disable: true },
-                            replyTo,
-                        });
-                        textParts = [];
-                        richHeaderUsed = false; // Reset header usage
-                        header = ''; // Clear header for subsequent messages
-                    }
-                    lastSent = await this.sendForwardToTG(chat, content, pair, replyToMsgId, header, richHeaderUsed, webPagePreview) || lastSent;
-                    break;
-                case 'image':
-                case 'video':
-                case 'audio':
-                case 'file':
-                    // 媒体消息也使用 Rich Header（如果启用）
-                    // 发送前先清空 textParts，避免重复发送
-                    if (textParts.length > 0) {
-                        const messageText = (header + textParts.join(' ')).replace(/\\n/g, '\n');
-                        await chat.sendMessage(messageText, {
-                            linkPreview: richHeaderUsed ? {} : { disable: true },
-                            replyTo,
-                        });
-                        textParts = [];
-                    }
-                    // 媒体消息使用 header（昵称）和 richHeader（头像）
-                    lastSent = await this.sendMediaToTG(chat, header, content, replyToMsgId, pair, richHeaderUsed, webPagePreview, richHeaderUrl) || lastSent;
-                    // 重置 header 和 richHeader，避免后续消息重复使用
-                    richHeaderUsed = false;
-                    header = '';
-                    break;
-                default:
-                    textParts.push(this.renderContent(content));
-                    break;
-            }
-        }
-
-        if (textParts.length > 0) {
-            let finalMessageText = textParts.join(' ').replace(/\\n/g, '\n');
-            if (!richHeaderUsed) {
-                finalMessageText = header + finalMessageText;
-            }
-
-            const params: any = {
-                linkPreview: richHeaderUsed ? {} : { disable: true },
-            };
-            if (replyTo) params.replyTo = replyTo;
-
-            try {
-                // If richHeaderUsed, we might need to inject the URL into the text to trigger preview
-                if (richHeaderUsed && richHeaderUrl) {
-                    finalMessageText = `<a href="${richHeaderUrl}">\u200b</a>` + finalMessageText;
-                    params.linkPreview = {}; // Enable preview
-                }
-
-                lastSent = await chat.sendMessage(finalMessageText, params);
-                return lastSent;
-            } catch (e: any) {
-                // Handle errors
-                throw e;
-            }
-        }
-        return lastSent;
-    }
-
-    private async sendMediaToTG(chat: any, header: string, content: MessageContent, replyToMsgId?: number, pair?: any, richHeaderUsed?: boolean, webPagePreview?: any, richHeaderUrl?: string) {
-        const mediaHelper = this.media;
-        let fileSrc: any;
-
-        try {
-            if (content.type === 'image' && mediaHelper) {
-                fileSrc = await mediaHelper.processImage(content as ImageContent);
-
-                // 如果是本地路径，读取为 Buffer 以便检测类型和重命名
-                if (typeof fileSrc === 'string' && fileSrc.startsWith('/')) {
-                    try {
-                        fileSrc = await fs.promises.readFile(fileSrc);
-                    } catch (e) {
-                        logger.warn('Failed to read local image file, keeping as path:', e);
-                    }
-                }
-
-                if (Buffer.isBuffer(fileSrc)) {
-                    const type = await fileTypeFromBuffer(fileSrc);
-                    const ext = type?.ext || 'jpg';
-                    logger.debug(`Detected image type: ${ext}, mime: ${type?.mime}`);
-                    // mtcute handles buffers directly, but we might want to name it
-                    fileSrc = { fileName: `image.${ext}`, data: fileSrc };
-                }
-            } else if (content.type === 'video' && mediaHelper) {
-                fileSrc = await mediaHelper.processVideo(content as VideoContent);
-                if (Buffer.isBuffer(fileSrc)) {
-                    fileSrc = { fileName: 'video.mp4', data: fileSrc };
-                }
-            } else if (content.type === 'audio' && mediaHelper) {
-                fileSrc = await mediaHelper.processAudio(content as AudioContent);
-            } else if (content.type === 'file' && mediaHelper) {
-                const file = content as FileContent;
-                if (file.data.file) {
-                    fileSrc = file.data.file;
-                } else if (file.data.url) {
-                    fileSrc = await mediaHelper.downloadMedia(file.data.url);
-                }
-            } else {
-                fileSrc = (content as any).data?.file || (content as any).data?.url;
-            }
-        } catch (err) {
-            logger.warn('Failed to process media, fallback to placeholder:', err);
-        }
-
-        let caption = header ? header.replace(/\\n/g, '\n') : undefined;
-        if (richHeaderUsed && richHeaderUrl) {
-            const escapedHeader = header ? header.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;") : '';
-            caption = `<a href="${richHeaderUrl}">\u200b</a>${escapedHeader}`;
-        }
-
-        const replyTo = this.buildReplyTo(pair, replyToMsgId);
-        const commonParams = {
-            caption,
-            replyTo,
-        };
-
-        try {
-            if (content.type === 'image') {
-                return await chat.client.sendPhoto(chat.id, fileSrc, commonParams);
-            } else if (content.type === 'video') {
-                return await chat.client.sendVideo(chat.id, fileSrc, commonParams);
-            } else if (content.type === 'audio') {
-                return await chat.client.sendAudio(chat.id, fileSrc, commonParams);
-            } else if (content.type === 'file') {
-                return await chat.client.sendDocument(chat.id, fileSrc, commonParams);
-            }
-        } catch (e) {
-            logger.error('Failed to send media to TG:', e);
-        }
-        return null;
-    }
-
-    /**
-     * 预处理音频源：优先本地 wav，检查文件完整性，必要时回退到 URL 重新下载。
-     */
-    private async prepareAudioSource(audioContent: AudioContent, processedFile?: Buffer | string) {
-        // 1) 已有可用的 fileSrc（可能是 Buffer 或路径）
-        let source: Buffer | string | undefined = processedFile;
-
-        // 2) 原始 file 字段（本地路径）
-        if (!source && typeof audioContent.data.file === 'string') {
-            let candidate = audioContent.data.file;
-            // 优先同名 .wav，存在则直接使用，不再走 URL 下载
-            if (candidate.endsWith('.amr')) {
-                const wavPath = `${candidate}.wav`;
-                try {
-                    await fs.promises.access(wavPath);
-                    candidate = wavPath;
-                } catch {
-                    // ignore
-                }
-            }
-            // 等待文件写入稳定再读取
-            if (await this.waitFileStable(candidate)) {
-                source = candidate;
-            }
-        }
-
-        // 3) 如果还没有，尝试下载 url
-        if (!source && audioContent.data.url && this.media) {
-            const buf = await this.media.downloadMedia(audioContent.data.url);
-            const tempPath = await this.ensureFilePath(buf, '.amr', true);
-            source = tempPath || buf;
-        }
-
-        // 4) 如果是 Buffer 或路径，检测实际格式；如检测不到且存在 url，重新下载
-        if (source) {
-            let buffer: Buffer | undefined;
-            if (Buffer.isBuffer(source)) {
-                buffer = source;
-            } else {
-                try {
-                    buffer = await fs.promises.readFile(source);
-                } catch {
-                    buffer = undefined;
-                }
-            }
-            if (buffer) {
-                const ft = await fileTypeFromBuffer(buffer);
-                if (!ft && audioContent.data.url && this.media) {
-                    // 可能是占位/损坏，重新下载 url
-                    const buf = await this.media.downloadMedia(audioContent.data.url);
-                    const tempPath = await this.ensureFilePath(buf, '.amr', true);
-                    source = tempPath || buf;
-                }
-            }
-        }
-
-        // 5) 最后兜底：ensureBufferOrPath 强制下载
-        if (!source) {
-            source = await this.ensureBufferOrPath(audioContent, true);
-        }
-        return source;
-    }
-
-    /**
-     * 等待文件写入稳定（大小两次一致且非零）
-     */
-    private async waitFileStable(filePath: string, attempts = 3, intervalMs = 150) {
-        if (!filePath) return false;
-        let lastSize = -1;
-        for (let i = 0; i < attempts; i++) {
-            try {
-                const stat = await fs.promises.stat(filePath);
-                if (stat.size > 0 && stat.size === lastSize) {
-                    return true;
-                }
-                lastSize = stat.size;
-            } catch {
-                // ignore
-            }
-            await new Promise(r => setTimeout(r, intervalMs));
-        }
-        // 最后再试一次直接 access
-        try {
-            await fs.promises.access(filePath);
-            return true;
-        } catch {
-            return false;
-        }
-    }
-
-    private async sendForwardToTG(chat: any, content: MessageContent, pair: any, replyToMsgId?: number, header: string = '', richHeaderUsed?: boolean, webPagePreview?: any) {
-        if (content.type !== 'forward' || !content.data.id) {
-            return await chat.sendMessage(this.renderContent(content).replace(/\\n/g, '\n'), {
-                replyTo: this.buildReplyTo(pair, replyToMsgId || pair?.tgThreadId),
-            });
-        }
-
-        try {
-            const entry = await db.forwardMultiple.create({
-                data: {
-                    resId: String(content.data.id),
-                    fileName: 'Forwarded Message',
-                    fromPairId: pair.id,
-                }
-            });
-
-            const baseUrl = env.WEB_ENDPOINT || 'https://q2tg.usdt.edu.kg';
-            const webAppUrl = `${baseUrl}/ui/chatRecord?tgWebAppStartParam=${entry.id}&uuid=${entry.id}`;
-
-            const messageText = richHeaderUsed ? '[转发消息]' : `${header}[转发消息]`;
-
-            // mtcute buttons
-            const buttons = [
-                [{ text: '查看合并转发', url: webAppUrl }]
-            ];
-
-            return await chat.sendMessage(messageText, {
-                replyMarkup: { inline: buttons },
-                replyTo: this.buildReplyTo(pair, replyToMsgId || pair?.tgThreadId),
-                linkPreview: richHeaderUsed ? {} : { disable: true },
-            });
-        } catch (e) {
-            logger.error('Failed to send forward message:', e);
-            return await chat.sendMessage(this.renderContent(content).replace(/\\n/g, '\n'), {
-                replyTo: this.buildReplyTo(pair, replyToMsgId || pair?.tgThreadId),
-            });
-        }
-    }
 
     private renderContent(content: MessageContent): string {
         switch (content.type) {
@@ -815,13 +539,7 @@ export class ForwardFeature {
         }
     }
 
-    private buildReplyTo(pair?: any, replyToMsgId?: number) {
-        const topId = pair?.tgThreadId;
-        const replyId = replyToMsgId || topId;
-        if (!replyId) return undefined;
-        // 对于论坛话题，replyTo 填顶帖 ID 即可进入话题
-        return replyId;
-    }
+
 
     destroy() {
         this.qqClient.removeListener('message', this.handleQQMessage);
@@ -933,91 +651,7 @@ export class ForwardFeature {
         return msg;
     }
 
-    private generateRichHeaderUrl(apiKey: string, userId: string, messageHeader: string) {
-        const url = new URL(`${env.WEB_ENDPOINT}/richHeader/${apiKey}/${userId}`);
-        if (messageHeader) {
-            url.searchParams.set('hash', md5Hex(messageHeader).substring(0, 10));
-        }
-        // Use static version to allow caching but break old 404
-        url.searchParams.set('v', '1');
-        return url.toString();
-    }
 
-    /**
-     * 将 QQ 语音转为 Telegram 兼容的 ogg/opus，失败时返回可发送的原路径。
-     */
-    private async convertAudioToOgg(source: Buffer | string): Promise<{ voicePath?: string; fallbackPath?: string }> {
-        const tempDir = path.join(process.cwd(), 'data', 'temp');
-        await fs.promises.mkdir(tempDir, { recursive: true });
-
-        let inputPath: string;
-        let inputBuffer: Buffer;
-
-        if (typeof source === 'string') {
-            inputPath = source;
-            try {
-                inputBuffer = await fs.promises.readFile(inputPath);
-            } catch (e) {
-                logger.warn(`Failed to read audio file ${inputPath}:`, e);
-                return { fallbackPath: inputPath };
-            }
-        } else {
-            inputBuffer = source;
-            inputPath = path.join(tempDir, `audio-${Date.now()}-${Math.random().toString(16).slice(2)}.amr`);
-            await fs.promises.writeFile(inputPath, source);
-        }
-
-        const outputPath = path.join(tempDir, `audio-${Date.now()}-${Math.random().toString(16).slice(2)}.ogg`);
-
-        // Try SILK decode first (NapCat PTT 常见)
-        try {
-            if (inputBuffer.length >= 10 && inputBuffer.subarray(0, 10).toString('utf8').includes('SILK_V3')) {
-                await silk.decode(inputBuffer, outputPath);
-                return { voicePath: outputPath };
-            }
-        } catch (e) {
-            logger.warn('SILK decode failed (pre-ffmpeg):', e);
-            // Continue to ffmpeg
-        }
-
-        const tryConvert = async (inPath: string) => {
-            await execFileAsync('ffmpeg', [
-                '-y',
-                '-i', inPath,
-                '-c:a', 'libopus',
-                '-b:a', '32k',
-                '-ar', '48000',
-                '-ac', '1',
-                outputPath,
-            ]);
-            return outputPath;
-        };
-
-        try {
-            return { voicePath: await tryConvert(inputPath) };
-        } catch (firstErr) {
-            logger.warn('ffmpeg convert audio failed, try wav fallback or send raw', firstErr);
-            // 如果有同名 .wav，尝试再转一次
-            if (typeof source === 'string') {
-                const wavPath = `${inputPath}.wav`;
-                try {
-                    await fs.promises.access(wavPath);
-                    return { voicePath: await tryConvert(wavPath) };
-                } catch {
-                    // ignore
-                }
-            }
-            // 尝试用 silk 解码原始缓冲区（即便未检测到头也试一次）
-            try {
-                await silk.decode(inputBuffer, outputPath);
-                return { voicePath: outputPath };
-            } catch (silkErr) {
-                logger.warn('Silk decode fallback failed', silkErr);
-            }
-            // 仍失败则返回原路径作为普通音频发送
-            return { fallbackPath: inputPath };
-        }
-    }
 }
 
 export default ForwardFeature;

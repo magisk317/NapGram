@@ -99,6 +99,8 @@ model ForwardPair {
   instanceId      Int               @default(0)
   instance        Instance          @relation(fields: [instanceId], references: [id], onDelete: Cascade)
   flags           Int               @default(0)
+  ignoreRegex     String?           /// 正则表达式，用于忽略匹配该正则的 QQ 消息 (防止循环转发)
+  ignoreSenders   String?           /// 忽略的 QQ 发送者 ID 列表 (逗号分隔)
   apiKey          String            @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   ForwardMultiple ForwardMultiple[]
 
