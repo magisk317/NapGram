@@ -11,6 +11,9 @@ jobs:
   publish:
     name: Publish container image
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
 
     steps:
       - name: Checkout
