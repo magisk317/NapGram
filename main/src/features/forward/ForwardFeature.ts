@@ -241,11 +241,7 @@ export class ForwardFeature {
             await this.prepareMediaForQQ(unified);
 
             // 如果是回复，尝试找到对应的 QQ 消息 ID，构造 QQ 的 reply 段
-            logger.info('[Reply Debug] Checking for TG reply', {
-                msgId: tgMsg.id,
-                hasReplyToMessage: !!tgMsg.replyToMessage,
-                replyToMsgId: tgMsg.replyToMessage?.id
-            });
+
 
             const qqReply = await this.replyResolver.resolveTGReply(
                 tgMsg as any,
@@ -253,13 +249,7 @@ export class ForwardFeature {
                 Number(pair.tgChatId)
             );
 
-            logger.info('[Reply Debug] Reply resolution result', {
-                found: !!qqReply,
-                qqSeq: qqReply?.seq,
-                qqRoomId: qqReply?.qqRoomId?.toString(),
-                senderUin: qqReply?.senderUin,
-                time: qqReply?.time,
-            });
+
 
             const replySegment = qqReply ? [{
                 type: 'reply' as const,
@@ -275,10 +265,7 @@ export class ForwardFeature {
                 }
             }] : [];
 
-            logger.info('[Reply Debug] Reply segment constructed', {
-                hasReply: replySegment.length > 0,
-                replySegment: replySegment.length > 0 ? replySegment[0] : null
-            });
+
 
             // CRITICAL: Remove TG reply segments (contain TG message IDs like 637)
             // We'll add our own QQ reply segment with QQ message ID instead

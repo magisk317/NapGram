@@ -220,8 +220,7 @@ export class NapCatAdapter extends EventEmitter implements IQQClient {
             ? message.content
             : await messageConverter.toNapCat(message);
 
-        // Debug: Log actual segments sent to NapCat
-        logger.debug('[NapCat API] Sending segments:', JSON.stringify(segments, null, 2));
+
 
         try {
             const result = await this.callApi('send_msg', {
