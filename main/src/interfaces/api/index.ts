@@ -8,7 +8,7 @@ import { Elysia } from 'elysia';
 import ui from './ui';
 import qqAvatar from './qqAvatar';
 
-import q2tgServlet from './q2tgServlet';
+import messages from './messages';
 
 const log = getLogger('Web Api');
 let app = new Elysia()
@@ -19,13 +19,13 @@ let app = new Elysia()
     return { message: msg };
   })
   .get('/', () => {
-    return { hello: 'Q2TG' };
+    return { hello: 'NapGram' };
   })
   .use(telegramAvatar)
   .use(qqAvatar) // Register the new endpoint
   .use(richHeader)
   .use(tempFile)
-  .use(q2tgServlet)
+  .use(messages)
   .use(ui);
 
 export default {

@@ -20,6 +20,7 @@ import { execFile } from 'child_process';
 import { fileTypeFromBuffer } from 'file-type';
 
 import { TelegramSender } from './senders/TelegramSender';
+import { ThreadIdExtractor } from '../commands/services/ThreadIdExtractor';
 
 const logger = getLogger('ForwardFeature');
 const execFileAsync = promisify(execFile);
@@ -172,7 +173,8 @@ export class ForwardFeature {
                 text: rawText.slice(0, 100),
             });
 
-            const threadId = (tgMsg as any).replyTo?.replyToTopId || (tgMsg as any).replyTo?.replyToMsgId;
+            // Use ThreadIdExtractor to get threadId from raw message or wrapper
+            const threadId = new ThreadIdExtractor().extractFromRaw((tgMsg as any).raw || tgMsg);
 
             // 兜底处理 /bind，防止命令层未捕获
             if (rawText.startsWith('/bind') || rawText.startsWith('/unbind')) {
@@ -480,7 +482,7 @@ export class ForwardFeature {
         if (!file) return undefined;
         if (Buffer.isBuffer(file)) {
             const filename = `${Date.now()}-${Math.random().toString(36).substring(7)}${ext || ''}`;
-            const tempDir = path.join(process.cwd(), 'data', 'temp');
+            const tempDir = path.join(env.DATA_DIR, 'temp');
             if (!fs.existsSync(tempDir)) {
                 fs.mkdirSync(tempDir, { recursive: true });
             }

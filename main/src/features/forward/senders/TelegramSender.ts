@@ -1,6 +1,8 @@
 import { Readable } from 'stream';
 import path from 'path';
 import fs from 'fs';
+import { execFile } from 'child_process';
+import { promisify } from 'util';
 import { fileTypeFromBuffer } from 'file-type';
 import env from '../../../domain/models/env';
 import flags from '../../../domain/constants/flags';
@@ -13,6 +15,15 @@ import { renderContent } from '../utils/render';
 import db from '../../../domain/models/db';
 import { InputText } from '@mtcute/core';
 import { html } from '@mtcute/node';
+import silk from '../../../shared/utils/encoding/silk';
+
+type NormalizedFile = {
+    fileName: string;
+    data: Buffer;
+    fileMime?: string;
+};
+
+const execFileAsync = promisify(execFile);
 
 export class TelegramSender {
     private readonly logger = getLogger('ForwardFeature');
@@ -164,79 +175,50 @@ export class TelegramSender {
 
         try {
             let mediaInput: any;
-            const ensureInputFile = async (src: any, fallbackName: string) => {
-                if (!src) return undefined;
-                if ((src as any).data && (src as any).fileName) return src; // Already processed
-
-                if (Buffer.isBuffer(src)) return { fileName: fallbackName, data: src };
-
-                if (typeof src === 'string') {
-                    if (src.startsWith('/')) {
-                        try {
-                            const buffer = await fs.promises.readFile(src);
-                            const fileName = path.basename(src) || fallbackName;
-                            return { fileName, data: buffer };
-                        } catch (err) {
-                            this.logger.warn(err, `Local media not accessible: ${src}`);
-                            return undefined;
-                        }
-                    }
-                    if (/^https?:\/\//.test(src) && this.media) {
-                        try {
-                            const buffer = await this.media.downloadMedia(src);
-                            return { fileName: fallbackName, data: buffer };
-                        } catch (err) {
-                            this.logger.warn(err, 'Failed to download media from url:');
-                            return undefined;
-                        }
-                    }
-                }
-
-                if (src instanceof Readable) {
-                    try {
-                        const chunks: Buffer[] = [];
-                        for await (const chunk of src) {
-                            chunks.push(Buffer.from(chunk));
-                        }
-                        const buffer = Buffer.concat(chunks);
-                        return { fileName: fallbackName, data: buffer };
-                    } catch (err) {
-                        this.logger.warn(err, 'Failed to read stream to buffer:');
-                        return undefined;
-                    }
-                }
-                return undefined;
-            };
 
             if (content.type === 'image') {
                 const fileName = (content as any).data.fileName || (typeof (content as any).data.file === 'string' ? path.basename((content as any).data.file) : 'image.jpg');
-                const normalized = await ensureInputFile(fileSrc, fileName || 'image.jpg');
+                const normalized = await this.normalizeInputFile(fileSrc, fileName || 'image.jpg');
                 if (!normalized) throw new Error('Image source not available');
-                mediaInput = { type: 'photo', file: normalized.data, fileName: normalized.fileName };
+                const asGif = this.isGifMedia(normalized);
+                mediaInput = {
+                    type: asGif ? 'animation' : 'photo',
+                    file: normalized.data,
+                    fileName: normalized.fileName,
+                };
             } else if (content.type === 'video') {
                 const fileName = (content as any).data.fileName || (typeof (content as any).data.file === 'string' ? path.basename((content as any).data.file) : 'video.mp4');
-                const normalized = await ensureInputFile(fileSrc, fileName || 'video.mp4');
+                const normalized = await this.normalizeInputFile(fileSrc, fileName || 'video.mp4');
                 if (!normalized) throw new Error('Video source not available');
-                mediaInput = { type: 'video', file: normalized.data, fileName: normalized.fileName };
+                mediaInput = {
+                    type: 'video',
+                    file: normalized.data,
+                    fileName: normalized.fileName,
+                };
             } else if (content.type === 'audio') {
                 const fileName = (content as any).data.fileName
                     || (typeof (content as any).data.file === 'string' ? path.basename((content as any).data.file).replace(/\.amr$/, '.ogg') : 'audio.ogg');
-                const normalized = await ensureInputFile(fileSrc, fileName || 'audio.ogg');
+                const normalized = await this.normalizeInputFile(fileSrc, fileName || 'audio.ogg');
                 if (!normalized) throw new Error('Audio source not available');
-                mediaInput = { type: 'voice', file: normalized.data, fileName: normalized.fileName, fileMime: 'audio/ogg' };
+                mediaInput = await this.prepareVoiceMedia(normalized);
             } else if (content.type === 'file') {
                 const filename = (content as any).data.filename;
-                const normalized = await ensureInputFile(fileSrc, filename || 'file');
+                const normalized = await this.normalizeInputFile(fileSrc, filename || 'file');
                 if (!normalized) throw new Error('File source not available');
-                mediaInput = { type: 'document', file: normalized.data, fileName: normalized.fileName };
+                mediaInput = {
+                    type: 'document',
+                    file: normalized.data,
+                    fileName: normalized.fileName,
+                };
             }
 
             if (mediaInput) {
+                const params: any = { ...commonParams, caption: undefined };
+                if (!params.replyTo) delete params.replyTo;
+                if (!params.messageThreadId) delete params.messageThreadId;
+
                 // mtcute handles string (path) and Buffer automatically
-                await chat.client.sendMedia(chat.id, mediaInput, {
-                    ...commonParams,
-                    caption: undefined,
-                });
+                await chat.client.sendMedia(chat.id, mediaInput, params);
                 this.logger.info(`QQ message ${content.data.id || ''} forwarded to TG ${chat.id} (Media)`);
             }
         } catch (e) {
@@ -316,6 +298,149 @@ export class TelegramSender {
         }
 
         return fileSrc;
+    }
+
+    private async normalizeInputFile(src: any, fallbackName: string): Promise<NormalizedFile | undefined> {
+        if (!src) return undefined;
+
+        let data: Buffer | undefined;
+        let fileName = path.basename(fallbackName || 'file') || 'file';
+        let fileMime: string | undefined;
+
+        if ((src as any).data && (src as any).fileName) {
+            fileName = path.basename((src as any).fileName || fileName);
+            if (Buffer.isBuffer((src as any).data)) {
+                data = (src as any).data;
+            } else if ((src as any).data instanceof Readable) {
+                data = await this.streamToBuffer((src as any).data as Readable);
+            }
+        } else if (Buffer.isBuffer(src)) {
+            data = src;
+        } else if (typeof src === 'string') {
+            if (src.startsWith('/')) {
+                try {
+                    data = await fs.promises.readFile(src);
+                    fileName = path.basename(src) || fileName;
+                } catch (err) {
+                    this.logger.warn(err, `Local media not accessible: ${src}`);
+                    return undefined;
+                }
+            } else if (/^https?:\/\//.test(src) && this.media) {
+                try {
+                    data = await this.media.downloadMedia(src);
+                } catch (err) {
+                    this.logger.warn(err, 'Failed to download media from url:');
+                    return undefined;
+                }
+            }
+        } else if (src instanceof Readable) {
+            data = await this.streamToBuffer(src);
+        }
+
+        if (!data) return undefined;
+
+        try {
+            const type = await fileTypeFromBuffer(data);
+            if (type?.ext) {
+                const base = path.parse(fileName).name || 'file';
+                fileName = `${base}.${type.ext}`;
+            }
+            fileMime = type?.mime;
+        } catch (err) {
+            this.logger.debug(err, 'File type detection failed:');
+        }
+
+        return { fileName, data, fileMime };
+    }
+
+    private async prepareVoiceMedia(file: NormalizedFile) {
+        const ogg = await this.convertAudioToOgg(file);
+        if (ogg) {
+            return { type: 'voice', file: ogg.data, fileName: ogg.fileName, fileMime: 'audio/ogg' };
+        }
+
+        this.logger.warn('Audio conversion failed, fallback to document upload for Telegram');
+        return {
+            type: 'document',
+            file: file.data,
+            fileName: file.fileName,
+            ...(file.fileMime ? { fileMime: file.fileMime } : {}),
+        };
+    }
+
+    private async convertAudioToOgg(file: NormalizedFile): Promise<NormalizedFile | undefined> {
+        const alreadyOgg = file.fileMime === 'audio/ogg' || file.fileName.toLowerCase().endsWith('.ogg');
+        if (alreadyOgg) {
+            return { ...file, fileName: this.ensureOggFileName(file.fileName), fileMime: 'audio/ogg' };
+        }
+
+        const header = file.data.subarray(0, 10).toString('utf8');
+        const isSilk = header.includes('SILK_V3');
+
+        const oggBuffer = await this.transcodeToOgg(file.data, file.fileName, isSilk);
+        if (!oggBuffer) return undefined;
+
+        return {
+            fileName: this.ensureOggFileName(file.fileName),
+            data: oggBuffer,
+            fileMime: 'audio/ogg',
+        };
+    }
+
+    private ensureOggFileName(name: string) {
+        const parsed = path.parse(name || 'audio');
+        const base = parsed.name || 'audio';
+        return `${base}.ogg`;
+    }
+
+    private async transcodeToOgg(data: Buffer, sourceName: string, preferSilk?: boolean) {
+        const tempDir = path.join(env.DATA_DIR, 'temp');
+        await fs.promises.mkdir(tempDir, { recursive: true });
+
+        const inputPath = path.join(tempDir, `tg-audio-${Date.now()}-${Math.random().toString(16).slice(2)}${path.extname(sourceName) || '.tmp'}`);
+        const outputPath = path.join(tempDir, `tg-audio-${Date.now()}-${Math.random().toString(16).slice(2)}.ogg`);
+
+        await fs.promises.writeFile(inputPath, data);
+
+        try {
+            if (preferSilk) {
+                try {
+                    await silk.decode(data, outputPath);
+                    return await fs.promises.readFile(outputPath);
+                } catch (err) {
+                    this.logger.warn(err, 'Silk decode failed, fallback to ffmpeg');
+                }
+            }
+
+            await execFileAsync('ffmpeg', [
+                '-y',
+                '-i', inputPath,
+                '-c:a', 'libopus',
+                '-b:a', '32k',
+                '-ar', '48000',
+                '-ac', '1',
+                outputPath,
+            ]);
+            return await fs.promises.readFile(outputPath);
+        } catch (err) {
+            this.logger.error(err, 'Audio transcode failed:');
+            return undefined;
+        } finally {
+            fs.promises.unlink(inputPath).catch(() => { });
+            fs.promises.unlink(outputPath).catch(() => { });
+        }
+    }
+
+    private isGifMedia(file: NormalizedFile) {
+        return file.fileMime === 'image/gif' || file.fileName.toLowerCase().endsWith('.gif');
+    }
+
+    private async streamToBuffer(stream: Readable): Promise<Buffer> {
+        const chunks: Buffer[] = [];
+        for await (const chunk of stream) {
+            chunks.push(Buffer.from(chunk));
+        }
+        return Buffer.concat(chunks);
     }
 
     private async sendForwardToTG(chat: any, content: MessageContent, pair: any, replyToMsgId?: number, header: string = '', richHeaderUsed?: boolean) {

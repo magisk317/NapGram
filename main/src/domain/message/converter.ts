@@ -155,15 +155,15 @@ export class MessageConverter {
                 type: 'reply',
                 data: {
                     messageId: String(reply.id),
-                    senderId: String((reply.sender as any).id || ''),
-                    senderName: reply.sender.displayName || 'Unknown',
+                    senderId: String((reply.sender as any)?.id || (reply.chat as any)?.id || ''),
+                    senderName: (reply.sender as any)?.displayName || (reply.chat as any)?.title || 'Unknown',
                     text: (reply as any).text || '',
                 },
             });
         }
 
-        const senderId = String(tgMsg.sender.id);
-        const senderName = tgMsg.sender.displayName || 'Unknown';
+        const senderId = String((tgMsg.sender as any)?.id || (tgMsg.chat as any)?.id || '');
+        const senderName = (tgMsg.sender as any)?.displayName || (tgMsg.chat as any)?.title || 'Unknown';
         const chatId = String(tgMsg.chat.id);
         const timestamp = tgMsg.date.getTime();
 
@@ -397,7 +397,12 @@ export class MessageConverter {
     private async saveBufferToTemp(buffer: Buffer, type: 'image' | 'video' | 'audio' | 'file', ext: string, filename?: string): Promise<string> {
         // 尝试使用 NapCat 共享目录 (假设 NapCat 容器内路径也是 /app/.config/QQ)
         const sharedRoot = '/app/.config/QQ';
-        const sharedDir = path.join(sharedRoot, 'temp_q2tg_share');
+        const sharedDir = path.join(sharedRoot, 'temp_napgram_share');
+        // ... (preserving lines in between if match is exact block, but here asking for separate replacements if needed)
+
+        // Actually MultiReplace is better if they are far apart, but AllowMultiple=true with simple chunks is supported by replace_file_content? 
+        // No, replace_file_content replaces a SINGLE contiguous block. 
+        // I will use multi_replace for converter.ts to be safe.
 
         if (fsSync.existsSync(sharedRoot)) {
             try {
@@ -419,7 +424,7 @@ export class MessageConverter {
         const filePath = path.join(tempDir, name);
         await fs.writeFile(filePath, buffer);
 
-        const baseUrl = env.INTERNAL_WEB_ENDPOINT || 'http://q2tg:8080';
+        const baseUrl = env.INTERNAL_WEB_ENDPOINT || 'http://napgram:8080';
         const url = `${baseUrl}/temp/${name}`;
         logger.debug(`Saved buffer to local temp and returning URL: ${url}`);
         return url;

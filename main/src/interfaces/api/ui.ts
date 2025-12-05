@@ -23,7 +23,28 @@ else if (env.UI_PATH) {
       set.headers['content-type'] = mime.lookup(asset) || undefined;
       return fs.createReadStream(path.join(env.UI_PATH, 'assets', asset));
     });
+    app = app.get('/ui/assets/' + asset, ({ set }) => {
+      set.headers['content-type'] = mime.lookup(asset) || undefined;
+      return fs.createReadStream(path.join(env.UI_PATH, 'assets', asset));
+    });
   }
+
+  // Serve vite.svg from root or assets if exists to suppress errors
+  app = app.get('/vite.svg', ({ set }) => {
+    const possiblePaths = [
+      path.join(env.UI_PATH, 'vite.svg'),
+      path.join(env.UI_PATH, 'public', 'vite.svg'),
+      path.join(env.UI_PATH, 'assets', 'vite.svg')
+    ];
+    for (const p of possiblePaths) {
+      if (fs.existsSync(p)) {
+        set.headers['content-type'] = 'image/svg+xml';
+        return fs.createReadStream(p);
+      }
+    }
+    return new Response(null, { status: 404 });
+  });
+
   // @ts-expect-error - Elysia type inference limitation with dynamic route building
   app = app.get('/ui/*', ({ set }) => {
     set.headers['content-type'] = 'text/html';
