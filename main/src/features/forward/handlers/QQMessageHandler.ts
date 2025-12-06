@@ -40,7 +40,6 @@ export class QQMessageHandler {
             }
 
             const tgChatId = Number(pair.tgChatId);
-            console.log(`[DEBUG] Forwarding using pair: QQ=${pair.qqRoomId} -> TG=${pair.tgChatId}, Thread=${pair.tgThreadId}`);
             logger.info(`Forwarding using pair: QQ=${pair.qqRoomId} -> TG=${pair.tgChatId}, Thread=${pair.tgThreadId}`);
             const chat = await this.instance.tgBot.getChat(tgChatId);
 
