@@ -22,102 +22,19 @@ interface MergedMessageViewerProps {
     uuid: string;
 }
 
-// 根据用户ID生成一致的颜色方案（使用CSS原生值）
-function getUserColor(userId: string | number): {
-    avatarGradient: string;
-    badgeGradient: string;
-    bubbleGradient: string;
-    borderColor: string;
-    ringColor: string;
-} {
-    const colorSchemes = [
-        {
-            avatarGradient: 'linear-gradient(to bottom right, rgb(96 165 250), rgb(37 99 235))',
-            badgeGradient: 'linear-gradient(to right, rgb(59 130 246), rgb(37 99 235))',
-            bubbleGradient: 'linear-gradient(to bottom right, rgb(239 246 255), rgb(219 234 254) 50%, rgb(255 255 255))',
-            borderColor: 'rgb(191 219 254)',
-            ringColor: 'rgb(147 197 253)'
-        },
-        {
-            avatarGradient: 'linear-gradient(to bottom right, rgb(192 132 252), rgb(147 51 234))',
-            badgeGradient: 'linear-gradient(to right, rgb(168 85 247), rgb(147 51 234))',
-            bubbleGradient: 'linear-gradient(to bottom right, rgb(250 245 255), rgb(243 232 255) 50%, rgb(255 255 255))',
-            borderColor: 'rgb(233 213 255)',
-            ringColor: 'rgb(216 180 254)'
-        },
-        {
-            avatarGradient: 'linear-gradient(to bottom right, rgb(244 114 182), rgb(219 39 119))',
-            badgeGradient: 'linear-gradient(to right, rgb(236 72 153), rgb(219 39 119))',
-            bubbleGradient: 'linear-gradient(to bottom right, rgb(253 242 248), rgb(252 231 243) 50%, rgb(255 255 255))',
-            borderColor: 'rgb(251 207 232)',
-            ringColor: 'rgb(249 168 212)'
-        },
-        {
-            avatarGradient: 'linear-gradient(to bottom right, rgb(251 113 133), rgb(225 29 72))',
-            badgeGradient: 'linear-gradient(to right, rgb(244 63 94), rgb(225 29 72))',
-            bubbleGradient: 'linear-gradient(to bottom right, rgb(255 241 242), rgb(255 228 230) 50%, rgb(255 255 255))',
-            borderColor: 'rgb(254 205 211)',
-            ringColor: 'rgb(253 164 175)'
-        },
-        {
-            avatarGradient: 'linear-gradient(to bottom right, rgb(251 146 60), rgb(234 88 12))',
-            badgeGradient: 'linear-gradient(to right, rgb(249 115 22), rgb(234 88 12))',
-            bubbleGradient: 'linear-gradient(to bottom right, rgb(255 247 237), rgb(254 237 213) 50%, rgb(255 255 255))',
-            borderColor: 'rgb(254 215 170)',
-            ringColor: 'rgb(253 186 116)'
-        },
-        {
-            avatarGradient: 'linear-gradient(to bottom right, rgb(251 191 36), rgb(245 158 11))',
-            badgeGradient: 'linear-gradient(to right, rgb(245 158 11), rgb(217 119 6))',
-            bubbleGradient: 'linear-gradient(to bottom right, rgb(255 251 235), rgb(254 243 199) 50%, rgb(255 255 255))',
-            borderColor: 'rgb(253 230 138)',
-            ringColor: 'rgb(252 211 77)'
-        },
-        {
-            avatarGradient: 'linear-gradient(to bottom right, rgb(163 230 53), rgb(101 163 13))',
-            badgeGradient: 'linear-gradient(to right, rgb(132 204 22), rgb(101 163 13))',
-            bubbleGradient: 'linear-gradient(to bottom right, rgb(247 254 231), rgb(236 252 203) 50%, rgb(255 255 255))',
-            borderColor: 'rgb(217 249 157)',
-            ringColor: 'rgb(190 242 100)'
-        },
-        {
-            avatarGradient: 'linear-gradient(to bottom right, rgb(52 211 153), rgb(16 185 129))',
-            badgeGradient: 'linear-gradient(to right, rgb(16 185 129), rgb(5 150 105))',
-            bubbleGradient: 'linear-gradient(to bottom right, rgb(236 253 245), rgb(209 250 229) 50%, rgb(255 255 255))',
-            borderColor: 'rgb(167 243 208)',
-            ringColor: 'rgb(110 231 183)'
-        },
-        {
-            avatarGradient: 'linear-gradient(to bottom right, rgb(45 212 191), rgb(20 184 166))',
-            badgeGradient: 'linear-gradient(to right, rgb(20 184 166), rgb(13 148 136))',
-            bubbleGradient: 'linear-gradient(to bottom right, rgb(240 253 250), rgb(204 251 241) 50%, rgb(255 255 255))',
-            borderColor: 'rgb(153 246 228)',
-            ringColor: 'rgb(94 234 212)'
-        },
-        {
-            avatarGradient: 'linear-gradient(to bottom right, rgb(34 211 238), rgb(6 182 212))',
-            badgeGradient: 'linear-gradient(to right, rgb(6 182 212), rgb(8 145 178))',
-            bubbleGradient: 'linear-gradient(to bottom right, rgb(236 254 255), rgb(207 250 254) 50%, rgb(255 255 255))',
-            borderColor: 'rgb(165 243 252)',
-            ringColor: 'rgb(103 232 249)'
-        },
-        {
-            avatarGradient: 'linear-gradient(to bottom right, rgb(129 140 248), rgb(79 70 229))',
-            badgeGradient: 'linear-gradient(to right, rgb(99 102 241), rgb(79 70 229))',
-            bubbleGradient: 'linear-gradient(to bottom right, rgb(238 242 255), rgb(224 231 255) 50%, rgb(255 255 255))',
-            borderColor: 'rgb(199 210 254)',
-            ringColor: 'rgb(165 180 252)'
-        },
-        {
-            avatarGradient: 'linear-gradient(to bottom right, rgb(167 139 250), rgb(124 58 237))',
-            badgeGradient: 'linear-gradient(to right, rgb(139 92 246), rgb(124 58 237))',
-            bubbleGradient: 'linear-gradient(to bottom right, rgb(245 243 255), rgb(237 233 254) 50%, rgb(255 255 255))',
-            borderColor: 'rgb(221 214 254)',
-            ringColor: 'rgb(196 181 253)'
-        },
+// 根据用户ID生成颜色（7种颜色）
+function getUserColor(userId: string | number): string {
+    const colors = [
+        '#FF516A',  // 红
+        '#FFA85C',  // 橙
+        '#D669ED',  // 紫
+        '#54CB68',  // 绿
+        '#28C9B7',  // 青
+        '#2A9EF1',  // 蓝
+        '#FF719A',  // 粉
     ];
     const hash = String(userId).split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    return colorSchemes[hash % colorSchemes.length];
+    return colors[hash % 7];
 }
 
 export function MergedMessageViewer({ uuid }: MergedMessageViewerProps) {
@@ -171,64 +88,64 @@ function MessageBubble({ msg, idx }: { msg: Message; idx: number }) {
     const name = msg.nickname || msg.card || msg.sender?.name || `未知用户`;
     const avatar = msg.avatar || (senderId && senderId !== `user${idx}` ? `/api/avatar/qq/${senderId}` : undefined);
 
-    // 完整日期时间格式：YYYY/MM/DD HH:mm:ss
+    // 简洁的HH:mm时间格式
     const timeStr = msg.time ? new Date(msg.time * 1000).toLocaleString('zh-CN', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
         hour: '2-digit',
         minute: '2-digit',
-        second: '2-digit',
         hour12: false
-    }).replace(/\//g, '/') : '';
+    }) : '';
 
-    const userColors = getUserColor(senderId);
+    const userColor = getUserColor(senderId);
 
     return (
-        // QQ风格：消息之间大间距
-        <div className="flex items-start gap-4 mb-8">
-            {/* 头像 - QQ风格：更大(60px)，简洁 */}
-            <Avatar className="h-[60px] w-[60px] flex-shrink-0 shadow-md">
-                <AvatarImage
-                    src={avatar}
-                    alt={name}
-                    referrerPolicy="no-referrer"
-                    onError={(e) => {
-                        e.currentTarget.style.display = 'none';
-                    }}
-                />
-                <AvatarFallback className="text-white font-bold text-xl" style={{ background: userColors.avatarGradient }}>
-                    {name[0] || '?'}
-                </AvatarFallback>
-            </Avatar>
+        <div className="flex my-2.5">
+            {/* 头像容器：50px固定宽度 */}
+            <div className="w-[50px] min-w-[50px] max-w-[50px] flex justify-center items-end">
+                {/* 36px头像，底部sticky定位 */}
+                <Avatar className="h-9 w-9 sticky bottom-2.5 z-[2]">
+                    <AvatarImage
+                        src={avatar}
+                        alt={name}
+                        referrerPolicy="no-referrer"
+                        onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                        }}
+                    />
+                    <AvatarFallback className="bg-gray-300 text-white font-bold text-sm">
+                        {name[0] || '?'}
+                    </AvatarFallback>
+                </Avatar>
+            </div>
 
-            {/* 消息内容区域 - QQ风格：宽松布局 */}
-            <div className="flex-1 min-w-0 space-y-2">
-                {/* 昵称行 - QQ风格：昵称 + 时间在一行 */}
-                <div className="flex items-baseline gap-3">
-                    <span className="text-sm font-medium text-gray-700">
-                        {name}
-                    </span>
-                    {timeStr && (
-                        <span className="text-xs text-gray-400">
-                            {timeStr}
-                        </span>
-                    )}
+            {/* 内容区域 */}
+            <div className="flex-grow">
+                {/* 昵称：sticky悬浮，彩色文字，毛玻璃背景 */}
+                <div
+                    className="sticky top-0 z-[1] w-max min-w-0 rounded-[10px] px-2.5 py-1 m-1 text-sm font-bold backdrop-blur-md"
+                    style={{
+                        color: userColor,
+                        backgroundColor: 'rgba(var(--background-rgb, 255, 255, 255), 0.8)'
+                    }}
+                >
+                    {name}
                 </div>
 
-                {/* 消息气泡 - QQ风格：更大圆角，充足内边距，适中宽度 */}
-                <div className="relative max-w-[75%]">
-                    <div
-                        className="rounded-2xl px-5 py-4 text-[15px] leading-relaxed shadow-sm border border-gray-100"
-                        style={{
-                            background: userColors.bubbleGradient,
-                            borderColor: userColors.borderColor
-                        }}
-                    >
-                        <div className="break-words whitespace-pre-wrap">
-                            {renderMessageContent(msg.message || [])}
-                        </div>
+                {/* 消息气泡：半透明灰色背景 */}
+                <div
+                    className="w-max min-w-[100px] max-w-[calc(100vw-100px)] m-1 px-2.5 py-1 text-base rounded-r-[10px] rounded-bl-[10px] rounded-tl-none"
+                    style={{ backgroundColor: 'rgba(136, 136, 136, 0.09)' }}
+                >
+                    {/* 消息内容 */}
+                    <div className="whitespace-pre-line">
+                        {renderMessageContent(msg.message || [])}
                     </div>
+
+                    {/* 时间：右对齐小字 */}
+                    {timeStr && (
+                        <div className="mt-0.5 text-right text-xs text-gray-500">
+                            {timeStr}
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
