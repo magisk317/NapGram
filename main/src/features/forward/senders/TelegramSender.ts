@@ -147,6 +147,7 @@ export class TelegramSender {
             (content as any).data.fileName = fileName;
         }
 
+
         const commonParams: any = {
             replyTo: this.buildReplyTo(pair, replyToMsgId),
         };
@@ -154,22 +155,17 @@ export class TelegramSender {
             commonParams.messageThreadId = Number(pair.tgThreadId);
         }
 
+        // 准备 caption - 将 header（昵称/头像）作为媒体说明
+        let captionText: any = undefined;
         if (header) {
-            try {
-                const { text, params } = this.applyRichHeader(header, richHeaderUsed ? richHeaderUrl : undefined);
-                params.replyTo = commonParams.replyTo;
-                if (commonParams.messageThreadId) params.messageThreadId = commonParams.messageThreadId;
-
-                // mtcute InputText check: if string and empty, or TextWithEntities and text empty
-                const isEmpty = typeof text === 'string' ? !text.trim() : !text.text.trim();
-
-                if (isEmpty) {
-                    this.logger.warn('Skip sending media header because text is empty after normalization');
-                } else {
-                    await chat.sendMessage(text, params);
-                }
-            } catch (err) {
-                this.logger.warn(err, 'Failed to send media header:');
+            const { text } = this.applyRichHeader(header, richHeaderUsed ? richHeaderUrl : undefined);
+            // mtcute InputText check: if string and empty, or TextWithEntities and text empty
+            const isEmpty = typeof text === 'string' ? !text.trim() : !text.text.trim();
+            if (!isEmpty) {
+                captionText = text;
+                this.logger.debug(`Using header as media caption: ${typeof text === 'string' ? text : text.text}`);
+            } else {
+                this.logger.debug('Header is empty, skipping caption');
             }
         }
 
@@ -213,13 +209,16 @@ export class TelegramSender {
             }
 
             if (mediaInput) {
-                const params: any = { ...commonParams, caption: undefined };
+                const params: any = {
+                    ...commonParams,
+                    caption: captionText  // 使用 caption 传递 header
+                };
                 if (!params.replyTo) delete params.replyTo;
                 if (!params.messageThreadId) delete params.messageThreadId;
 
                 // mtcute handles string (path) and Buffer automatically
                 const sentMsg = await chat.client.sendMedia(chat.id, mediaInput, params);
-                this.logger.info(`[Forward] QQ message ${qqMsgId || ''} -> TG ${chat.id} (id: ${sentMsg.id})`);
+                this.logger.info(`[Forward] QQ message ${qqMsgId || ''} -> TG ${chat.id} (id: ${sentMsg.id})${captionText ? ' with caption' : ''}`);
                 return sentMsg;  // Return the sent message
             }
         } catch (e) {
