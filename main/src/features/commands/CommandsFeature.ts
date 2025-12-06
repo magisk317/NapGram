@@ -203,12 +203,12 @@ export class CommandsFeature {
 
     private handleQqMessage = async (qqMsg: UnifiedMessage): Promise<void> => {
         try {
-            // 只处理文本消息
-            const textContent = qqMsg.content.find(c => c.type === 'text');
-            if (!textContent) return;
+            // 提取所有文本内容并合并
+            const textContents = qqMsg.content.filter(c => c.type === 'text');
+            if (textContents.length === 0) return;
 
-            const text = textContent.data.text || '';
-            if (!text.startsWith(this.commandPrefix)) return;
+            const text = textContents.map(c => c.data.text || '').join('').trim();
+            if (!text || !text.startsWith(this.commandPrefix)) return;
 
             const chatId = qqMsg.chat.id;
             const senderId = qqMsg.sender.id;
