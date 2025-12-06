@@ -22,111 +22,98 @@ interface MergedMessageViewerProps {
     uuid: string;
 }
 
-// 根据用户ID生成一致的渐变颜色（用于头像背景）
+// 根据用户ID生成一致的颜色方案（使用CSS原生值）
 function getUserColor(userId: string | number): {
-    gradient: string;
-    badge: string;
-    badgeText: string;
-    bubbleBg: string;
-    bubbleBorder: string;
-    ringClass: string;
+    avatarGradient: string;
+    badgeGradient: string;
+    bubbleGradient: string;
+    borderColor: string;
+    ringColor: string;
 } {
     const colorSchemes = [
         {
-            gradient: 'bg-gradient-to-br from-blue-400 to-blue-600',
-            badge: 'bg-gradient-to-r from-blue-500 to-blue-600',
-            badgeText: 'text-white',
-            bubbleBg: 'bg-gradient-to-br from-blue-50 via-blue-100/50 to-white',
-            bubbleBorder: 'border-blue-200',
-            ringClass: 'ring-blue-300'
+            avatarGradient: 'linear-gradient(to bottom right, rgb(96 165 250), rgb(37 99 235))',
+            badgeGradient: 'linear-gradient(to right, rgb(59 130 246), rgb(37 99 235))',
+            bubbleGradient: 'linear-gradient(to bottom right, rgb(239 246 255), rgb(219 234 254) 50%, rgb(255 255 255))',
+            borderColor: 'rgb(191 219 254)',
+            ringColor: 'rgb(147 197 253)'
         },
         {
-            gradient: 'bg-gradient-to-br from-purple-400 to-purple-600',
-            badge: 'bg-gradient-to-r from-purple-500 to-purple-600',
-            badgeText: 'text-white',
-            bubbleBg: 'bg-gradient-to-br from-purple-50 via-purple-100/50 to-white',
-            bubbleBorder: 'border-purple-200',
-            ringClass: 'ring-purple-300'
+            avatarGradient: 'linear-gradient(to bottom right, rgb(192 132 252), rgb(147 51 234))',
+            badgeGradient: 'linear-gradient(to right, rgb(168 85 247), rgb(147 51 234))',
+            bubbleGradient: 'linear-gradient(to bottom right, rgb(250 245 255), rgb(243 232 255) 50%, rgb(255 255 255))',
+            borderColor: 'rgb(233 213 255)',
+            ringColor: 'rgb(216 180 254)'
         },
         {
-            gradient: 'bg-gradient-to-br from-pink-400 to-pink-600',
-            badge: 'bg-gradient-to-r from-pink-500 to-pink-600',
-            badgeText: 'text-white',
-            bubbleBg: 'bg-gradient-to-br from-pink-50 via-pink-100/50 to-white',
-            bubbleBorder: 'border-pink-200',
-            ringClass: 'ring-pink-300'
+            avatarGradient: 'linear-gradient(to bottom right, rgb(244 114 182), rgb(219 39 119))',
+            badgeGradient: 'linear-gradient(to right, rgb(236 72 153), rgb(219 39 119))',
+            bubbleGradient: 'linear-gradient(to bottom right, rgb(253 242 248), rgb(252 231 243) 50%, rgb(255 255 255))',
+            borderColor: 'rgb(251 207 232)',
+            ringColor: 'rgb(249 168 212)'
         },
         {
-            gradient: 'bg-gradient-to-br from-rose-400 to-rose-600',
-            badge: 'bg-gradient-to-r from-rose-500 to-rose-600',
-            badgeText: 'text-white',
-            bubbleBg: 'bg-gradient-to-br from-rose-50 via-rose-100/50 to-white',
-            bubbleBorder: 'border-rose-200',
-            ringClass: 'ring-rose-300'
+            avatarGradient: 'linear-gradient(to bottom right, rgb(251 113 133), rgb(225 29 72))',
+            badgeGradient: 'linear-gradient(to right, rgb(244 63 94), rgb(225 29 72))',
+            bubbleGradient: 'linear-gradient(to bottom right, rgb(255 241 242), rgb(255 228 230) 50%, rgb(255 255 255))',
+            borderColor: 'rgb(254 205 211)',
+            ringColor: 'rgb(253 164 175)'
         },
         {
-            gradient: 'bg-gradient-to-br from-orange-400 to-orange-600',
-            badge: 'bg-gradient-to-r from-orange-500 to-orange-600',
-            badgeText: 'text-white',
-            bubbleBg: 'bg-gradient-to-br from-orange-50 via-orange-100/50 to-white',
-            bubbleBorder: 'border-orange-200',
-            ringClass: 'ring-orange-300'
+            avatarGradient: 'linear-gradient(to bottom right, rgb(251 146 60), rgb(234 88 12))',
+            badgeGradient: 'linear-gradient(to right, rgb(249 115 22), rgb(234 88 12))',
+            bubbleGradient: 'linear-gradient(to bottom right, rgb(255 247 237), rgb(254 237 213) 50%, rgb(255 255 255))',
+            borderColor: 'rgb(254 215 170)',
+            ringColor: 'rgb(253 186 116)'
         },
         {
-            gradient: 'bg-gradient-to-br from-amber-400 to-amber-600',
-            badge: 'bg-gradient-to-r from-amber-500 to-amber-600',
-            badgeText: 'text-white',
-            bubbleBg: 'bg-gradient-to-br from-amber-50 via-amber-100/50 to-white',
-            bubbleBorder: 'border-amber-200',
-            ringClass: 'ring-amber-300'
+            avatarGradient: 'linear-gradient(to bottom right, rgb(251 191 36), rgb(245 158 11))',
+            badgeGradient: 'linear-gradient(to right, rgb(245 158 11), rgb(217 119 6))',
+            bubbleGradient: 'linear-gradient(to bottom right, rgb(255 251 235), rgb(254 243 199) 50%, rgb(255 255 255))',
+            borderColor: 'rgb(253 230 138)',
+            ringColor: 'rgb(252 211 77)'
         },
         {
-            gradient: 'bg-gradient-to-br from-lime-400 to-lime-600',
-            badge: 'bg-gradient-to-r from-lime-500 to-lime-600',
-            badgeText: 'text-white',
-            bubbleBg: 'bg-gradient-to-br from-lime-50 via-lime-100/50 to-white',
-            bubbleBorder: 'border-lime-200',
-            ringClass: 'ring-lime-300'
+            avatarGradient: 'linear-gradient(to bottom right, rgb(163 230 53), rgb(101 163 13))',
+            badgeGradient: 'linear-gradient(to right, rgb(132 204 22), rgb(101 163 13))',
+            bubbleGradient: 'linear-gradient(to bottom right, rgb(247 254 231), rgb(236 252 203) 50%, rgb(255 255 255))',
+            borderColor: 'rgb(217 249 157)',
+            ringColor: 'rgb(190 242 100)'
         },
         {
-            gradient: 'bg-gradient-to-br from-emerald-400 to-emerald-600',
-            badge: 'bg-gradient-to-r from-emerald-500 to-emerald-600',
-            badgeText: 'text-white',
-            bubbleBg: 'bg-gradient-to-br from-emerald-50 via-emerald-100/50 to-white',
-            bubbleBorder: 'border-emerald-200',
-            ringClass: 'ring-emerald-300'
+            avatarGradient: 'linear-gradient(to bottom right, rgb(52 211 153), rgb(16 185 129))',
+            badgeGradient: 'linear-gradient(to right, rgb(16 185 129), rgb(5 150 105))',
+            bubbleGradient: 'linear-gradient(to bottom right, rgb(236 253 245), rgb(209 250 229) 50%, rgb(255 255 255))',
+            borderColor: 'rgb(167 243 208)',
+            ringColor: 'rgb(110 231 183)'
         },
         {
-            gradient: 'bg-gradient-to-br from-teal-400 to-teal-600',
-            badge: 'bg-gradient-to-r from-teal-500 to-teal-600',
-            badgeText: 'text-white',
-            bubbleBg: 'bg-gradient-to-br from-teal-50 via-teal-100/50 to-white',
-            bubbleBorder: 'border-teal-200',
-            ringClass: 'ring-teal-300'
+            avatarGradient: 'linear-gradient(to bottom right, rgb(45 212 191), rgb(20 184 166))',
+            badgeGradient: 'linear-gradient(to right, rgb(20 184 166), rgb(13 148 136))',
+            bubbleGradient: 'linear-gradient(to bottom right, rgb(240 253 250), rgb(204 251 241) 50%, rgb(255 255 255))',
+            borderColor: 'rgb(153 246 228)',
+            ringColor: 'rgb(94 234 212)'
         },
         {
-            gradient: 'bg-gradient-to-br from-cyan-400 to-cyan-600',
-            badge: 'bg-gradient-to-r from-cyan-500 to-cyan-600',
-            badgeText: 'text-white',
-            bubbleBg: 'bg-gradient-to-br from-cyan-50 via-cyan-100/50 to-white',
-            bubbleBorder: 'border-cyan-200',
-            ringClass: 'ring-cyan-300'
+            avatarGradient: 'linear-gradient(to bottom right, rgb(34 211 238), rgb(6 182 212))',
+            badgeGradient: 'linear-gradient(to right, rgb(6 182 212), rgb(8 145 178))',
+            bubbleGradient: 'linear-gradient(to bottom right, rgb(236 254 255), rgb(207 250 254) 50%, rgb(255 255 255))',
+            borderColor: 'rgb(165 243 252)',
+            ringColor: 'rgb(103 232 249)'
         },
         {
-            gradient: 'bg-gradient-to-br from-indigo-400 to-indigo-600',
-            badge: 'bg-gradient-to-r from-indigo-500 to-indigo-600',
-            badgeText: 'text-white',
-            bubbleBg: 'bg-gradient-to-br from-indigo-50 via-indigo-100/50 to-white',
-            bubbleBorder: 'border-indigo-200',
-            ringClass: 'ring-indigo-300'
+            avatarGradient: 'linear-gradient(to bottom right, rgb(129 140 248), rgb(79 70 229))',
+            badgeGradient: 'linear-gradient(to right, rgb(99 102 241), rgb(79 70 229))',
+            bubbleGradient: 'linear-gradient(to bottom right, rgb(238 242 255), rgb(224 231 255) 50%, rgb(255 255 255))',
+            borderColor: 'rgb(199 210 254)',
+            ringColor: 'rgb(165 180 252)'
         },
         {
-            gradient: 'bg-gradient-to-br from-violet-400 to-violet-600',
-            badge: 'bg-gradient-to-r from-violet-500 to-violet-600',
-            badgeText: 'text-white',
-            bubbleBg: 'bg-gradient-to-br from-violet-50 via-violet-100/50 to-white',
-            bubbleBorder: 'border-violet-200',
-            ringClass: 'ring-violet-300'
+            avatarGradient: 'linear-gradient(to bottom right, rgb(167 139 250), rgb(124 58 237))',
+            badgeGradient: 'linear-gradient(to right, rgb(139 92 246), rgb(124 58 237))',
+            bubbleGradient: 'linear-gradient(to bottom right, rgb(245 243 255), rgb(237 233 254) 50%, rgb(255 255 255))',
+            borderColor: 'rgb(221 214 254)',
+            ringColor: 'rgb(196 181 253)'
         },
     ];
     const hash = String(userId).split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
@@ -201,7 +188,7 @@ function MessageBubble({ msg, idx }: { msg: Message; idx: number }) {
         <div className="flex items-start gap-2.5 group">
             {/* 头像 - 增大尺寸，彩色边框 */}
             <div className="relative flex-shrink-0">
-                <Avatar className={`h-12 w-12 shadow-lg border-[3px] border-white ring-[3px] ${userColors.ringClass} transition-all hover:scale-110 hover:shadow-xl`}>
+                <Avatar className="h-12 w-12 shadow-lg border-[3px] border-white ring-[3px] transition-all hover:scale-110 hover:shadow-xl" style={{ '--tw-ring-color': userColors.ringColor } as React.CSSProperties}>
                     <AvatarImage
                         src={avatar}
                         alt={name}
@@ -210,19 +197,19 @@ function MessageBubble({ msg, idx }: { msg: Message; idx: number }) {
                             e.currentTarget.style.display = 'none';
                         }}
                     />
-                    <AvatarFallback className={`${userColors.gradient} text-white font-bold text-base`}>
+                    <AvatarFallback className="text-white font-bold text-base" style={{ background: userColors.avatarGradient }}>
                         {name[0] || '?'}
                     </AvatarFallback>
                 </Avatar>
                 {/* 彩色光环效果 */}
-                <div className={`absolute inset-0 rounded-full ${userColors.gradient} opacity-30 blur-sm -z-10`}></div>
+                <div className="absolute inset-0 rounded-full opacity-30 blur-sm -z-10" style={{ background: userColors.avatarGradient }}></div>
             </div>
 
             {/* 消息内容区域 */}
             <div className="flex-1 min-w-0">
                 {/* 用户信息栏 - 彩色昵称徽章 + 时间戳 */}
                 <div className="flex items-center gap-2.5 mb-1.5 flex-wrap">
-                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold ${userColors.badge} text-white shadow-md`}>
+                    <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold text-white shadow-md" style={{ background: userColors.badgeGradient }}>
                         {name}
                     </span>
                     {timeStr && (
@@ -234,7 +221,7 @@ function MessageBubble({ msg, idx }: { msg: Message; idx: number }) {
 
                 {/* 消息气泡 - 明显的渐变背景 */}
                 <div className="relative max-w-[90%]">
-                    <div className={`${userColors.bubbleBg} border-2 ${userColors.bubbleBorder} shadow-md rounded-[16px] rounded-tl-[4px] px-4 py-3 text-[14px] leading-relaxed whitespace-pre-wrap break-words transition-all duration-200 hover:shadow-lg hover:scale-[1.01]`}>
+                    <div className="border-2 shadow-md rounded-[16px] rounded-tl-[4px] px-4 py-3 text-[14px] leading-relaxed whitespace-pre-wrap break-words transition-all duration-200 hover:shadow-lg hover:scale-[1.01]" style={{ background: userColors.bubbleGradient, borderColor: userColors.borderColor }}>
                         {renderMessageContent(msg.message || [])}
                     </div>
                 </div>
