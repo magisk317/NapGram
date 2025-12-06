@@ -23,20 +23,111 @@ interface MergedMessageViewerProps {
 }
 
 // 根据用户ID生成一致的渐变颜色（用于头像背景）
-function getUserColor(userId: string | number): { gradient: string; badge: string; badgeText: string } {
+function getUserColor(userId: string | number): {
+    gradient: string;
+    badge: string;
+    badgeText: string;
+    bubbleBg: string;
+    bubbleBorder: string;
+    ringClass: string;
+} {
     const colorSchemes = [
-        { gradient: 'bg-gradient-to-br from-blue-400 to-blue-600', badge: 'bg-gradient-to-r from-blue-500 to-blue-600', badgeText: 'text-white' },
-        { gradient: 'bg-gradient-to-br from-purple-400 to-purple-600', badge: 'bg-gradient-to-r from-purple-500 to-purple-600', badgeText: 'text-white' },
-        { gradient: 'bg-gradient-to-br from-pink-400 to-pink-600', badge: 'bg-gradient-to-r from-pink-500 to-pink-600', badgeText: 'text-white' },
-        { gradient: 'bg-gradient-to-br from-rose-400 to-rose-600', badge: 'bg-gradient-to-r from-rose-500 to-rose-600', badgeText: 'text-white' },
-        { gradient: 'bg-gradient-to-br from-orange-400 to-orange-600', badge: 'bg-gradient-to-r from-orange-500 to-orange-600', badgeText: 'text-white' },
-        { gradient: 'bg-gradient-to-br from-amber-400 to-amber-600', badge: 'bg-gradient-to-r from-amber-500 to-amber-600', badgeText: 'text-white' },
-        { gradient: 'bg-gradient-to-br from-lime-400 to-lime-600', badge: 'bg-gradient-to-r from-lime-500 to-lime-600', badgeText: 'text-white' },
-        { gradient: 'bg-gradient-to-br from-emerald-400 to-emerald-600', badge: 'bg-gradient-to-r from-emerald-500 to-emerald-600', badgeText: 'text-white' },
-        { gradient: 'bg-gradient-to-br from-teal-400 to-teal-600', badge: 'bg-gradient-to-r from-teal-500 to-teal-600', badgeText: 'text-white' },
-        { gradient: 'bg-gradient-to-br from-cyan-400 to-cyan-600', badge: 'bg-gradient-to-r from-cyan-500 to-cyan-600', badgeText: 'text-white' },
-        { gradient: 'bg-gradient-to-br from-indigo-400 to-indigo-600', badge: 'bg-gradient-to-r from-indigo-500 to-indigo-600', badgeText: 'text-white' },
-        { gradient: 'bg-gradient-to-br from-violet-400 to-violet-600', badge: 'bg-gradient-to-r from-violet-500 to-violet-600', badgeText: 'text-white' },
+        {
+            gradient: 'bg-gradient-to-br from-blue-400 to-blue-600',
+            badge: 'bg-gradient-to-r from-blue-500 to-blue-600',
+            badgeText: 'text-white',
+            bubbleBg: 'bg-gradient-to-br from-blue-50 via-blue-100/50 to-white',
+            bubbleBorder: 'border-blue-200',
+            ringClass: 'ring-blue-300'
+        },
+        {
+            gradient: 'bg-gradient-to-br from-purple-400 to-purple-600',
+            badge: 'bg-gradient-to-r from-purple-500 to-purple-600',
+            badgeText: 'text-white',
+            bubbleBg: 'bg-gradient-to-br from-purple-50 via-purple-100/50 to-white',
+            bubbleBorder: 'border-purple-200',
+            ringClass: 'ring-purple-300'
+        },
+        {
+            gradient: 'bg-gradient-to-br from-pink-400 to-pink-600',
+            badge: 'bg-gradient-to-r from-pink-500 to-pink-600',
+            badgeText: 'text-white',
+            bubbleBg: 'bg-gradient-to-br from-pink-50 via-pink-100/50 to-white',
+            bubbleBorder: 'border-pink-200',
+            ringClass: 'ring-pink-300'
+        },
+        {
+            gradient: 'bg-gradient-to-br from-rose-400 to-rose-600',
+            badge: 'bg-gradient-to-r from-rose-500 to-rose-600',
+            badgeText: 'text-white',
+            bubbleBg: 'bg-gradient-to-br from-rose-50 via-rose-100/50 to-white',
+            bubbleBorder: 'border-rose-200',
+            ringClass: 'ring-rose-300'
+        },
+        {
+            gradient: 'bg-gradient-to-br from-orange-400 to-orange-600',
+            badge: 'bg-gradient-to-r from-orange-500 to-orange-600',
+            badgeText: 'text-white',
+            bubbleBg: 'bg-gradient-to-br from-orange-50 via-orange-100/50 to-white',
+            bubbleBorder: 'border-orange-200',
+            ringClass: 'ring-orange-300'
+        },
+        {
+            gradient: 'bg-gradient-to-br from-amber-400 to-amber-600',
+            badge: 'bg-gradient-to-r from-amber-500 to-amber-600',
+            badgeText: 'text-white',
+            bubbleBg: 'bg-gradient-to-br from-amber-50 via-amber-100/50 to-white',
+            bubbleBorder: 'border-amber-200',
+            ringClass: 'ring-amber-300'
+        },
+        {
+            gradient: 'bg-gradient-to-br from-lime-400 to-lime-600',
+            badge: 'bg-gradient-to-r from-lime-500 to-lime-600',
+            badgeText: 'text-white',
+            bubbleBg: 'bg-gradient-to-br from-lime-50 via-lime-100/50 to-white',
+            bubbleBorder: 'border-lime-200',
+            ringClass: 'ring-lime-300'
+        },
+        {
+            gradient: 'bg-gradient-to-br from-emerald-400 to-emerald-600',
+            badge: 'bg-gradient-to-r from-emerald-500 to-emerald-600',
+            badgeText: 'text-white',
+            bubbleBg: 'bg-gradient-to-br from-emerald-50 via-emerald-100/50 to-white',
+            bubbleBorder: 'border-emerald-200',
+            ringClass: 'ring-emerald-300'
+        },
+        {
+            gradient: 'bg-gradient-to-br from-teal-400 to-teal-600',
+            badge: 'bg-gradient-to-r from-teal-500 to-teal-600',
+            badgeText: 'text-white',
+            bubbleBg: 'bg-gradient-to-br from-teal-50 via-teal-100/50 to-white',
+            bubbleBorder: 'border-teal-200',
+            ringClass: 'ring-teal-300'
+        },
+        {
+            gradient: 'bg-gradient-to-br from-cyan-400 to-cyan-600',
+            badge: 'bg-gradient-to-r from-cyan-500 to-cyan-600',
+            badgeText: 'text-white',
+            bubbleBg: 'bg-gradient-to-br from-cyan-50 via-cyan-100/50 to-white',
+            bubbleBorder: 'border-cyan-200',
+            ringClass: 'ring-cyan-300'
+        },
+        {
+            gradient: 'bg-gradient-to-br from-indigo-400 to-indigo-600',
+            badge: 'bg-gradient-to-r from-indigo-500 to-indigo-600',
+            badgeText: 'text-white',
+            bubbleBg: 'bg-gradient-to-br from-indigo-50 via-indigo-100/50 to-white',
+            bubbleBorder: 'border-indigo-200',
+            ringClass: 'ring-indigo-300'
+        },
+        {
+            gradient: 'bg-gradient-to-br from-violet-400 to-violet-600',
+            badge: 'bg-gradient-to-r from-violet-500 to-violet-600',
+            badgeText: 'text-white',
+            bubbleBg: 'bg-gradient-to-br from-violet-50 via-violet-100/50 to-white',
+            bubbleBorder: 'border-violet-200',
+            ringClass: 'ring-violet-300'
+        },
     ];
     const hash = String(userId).split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
     return colorSchemes[hash % colorSchemes.length];
@@ -108,39 +199,42 @@ function MessageBubble({ msg, idx }: { msg: Message; idx: number }) {
 
     return (
         <div className="flex items-start gap-2.5 group">
-            {/* 头像 - 增大尺寸，添加渐变背景 */}
-            <Avatar className="h-12 w-12 shadow-md border-2 border-white ring-2 ring-slate-200/60 flex-shrink-0 transition-transform hover:scale-105">
-                <AvatarImage
-                    src={avatar}
-                    alt={name}
-                    referrerPolicy="no-referrer"
-                    onError={(e) => {
-                        // 头像加载失败时使用 fallback
-                        e.currentTarget.style.display = 'none';
-                    }}
-                />
-                <AvatarFallback className={`${userColors.gradient} text-white font-bold text-base shadow-inner`}>
-                    {name[0] || '?'}
-                </AvatarFallback>
-            </Avatar>
+            {/* 头像 - 增大尺寸，彩色边框 */}
+            <div className="relative flex-shrink-0">
+                <Avatar className={`h-12 w-12 shadow-lg border-[3px] border-white ring-[3px] ${userColors.ringClass} transition-all hover:scale-110 hover:shadow-xl`}>
+                    <AvatarImage
+                        src={avatar}
+                        alt={name}
+                        referrerPolicy="no-referrer"
+                        onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                        }}
+                    />
+                    <AvatarFallback className={`${userColors.gradient} text-white font-bold text-base`}>
+                        {name[0] || '?'}
+                    </AvatarFallback>
+                </Avatar>
+                {/* 彩色光环效果 */}
+                <div className={`absolute inset-0 rounded-full ${userColors.gradient} opacity-30 blur-sm -z-10`}></div>
+            </div>
 
             {/* 消息内容区域 */}
             <div className="flex-1 min-w-0">
-                {/* 用户信息栏 - 昵称 + 时间戳 */}
-                <div className="flex items-center gap-2 mb-1 flex-wrap">
-                    <span className={`inline-block px-2.5 py-0.5 rounded-md text-xs font-bold ${userColors.badge} ${userColors.badgeText} shadow-sm`}>
+                {/* 用户信息栏 - 彩色昵称徽章 + 时间戳 */}
+                <div className="flex items-center gap-2.5 mb-1.5 flex-wrap">
+                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold ${userColors.badge} text-white shadow-md`}>
                         {name}
                     </span>
                     {timeStr && (
-                        <span className="text-xs text-slate-500 font-medium">
+                        <span className="text-[11px] text-slate-400 font-medium bg-slate-50 px-2 py-0.5 rounded-full">
                             {timeStr}
                         </span>
                     )}
                 </div>
 
-                {/* 消息气泡 - QQ/TG风格圆角，渐变背景，阴影 */}
-                <div className="relative max-w-[85%]">
-                    <div className="bg-gradient-to-br from-blue-50/80 via-white to-indigo-50/60 border border-slate-200/80 shadow-sm rounded-[18px] rounded-tl-[6px] px-3.5 py-2.5 text-[13px] leading-relaxed whitespace-pre-wrap break-words transition-all duration-200 hover:shadow-md hover:border-slate-300/90 backdrop-blur-sm">
+                {/* 消息气泡 - 明显的渐变背景 */}
+                <div className="relative max-w-[90%]">
+                    <div className={`${userColors.bubbleBg} border-2 ${userColors.bubbleBorder} shadow-md rounded-[16px] rounded-tl-[4px] px-4 py-3 text-[14px] leading-relaxed whitespace-pre-wrap break-words transition-all duration-200 hover:shadow-lg hover:scale-[1.01]`}>
                         {renderMessageContent(msg.message || [])}
                     </div>
                 </div>
