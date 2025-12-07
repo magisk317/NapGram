@@ -739,9 +739,9 @@ export class ForwardFeature {
             napCatSegments.push(...segments);
         }
 
-        // Get caption from last message
+        // Get caption/text from last message (mtcute uses .text for both caption and text)
         const lastMsg = buffer.messages[buffer.messages.length - 1];
-        const caption = (lastMsg as any).text || (lastMsg as any).caption;
+        const caption = lastMsg.text;  // mtcute Message.text includes caption for media messages
         if (caption) {
             napCatSegments.push({ type: 'text', data: { text: caption } });
         }
