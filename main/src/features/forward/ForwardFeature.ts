@@ -22,6 +22,7 @@ import { fileTypeFromBuffer } from 'file-type';
 import convert from '../../shared/helpers/convert';
 
 import { TelegramSender } from './senders/TelegramSender';
+import { ForwardMediaPreparer } from './senders/MediaPreparer';
 import { ThreadIdExtractor } from '../commands/services/ThreadIdExtractor';
 import { ForwardMapper } from './services/MessageMapper';
 import { ReplyResolver } from './services/ReplyResolver';
@@ -42,6 +43,7 @@ export class ForwardFeature {
     private replyResolver: ReplyResolver;
     private mediaGroupHandler: MediaGroupHandler;
     private tgMessageHandler: TelegramMessageHandler;
+    private mediaPreparer: ForwardMediaPreparer;
 
     constructor(
         private readonly instance: Instance,
@@ -59,16 +61,17 @@ export class ForwardFeature {
         this.telegramSender = new TelegramSender(instance, media);
         this.mapper = new ForwardMapper();
         this.replyResolver = new ReplyResolver(this.mapper);
+        this.mediaPreparer = new ForwardMediaPreparer(instance, media);
         this.mediaGroupHandler = new MediaGroupHandler(
             this.qqClient,
-            this.prepareMediaForQQ.bind(this),
+            (msg) => this.mediaPreparer.prepareMediaForQQ(msg),
             () => this.nicknameMode,
         );
         this.tgMessageHandler = new TelegramMessageHandler(
             this.qqClient,
             this.mediaGroupHandler,
             this.replyResolver,
-            this.prepareMediaForQQ.bind(this),
+            (msg) => this.mediaPreparer.prepareMediaForQQ(msg),
             this.renderContent.bind(this),
             () => this.nicknameMode,
         );
@@ -219,194 +222,6 @@ export class ForwardFeature {
         }
     };
 
-
-
-    /**
-     * 为 QQ 侧填充媒体 Buffer/URL，提升兼容性。
-     */
-    private async prepareMediaForQQ(msg: UnifiedMessage) {
-        if (!this.media) return;
-
-        await Promise.all(msg.content.map(async (content) => {
-            try {
-                if (content.type === 'image') {
-                    const img = content as ImageContent;
-                    const bufferOrPath = await this.ensureBufferOrPath(img);
-                    let targetFile: Buffer | string | undefined = bufferOrPath;
-                    let targetExt = '.jpg';
-
-                    if (Buffer.isBuffer(bufferOrPath)) {
-                        let detected;
-                        try {
-                            detected = await fileTypeFromBuffer(bufferOrPath);
-                        } catch (e) {
-                            logger.debug('fileTypeFromBuffer failed in prepareMediaForQQ', e);
-                        }
-
-                        if (img.data.isSticker) {
-                            if (img.data.mimeType?.includes('tgsticker') || detected?.ext === 'gz') {
-                                logger.debug('Preparing TG animated sticker for QQ (tgs->gif)');
-                                try {
-                                    const key = `tgsticker-${Date.now()}-${Math.random().toString(16).slice(2)}`;
-                                    const gifPath = await convert.tgs2gif(key, () => Promise.resolve(bufferOrPath));
-                                    const gifBuffer = await fs.promises.readFile(gifPath);
-                                    targetFile = gifBuffer;
-                                    targetExt = '.gif';
-                                    logger.debug('TGS converted to gif for QQ', { gifPath, size: gifBuffer.length });
-                                } catch (e) {
-                                    logger.warn('TGS convert failed, fallback to text', e);
-                                    content.type = 'text';
-                                    (content as any).data = { text: '[贴纸]' };
-                                    return;
-                                }
-                            }
-                            else {
-                                logger.debug('Preparing QQ sticker image', {
-                                    mimeType: img.data.mimeType,
-                                    detectedExt: detected?.ext,
-                                });
-                                try {
-                                    targetFile = await sharp(bufferOrPath).png().toBuffer();
-                                    targetExt = '.png';
-                                } catch (e) {
-                                    logger.warn('Sticker convert to png failed, fallback raw buffer', e);
-                                    targetFile = bufferOrPath;
-                                    targetExt = detected?.ext ? `.${detected.ext}` : '.jpg';
-                                }
-                            }
-
-                        } else {
-                            if (img.data.mimeType) {
-                                if (img.data.mimeType.includes('webp')) targetExt = '.webp';
-                                else if (img.data.mimeType.includes('png')) targetExt = '.png';
-                            } else if (detected?.ext) {
-                                targetExt = `.${detected.ext}`;
-                            }
-                        }
-
-                        logger.debug('Saving media for QQ', {
-                            isSticker: img.data.isSticker,
-                            mimeType: img.data.mimeType,
-                            detectedExt: detected?.ext,
-                            targetExt,
-                        });
-                    }
-
-                    content.data.file = await this.ensureFilePath(targetFile, targetExt);
-                } else if (content.type === 'video') {
-                    // 使用可外网访问的 URL，NapCat 发送视频需要 URL 而非本地路径
-                    content.data.file = await this.ensureFilePath(await this.ensureBufferOrPath(content as VideoContent), '.mp4', false);
-                } else if (content.type === 'audio') {
-                    const oggPath = await this.ensureFilePath(await this.ensureBufferOrPath(content as AudioContent, true), '.ogg', true);
-                    if (oggPath) {
-                        try {
-                            // QQ 语音需要 silk，避免 NapCat 报“语音转换失败”
-                            const silkBuffer = await silk.encode(oggPath);
-                            logger.debug(`Encoded silk buffer size: ${silkBuffer?.length}`);
-                            // 保存 silk 文件并获取 URL (forceLocal=false)，以便 NapCat 可以下载
-                            content.data.file = await this.ensureFilePath(silkBuffer, '.silk', false);
-                        } catch (err) {
-                            // 转码失败则改为普通文件发送，至少保证可收到
-                            logger.warn('Audio silk encode failed, fallback to file', err);
-                            content.type = 'file';
-                            content.data = {
-                                file: oggPath,
-                                filename: path.basename(oggPath),
-                            } as any;
-                        }
-                    } else {
-                        content.data.file = undefined;
-                    }
-                } else if (content.type === 'file') {
-                    const file = content as FileContent;
-                    content.data.file = await this.ensureFilePath(await this.ensureBufferOrPath(file), undefined);
-                }
-            } catch (err) {
-                logger.warn('Prepare media for QQ failed, skip media content:', err);
-                content.type = 'text';
-                (content as any).data = { text: this.renderContent(content) };
-            }
-        }));
-    }
-
-    private async ensureBufferOrPath(content: ImageContent | VideoContent | AudioContent | FileContent, forceDownload?: boolean): Promise<Buffer | string | undefined> {
-        if (content.data.file) {
-            if (Buffer.isBuffer(content.data.file)) return content.data.file;
-            if (typeof content.data.file === 'string') {
-                // NapCat 下可能给的是本地绝对路径（record/image 等），如果可访问直接用；否则尝试下载
-                if (!forceDownload && !/^https?:\/\//.test(content.data.file)) {
-                    try {
-                        logger.debug(`Processing media:\n${JSON.stringify(content, null, 2)}`);
-                        await fs.promises.access(content.data.file);
-                        logger.debug(`Media file exists locally: ${content.data.file}`);
-                        return content.data.file;
-                    } catch {
-                        logger.debug(`Local media file not found or accessible, falling back to download: ${content.data.file}`);
-                        // fallback to download below
-                    }
-                }
-                try {
-                    return await this.media?.downloadMedia(content.data.file);
-                } catch (e) {
-                    logger.warn('Failed to download media by url', e);
-                }
-            }
-            // Assume it is a Telegram Media Object
-            try {
-                const mediaObj = content.data.file as any;
-                // logger.debug(`Downloading TG media: type=${mediaObj?.className}, id=${mediaObj?.id}, accessHash=${mediaObj?.accessHash}, dcId=${mediaObj?.dcId}, size=${mediaObj?.size}`);
-                const buffer = await this.instance.tgBot.downloadMedia(mediaObj);
-                logger.debug(`Downloaded media buffer size: ${buffer?.length}`);
-
-                if (!buffer || buffer.length === 0) {
-                    logger.warn('Downloaded buffer is empty, treating as failure');
-                    return undefined;
-                }
-                return buffer as Buffer;
-            } catch (e) {
-                logger.warn('Failed to download media from TG object:', e);
-            }
-        }
-        if (content.data.url && this.media) {
-            return await this.media.downloadMedia(content.data.url);
-        }
-        return undefined;
-    }
-
-    private async ensureFilePath(file: Buffer | string | undefined, ext?: string, forceLocal?: boolean) {
-        if (!file) return undefined;
-        if (Buffer.isBuffer(file)) {
-            const filename = `${Date.now()}-${Math.random().toString(36).substring(7)}${ext || ''}`;
-            const tempDir = path.join(env.DATA_DIR, 'temp');
-            if (!fs.existsSync(tempDir)) {
-                fs.mkdirSync(tempDir, { recursive: true });
-            }
-            const tempPath = path.join(tempDir, filename);
-            await fs.promises.writeFile(tempPath, file);
-
-            if (!forceLocal) {
-                // 1. Try INTERNAL_WEB_ENDPOINT (For Docker Network)
-                if (env.INTERNAL_WEB_ENDPOINT) {
-                    return `${env.INTERNAL_WEB_ENDPOINT}/temp/${filename}`;
-                }
-                // 2. Try WEB_ENDPOINT (Public URL)
-                if (env.WEB_ENDPOINT) {
-                    return `${env.WEB_ENDPOINT}/temp/${filename}`;
-                }
-
-                // 2. Fallback to Docker Host IP (Bridge Gateway)
-                // If running in Docker, we usually map 8082 -> 8080.
-                // NapCat (external container) -> Host (172.17.0.1) -> Port 8082
-                // If running locally, you might need to adjust this or set WEB_ENDPOINT.
-                return `http://172.17.0.1:8082/temp/${filename}`;
-            }
-            return tempPath;
-        }
-        return file;
-    }
-
-
-
     private renderContent(content: MessageContent): string {
         switch (content.type) {
             case 'text':
@@ -443,11 +258,6 @@ export class ForwardFeature {
         // Note: TG bot event handler cleanup is handled by bot client
         logger.info('ForwardFeature destroyed');
     }
-
-
-
-
-
 }
 
 export default ForwardFeature;

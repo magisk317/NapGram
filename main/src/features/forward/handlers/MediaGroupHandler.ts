@@ -110,7 +110,7 @@ export class MediaGroupHandler {
         if (showTGToQQNickname) {
             const firstMsg = buffer.messages[0];
             const unified = messageConverter.fromTelegram(firstMsg as any);
-            const headerText = `${unified.sender.name}:\\n`;
+            const headerText = `${unified.sender.name}:\n`;
             napCatSegments.unshift({ type: 'text', data: { text: headerText } });
         }
 
