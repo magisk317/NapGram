@@ -13,8 +13,10 @@ export function renderContent(content: MessageContent): string {
             return '[语音]';
         case 'file':
             return `[文件:${content.data.filename || '文件'}]`;
-        case 'at':
-            return `@${content.data.userName || content.data.userId}`;
+        case 'at': {
+            const name = (content.data.userName || '').trim() || content.data.userId;
+            return `@${name}`;
+        }
         case 'face':
             return content.data.text || '[表情]';
         case 'reply':
