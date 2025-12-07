@@ -1,4 +1,4 @@
-import { getLogger } from '../logger';
+import { getLogger } from '../../logger';
 import fsP from 'fs/promises';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';

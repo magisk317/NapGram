@@ -325,7 +325,7 @@ export class CommandsFeature {
             // QQ 消息：replyToId 是 QQ 的 seq
             record = await db.message.findFirst({
                 where: {
-                    qqRoomId: chatId,
+                    qqRoomId: BigInt(chatId),
                     seq: replyToId,
                     instanceId: this.instance.id,
                 },

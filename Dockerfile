@@ -14,7 +14,6 @@ RUN if [ "$USE_MIRROR" = "true" ]; then \
     libpixman-1-0 libcairo2 libpango1.0-0 libgif7 libjpeg62-turbo libpng16-16 librsvg2-2 libvips42 ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
-ENV DATABASE_URL=postgres://user:password@postgres/db_name
 # 指定 pnpm 版本防止变动
 RUN corepack enable && corepack prepare pnpm@latest --activate
 WORKDIR /app

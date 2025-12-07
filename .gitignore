@@ -766,7 +766,7 @@ compose.dev.yaml
 compose.test.yaml
 compose.edge.yaml
 compose.dev.yaml.bak
-compose.example.yaml
+compose.stable.yaml
 
 # Strict Ignores for NapGram
 main/data/

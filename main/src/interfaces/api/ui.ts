@@ -30,6 +30,7 @@ else if (env.UI_PATH) {
   }
 
   // Serve vite.svg from root or assets if exists to suppress errors
+  // @ts-expect-error - Elysia type inference complexity
   app = app.get('/vite.svg', ({ set }) => {
     const possiblePaths = [
       path.join(env.UI_PATH, 'vite.svg'),

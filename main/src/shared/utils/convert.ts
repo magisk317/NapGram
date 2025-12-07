@@ -5,7 +5,7 @@ import { file as createTempFile } from 'tmp-promise';
 import fsP from 'fs/promises';
 import convertWithFfmpeg from './encoding/convertWithFfmpeg';
 import tgsToGif from './encoding/tgsToGif';
-import { getLogger } from './logger';
+import { getLogger } from '../logger';
 import env from '../../domain/models/env';
 import { fileTypeFromBuffer } from 'file-type';
 

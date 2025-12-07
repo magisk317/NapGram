@@ -1,5 +1,5 @@
 import { EventEmitter } from 'events';
-import { getLogger } from '../utils/logger';
+import { getLogger } from '../logger';
 
 const logger = getLogger('ReconnectingWS');
 

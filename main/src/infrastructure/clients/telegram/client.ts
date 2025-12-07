@@ -131,7 +131,6 @@ export default class Telegram {
 
   private async config() {
     this.me = await this.client.getMe();
-
     this.dispatcher.onNewMessage(this.onMessage);
     this.dispatcher.onEditMessage(this.onEditedMessage);
     this.dispatcher.onDeleteMessage(this.onDeleteMessage);

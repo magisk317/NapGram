@@ -1,6 +1,6 @@
 import Telegram from '../../infrastructure/clients/telegram/client';
 import { Message } from '@mtcute/core';
-import { getLogger } from '../utils/logger';
+import { getLogger } from '../logger';
 
 export default class WaitForMessageHelper {
   private map = new Map<number, (event: Message) => any>();
