@@ -52,7 +52,6 @@ const configParsed = z.object({
   DISABLE_FILE_UPLOAD_TIP: z.string().transform((v) => ['true', '1', 'yes'].includes(v.toLowerCase())).default('false'),
   IMAGE_SUMMARY: z.string().optional(),
   ENABLE_FEATURE_MANAGER: z.string().transform((v) => ['true', '1', 'yes'].includes(v.toLowerCase())).default('false'),
-  ENABLE_LEGACY_ICQQ: z.string().transform((v) => ['true', '1', 'yes'].includes(v.toLowerCase())).default('false'),
 
   LISTEN_PORT: z.string().regex(/^\d+$/).transform(Number).default('8080'),
 

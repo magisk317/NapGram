@@ -1,0 +1,74 @@
+services:
+  napgram:
+    build: .
+    image: napgram:latest
+    container_name: napgram
+    user: "1000" # 使用与 NapCat 相同的 UID，避免文件权限问题
+    ports:
+      - "8080:8080"
+    env_file:
+      - .env
+    environment:
+      # 代理配置（可选）
+      # PROXY_IP: 127.0.0.1
+      # PROXY_PORT: 7890
+      PROXY_TYPE: socks5
+      
+      # NapCat 连接配置
+      NAPCAT_WS_URL: ws://napcat:3001
+      
+      # Web 访问端点（用于媒体/文件访问）
+      WEB_ENDPOINT: http://localhost:8080
+      
+      # 数据库连接（需与下方 postgres 服务凭据一致）
+      DATABASE_URL: postgres://napgram_user:secure_password_here@postgres:5432/napgram
+      
+      # Telegram 连接配置
+      TG_CONNECTION: tcp
+      TG_INITIAL_DCID: 5
+      TG_INITIAL_SERVER: 91.108.56.174
+      
+      # 日志配置
+      LOG_LEVEL: info
+      TG_LOG_LEVEL: info
+      
+      # 功能开关
+      SHOW_NICKNAME_MODE: 11
+      FORWARD_MODE: 11
+      
+      # 时区
+      TZ: Asia/Shanghai
+    volumes:
+      - ./data:/app/data
+      # 挂载 NapCat 的 QQ 数据目录以访问媒体文件
+      - /path/to/napcat/data:/app/.config/QQ
+    depends_on:
+      - postgres
+    command: sh -c "npx prisma db push && node build/index.js"
+    networks:
+      - napgram_net
+    restart: always
+
+  # PostgreSQL 数据库服务
+  postgres:
+    image: postgres:14-alpine
+    container_name: napgram-postgres
+    restart: always
+    environment:
+      POSTGRES_DB: napgram
+      POSTGRES_USER: napgram_user
+      POSTGRES_PASSWORD: secure_password_here
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - napgram_net
+
+networks:
+  napgram_net:
+    driver: bridge
+  # 如需连接到外部服务，可添加：
+  # external_network:
+  #   external: true
+
+volumes:
+  postgres_data:

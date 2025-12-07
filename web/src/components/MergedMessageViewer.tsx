@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
@@ -22,24 +21,19 @@ interface MergedMessageViewerProps {
     uuid: string;
 }
 
-// 根据用户ID生成一致的颜色
+// 根据用户ID生成颜色（7种颜色）
 function getUserColor(userId: string | number): string {
     const colors = [
-        'bg-blue-500',
-        'bg-purple-500',
-        'bg-pink-500',
-        'bg-rose-500',
-        'bg-orange-500',
-        'bg-amber-500',
-        'bg-lime-500',
-        'bg-emerald-500',
-        'bg-teal-500',
-        'bg-cyan-500',
-        'bg-indigo-500',
-        'bg-violet-500',
+        '#FF516A',  // 红
+        '#FFA85C',  // 橙
+        '#D669ED',  // 紫
+        '#54CB68',  // 绿
+        '#28C9B7',  // 青
+        '#2A9EF1',  // 蓝
+        '#FF719A',  // 粉
     ];
     const hash = String(userId).split('').reduce((acc, char) => acc + char.charCodeAt(0), 0);
-    return colors[hash % colors.length];
+    return colors[hash % 7];
 }
 
 export function MergedMessageViewer({ uuid }: MergedMessageViewerProps) {
@@ -67,23 +61,14 @@ export function MergedMessageViewer({ uuid }: MergedMessageViewerProps) {
     if (error) return <div className="p-4 text-center text-red-500">错误: {error}</div>;
 
     return (
-        <div className="w-full min-h-screen bg-gradient-to-br from-slate-50 to-slate-100 flex justify-center py-6 px-3">
-            <div className="w-full max-w-4xl">
-                <Card className="shadow-lg border-slate-200/60 bg-white/90 backdrop-blur-sm">
-                    <CardHeader className="pb-3 border-b border-slate-100">
-                        <CardTitle className="text-xl font-bold text-slate-800">聊天记录</CardTitle>
-                    </CardHeader>
-                    <CardContent className="pt-4">
-                        <ScrollArea className="h-[82vh] pr-3">
-                            <div className="space-y-4">
-                                {messages.map((msg, idx) => (
-                                    <MessageBubble key={idx} msg={msg} idx={idx} />
-                                ))}
-                            </div>
-                        </ScrollArea>
-                    </CardContent>
-                </Card>
-            </div>
+        <div className="w-full min-h-screen bg-white">
+            <ScrollArea className="h-screen px-4 py-4">
+                <div className="w-full max-w-4xl mx-auto">
+                    {messages.map((msg, idx) => (
+                        <MessageBubble key={idx} msg={msg} idx={idx} />
+                    ))}
+                </div>
+            </ScrollArea>
         </div>
     );
 }
@@ -92,54 +77,65 @@ function MessageBubble({ msg, idx }: { msg: Message; idx: number }) {
     const senderId = msg.user_id ?? msg.sender_id ?? msg.sender?.id ?? `user${idx}`;
     const name = msg.nickname || msg.card || msg.sender?.name || `未知用户`;
     const avatar = msg.avatar || (senderId && senderId !== `user${idx}` ? `/api/avatar/qq/${senderId}` : undefined);
+
+    // 简洁的HH:mm时间格式
     const timeStr = msg.time ? new Date(msg.time * 1000).toLocaleString('zh-CN', {
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
         hour: '2-digit',
         minute: '2-digit',
-        second: '2-digit',
         hour12: false
     }) : '';
+
     const userColor = getUserColor(senderId);
 
     return (
-        <div className="flex items-start gap-3 group">
-            {/* 头像 */}
-            <Avatar className="h-11 w-11 shadow-md border-2 border-white ring-1 ring-slate-200 flex-shrink-0">
-                <AvatarImage
-                    src={avatar}
-                    alt={name}
-                    referrerPolicy="no-referrer"
-                    onError={(e) => {
-                        // 头像加载失败时使用 fallback
-                        e.currentTarget.style.display = 'none';
-                    }}
-                />
-                <AvatarFallback className={`${userColor} text-white font-semibold text-sm`}>
-                    {name[0] || '?'}
-                </AvatarFallback>
-            </Avatar>
+        <div className="flex my-2.5">
+            {/* 头像容器：50px固定宽度 */}
+            <div className="w-[50px] min-w-[50px] max-w-[50px] flex justify-center items-end">
+                {/* 36px头像，底部sticky定位 */}
+                <Avatar className="h-9 w-9 sticky bottom-2.5 z-[2]">
+                    <AvatarImage
+                        src={avatar}
+                        alt={name}
+                        referrerPolicy="no-referrer"
+                        onError={(e) => {
+                            e.currentTarget.style.display = 'none';
+                        }}
+                    />
+                    <AvatarFallback className="bg-gray-300 text-white font-bold text-sm">
+                        {name[0] || '?'}
+                    </AvatarFallback>
+                </Avatar>
+            </div>
 
-            {/* 消息内容区域 */}
-            <div className="flex-1 min-w-0">
-                {/* 用户信息栏 */}
-                <div className="flex items-baseline gap-2 mb-1.5 flex-wrap">
-                    <span className={`inline-block px-2 py-0.5 rounded text-xs font-semibold text-white ${userColor} shadow-sm`}>
-                        {name}
-                    </span>
-                    {timeStr && (
-                        <span className="text-xs text-slate-400 font-medium">
-                            {timeStr}
-                        </span>
-                    )}
+            {/* 内容区域 */}
+            <div className="flex-grow">
+                {/* 昵称：sticky悬浮，彩色文字，毛玻璃背景 */}
+                <div
+                    className="sticky top-0 z-[1] w-max min-w-0 rounded-[10px] px-2.5 py-1 m-1 text-sm font-bold backdrop-blur-md"
+                    style={{
+                        color: userColor,
+                        backgroundColor: 'rgba(var(--background-rgb, 255, 255, 255), 0.8)'
+                    }}
+                >
+                    {name}
                 </div>
 
-                {/* 消息气泡 */}
-                <div className="relative">
-                    <div className="bg-white border border-slate-200/80 shadow-sm rounded-2xl rounded-tl-sm px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap break-words transition-all duration-200 hover:shadow-md hover:border-slate-300/80">
+                {/* 消息气泡：半透明灰色背景 */}
+                <div
+                    className="w-max min-w-[100px] max-w-[calc(100vw-100px)] m-1 px-2.5 py-1 text-base rounded-r-[10px] rounded-bl-[10px] rounded-tl-none"
+                    style={{ backgroundColor: 'rgba(136, 136, 136, 0.09)' }}
+                >
+                    {/* 消息内容 */}
+                    <div className="whitespace-pre-line">
                         {renderMessageContent(msg.message || [])}
                     </div>
+
+                    {/* 时间：右对齐小字 */}
+                    {timeStr && (
+                        <div className="mt-0.5 text-right text-xs text-gray-500">
+                            {timeStr}
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
@@ -167,8 +163,14 @@ function renderMessageContent(segments: any[]) {
             const url = data.url || data.file || seg?.url || seg?.file;
             if (url) {
                 return (
-                    <div key={i} className="my-2">
-                        <img src={url} alt="Image" className="max-w-full rounded-md shadow border border-slate-200" />
+                    <div key={i} className="my-1">
+                        <img
+                            src={url}
+                            alt="Image"
+                            className="rounded-md max-w-[200px] cursor-pointer hover:opacity-90 transition-opacity"
+                            referrerPolicy="no-referrer"
+                            onClick={() => window.open(url, '_blank')}
+                        />
                     </div>
                 );
             }
@@ -176,19 +178,37 @@ function renderMessageContent(segments: any[]) {
         }
         if (type === 'video' || type === 'video-loop') {
             const url = data.url || data.file || seg?.url || seg?.file;
-            return (
-                <div key={i} className="my-1 text-sky-700 underline break-all">
-                    [video] {url && <a href={url} target="_blank" rel="noreferrer">{url}</a>}
-                </div>
-            );
+            if (url) {
+                return (
+                    <div key={i} className="my-1">
+                        <video
+                            src={url}
+                            controls={type === 'video'}
+                            autoPlay={type === 'video-loop'}
+                            muted={type === 'video-loop'}
+                            loop={type === 'video-loop'}
+                            className="rounded-md max-w-[200px]"
+                            style={{ width: 200 }}
+                        />
+                    </div>
+                );
+            }
+            return <span key={i}>[video]</span>;
         }
         if (type === 'record') {
             const url = data.url || data.file || seg?.url || seg?.file;
-            return (
-                <div key={i} className="my-1 text-sky-700 underline break-all">
-                    [语音] {url && <a href={url} target="_blank" rel="noreferrer">{url}</a>}
-                </div>
-            );
+            if (url) {
+                return (
+                    <div key={i} className="my-1">
+                        <audio
+                            src={url}
+                            controls
+                            className="max-w-full"
+                        />
+                    </div>
+                );
+            }
+            return <span key={i}>[语音]</span>;
         }
         if (type === 'face' || type === 'sface' || type === 'at') {
             const id = data.id || data.text || '';
