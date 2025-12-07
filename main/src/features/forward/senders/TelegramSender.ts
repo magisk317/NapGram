@@ -68,6 +68,32 @@ export class TelegramSender {
         }
 
         let lastSent: any = null;
+        // Media batching for Media Group支持
+        const mediaBatch: MessageContent[] = [];
+        let batchCaption: string[] = [];
+
+        const flushMediaBatch = async () => {
+            if (mediaBatch.length > 0) {
+                const captionStr = batchCaption.join('');
+                lastSent = await this.sendMediaGroup(
+                    chat,
+                    mediaBatch,
+                    captionStr,
+                    replyToMsgId,
+                    pair,
+                    originalHeader,  // Use original header for media
+                    richHeaderUsed,
+                    richHeaderUrl,
+                    msg.id
+                ) || lastSent;
+
+                mediaBatch.length = 0;
+                batchCaption.length = 0;
+                richHeaderUsed = false;  // Consumed by media
+                header = '';
+            }
+        };
+
         for (const content of msg.content) {
             switch (content.type) {
                 case 'reply':
@@ -75,6 +101,7 @@ export class TelegramSender {
                         textParts.push(this.contentRenderer(content));
                     }
                     break;
+
                 case 'text':
                 case 'at':
                 case 'face':
@@ -84,9 +111,79 @@ export class TelegramSender {
                             break;
                         }
                     }
-                    textParts.push(this.contentRenderer(content));
+
+                    // If we're collecting media, add text to batch caption
+                    if (mediaBatch.length > 0) {
+                        batchCaption.push(this.contentRenderer(content));
+                    } else {
+                        textParts.push(this.contentRenderer(content));
+                    }
                     break;
+
+                case 'image':
+                case 'video':
+                    // Send any pending text first
+                    if (textParts.length > 0) {
+                        const { text, params } = this.applyRichHeader(header + textParts.join(' '), richHeaderUsed ? richHeaderUrl : undefined);
+                        params.replyTo = replyTo;
+                        if (messageThreadId) params.messageThreadId = messageThreadId;
+
+                        await chat.sendMessage(text, params);
+                        textParts = [];
+                        richHeaderUsed = false;
+                        header = '';
+                    }
+
+                    // Add to media batch
+                    mediaBatch.push(content);
+                    break;
+
+                case 'audio':
+                case 'file':
+                    // These can't be in Media Group, flush batch first
+                    await flushMediaBatch();
+
+                    if (textParts.length > 0) {
+                        const { text, params } = this.applyRichHeader(header + textParts.join(' '), richHeaderUsed ? richHeaderUrl : undefined);
+                        params.replyTo = replyTo;
+                        if (messageThreadId) params.messageThreadId = messageThreadId;
+
+                        await chat.sendMessage(text, params);
+                        textParts = [];
+                        richHeaderUsed = false;
+                        header = '';
+                    }
+
+                    // Rich Header logic for non-groupable media
+                    if (richHeaderUsed) {
+                        let actionText = '';
+                        switch (content.type) {
+                            case 'audio': actionText = '发来一条语音'; break;
+                            case 'file': actionText = '发来一个文件'; break;
+                            default: actionText = '发来一条消息'; break;
+                        }
+                        const headerText = actionText;
+
+                        const { text, params } = this.applyRichHeader(headerText, richHeaderUrl);
+                        params.replyTo = replyTo;
+                        if (messageThreadId) params.messageThreadId = messageThreadId;
+
+                        try {
+                            await chat.sendMessage(text, params);
+                        } catch (e) {
+                            this.logger.warn(e, 'Failed to send separate Rich Header message:');
+                        }
+                        richHeaderUsed = false;
+                    }
+
+                    lastSent = await this.sendMediaToTG(chat, header, content, replyToMsgId, pair, richHeaderUsed, richHeaderUrl, msg.id) || lastSent;
+                    richHeaderUsed = false;
+                    header = '';
+                    break;
+
                 case 'forward':
+                    await flushMediaBatch();
+
                     if (textParts.length > 0) {
                         const { text, params } = this.applyRichHeader(header + textParts.join(' '), richHeaderUsed ? richHeaderUrl : undefined);
                         params.replyTo = replyTo;
@@ -99,7 +196,10 @@ export class TelegramSender {
                     }
                     lastSent = await this.sendForwardToTG(chat, content, pair, replyToMsgId, header, richHeaderUsed) || lastSent;
                     break;
+
                 case 'location':
+                    await flushMediaBatch();
+
                     if (textParts.length > 0) {
                         const { text, params } = this.applyRichHeader(header + textParts.join(' '), richHeaderUsed ? richHeaderUrl : undefined);
                         params.replyTo = replyTo;
@@ -115,7 +215,10 @@ export class TelegramSender {
                     richHeaderUsed = false;
                     header = '';
                     break;
+
                 case 'dice':
+                    await flushMediaBatch();
+
                     if (textParts.length > 0) {
                         const { text, params } = this.applyRichHeader(header + textParts.join(' '), richHeaderUsed ? richHeaderUrl : undefined);
                         params.replyTo = replyTo;
@@ -131,59 +234,15 @@ export class TelegramSender {
                     richHeaderUsed = false;
                     header = '';
                     break;
-                case 'image':
-                case 'video':
-                case 'audio':
-                case 'file':
-                    if (textParts.length > 0) {
-                        const { text, params } = this.applyRichHeader(header + textParts.join(' '), richHeaderUsed ? richHeaderUrl : undefined);
-                        params.replyTo = replyTo;
-                        if (messageThreadId) params.messageThreadId = messageThreadId;
 
-                        await chat.sendMessage(text, params);
-                        textParts = [];
-                        // richHeaderUsed consumed by the text message
-                        richHeaderUsed = false;
-                        header = '';
-                    }
-
-                    // If Rich Header is active but hasn't been used yet (no text parts),
-                    // send it as a separate 'Head' message to show the Avatar/Nickname.
-                    // Telegram does NOT support Link Previews (Rich Header) on Media captions.
-                    if (richHeaderUsed) {
-                        let actionText = '';
-                        switch (content.type) {
-                            case 'image': actionText = '发来一张图片'; break;
-                            case 'video': actionText = '发来一段视频'; break;
-                            case 'audio': actionText = '发来一条语音'; break;
-                            case 'file': actionText = '发来一个文件'; break;
-                            default: actionText = '发来一条消息'; break;
-                        }
-                        // User requested to remove text nickname since rich header avatar is present
-                        const headerText = actionText;
-
-                        const { text, params } = this.applyRichHeader(headerText, richHeaderUrl);
-                        params.replyTo = replyTo;
-                        if (messageThreadId) params.messageThreadId = messageThreadId;
-
-                        try {
-                            const sent = await chat.sendMessage(text, params);
-                        } catch (e) {
-                            this.logger.warn(e, 'Failed to send separate Rich Header message:');
-                        }
-                        richHeaderUsed = false;
-                    }
-
-                    // Send media (header is empty here, avoiding duplicate caption)
-                    lastSent = await this.sendMediaToTG(chat, header, content, replyToMsgId, pair, richHeaderUsed, richHeaderUrl, msg.id) || lastSent;
-                    richHeaderUsed = false;
-                    header = '';
-                    break;
                 default:
                     textParts.push(this.contentRenderer(content));
                     break;
             }
         }
+
+        // Flush any remaining media batch
+        await flushMediaBatch();
 
         if (textParts.length > 0) {
             const { text, params } = this.applyRichHeader(header + textParts.join(' '), richHeaderUsed ? richHeaderUrl : undefined);
@@ -334,6 +393,109 @@ export class TelegramSender {
             this.logger.error(e, 'Failed to send media to TG:');
         }
         return null;
+    }
+
+    /**
+     * Send multiple images/videos as a Telegram Media Group
+     * @param chat - Telegram chat object
+     * @param mediaItems - Array of image/video MessageContent
+     * @param caption - Caption text for the first media
+     * @param replyToMsgId - Message ID to reply to
+     * @param pair - Pair object
+     * @param header - Header text (usually nickname)
+     * @param richHeaderUsed - Whether rich header is used
+     * @param richHeaderUrl - Rich header URL
+     * @param qqMsgId - QQ message ID for logging
+     */
+    private async sendMediaGroup(
+        chat: any,
+        mediaItems: MessageContent[],
+        caption: string,
+        replyToMsgId?: number,
+        pair?: any,
+        header?: string,
+        richHeaderUsed?: boolean,
+        richHeaderUrl?: string,
+        qqMsgId?: string
+    ) {
+        if (mediaItems.length === 0) return null;
+
+        // Single media: use existing sendMediaToTG
+        if (mediaItems.length === 1) {
+            return await this.sendMediaToTG(
+                chat, header || '', mediaItems[0],
+                replyToMsgId, pair, richHeaderUsed, richHeaderUrl, qqMsgId
+            );
+        }
+
+        // Multiple media: build Media Group
+        this.logger.info(`Sending Media Group with ${mediaItems.length} items`);
+        const mediaInputs: any[] = [];
+
+        for (const media of mediaItems) {
+            try {
+                const fileSrc = await this.resolveMediaInput(media);
+                const fileName = (media as any).data.fileName ||
+                    (typeof (media as any).data.file === 'string' ? path.basename((media as any).data.file) :
+                        media.type === 'video' ? 'video.mp4' : 'image.jpg');
+                const normalized = await this.normalizeInputFile(fileSrc, fileName);
+
+                if (!normalized) {
+                    this.logger.warn(`Skipping media in group: normalization failed`);
+                    continue;
+                }
+
+                const isGif = this.isGifMedia(normalized);
+                mediaInputs.push({
+                    type: media.type === 'video' ? 'video' : (isGif ? 'animation' : 'photo'),
+                    file: normalized.data,
+                    fileName: normalized.fileName,
+                });
+            } catch (err) {
+                this.logger.warn(err, `Failed to process media item in group:`);
+            }
+        }
+
+        if (mediaInputs.length === 0) {
+            this.logger.warn('No valid media in group, skipping');
+            return null;
+        }
+
+        // Combine header + caption for the first media
+        let fullCaption = '';
+        if (header) {
+            fullCaption += header;
+        }
+        if (caption) {
+            fullCaption += (header ? '' : '') + caption;  // Header already has \n
+        }
+
+        // Apply caption and formatting to the first media
+        if (fullCaption && mediaInputs[0]) {
+            const { text, params } = this.applyRichHeader(fullCaption, richHeaderUsed ? richHeaderUrl : undefined);
+            mediaInputs[0].caption = text;
+            if (params.parseMode) {
+                mediaInputs[0].parseMode = params.parseMode;
+            }
+        }
+
+        // Build send parameters
+        const sendParams: any = {
+            replyTo: this.buildReplyTo(pair, replyToMsgId),
+        };
+        if (pair?.tgThreadId) {
+            sendParams.messageThreadId = Number(pair.tgThreadId);
+        }
+        if (!sendParams.replyTo) delete sendParams.replyTo;
+
+        try {
+            const sentMessages = await chat.client.sendMediaGroup(chat.id, mediaInputs, sendParams);
+            this.logger.info(`[Forward] QQ message ${qqMsgId || ''} -> TG Media Group (${sentMessages.length} items)${fullCaption ? ' with caption' : ''}`);
+            return sentMessages[0];  // Return first message for consistency
+        } catch (err) {
+            this.logger.error(err, 'Failed to send Media Group:');
+            return null;
+        }
     }
 
     private async sendLocationToTG(chat: any, content: MessageContent, replyTo?: number, messageThreadId?: number, header?: string, richHeaderUsed?: boolean, richHeaderUrl?: string) {
