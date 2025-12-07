@@ -757,16 +757,19 @@ result
 # Q2TG specific temp files
 data/temp/
 scripts/
-compose.yaml
 docs/mtcute_refactor_log.md
 docs/ROADMAP_MTCUTE.md
 cloudflare/
-Dockerfile.edge
-compose.dev.yaml
-compose.test.yaml
-compose.edge.yaml
-compose.dev.yaml.bak
-compose.stable.yaml
+
+# Compose: ignore all except example variants
+compose*.yml
+compose*.yaml
+!compose.*example*.yml
+!compose.*example*.yaml
+
+# Dockerfiles: keep only the base filename
+Dockerfile*
+!Dockerfile
 
 # Strict Ignores for NapGram
 main/data/

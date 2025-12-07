@@ -117,9 +117,12 @@ export class ForwardFeature {
                         return;
                     }
                 } catch (e) {
-                    logger.warn(`Invalid ignoreRegex for pair ${pair.id}: ${pair.ignoreRegex}`, e);
+                        logger.warn(`Invalid ignoreRegex for pair ${pair.id}: ${pair.ignoreRegex}`, e);
                 }
             }
+
+            // 填充 @ 提及的展示名称：优先群名片，其次昵称，最后 QQ 号
+            await this.populateAtDisplayNames(msg);
 
             const tgChatId = Number(pair.tgChatId);
             const chat = await this.instance.tgBot.getChat(tgChatId);
@@ -137,6 +140,51 @@ export class ForwardFeature {
             logger.error('Failed to forward QQ message:', error);
         }
     };
+
+    private async populateAtDisplayNames(msg: UnifiedMessage) {
+        if (msg.chat.type !== 'group') {
+            return;
+        }
+
+        const nameCache = new Map<string, string>();
+        for (const content of msg.content) {
+            if (content.type !== 'at') {
+                continue;
+            }
+
+            const userId = String(content.data?.userId ?? '');
+            if (!userId || userId === 'all') {
+                continue;
+            }
+
+            const cached = nameCache.get(userId);
+            if (cached) {
+                content.data.userName = cached;
+                continue;
+            }
+
+            const providedName = (content.data?.userName || '').trim();
+            if (providedName && providedName !== userId) {
+                nameCache.set(userId, providedName);
+                content.data.userName = providedName;
+                continue;
+            }
+
+            try {
+                const memberInfo = await this.qqClient.getGroupMemberInfo(msg.chat.id, userId);
+                const card = memberInfo?.card?.trim();
+                const nickname = memberInfo?.nickname?.trim();
+                const resolvedName = card || nickname || userId;
+
+                content.data.userName = resolvedName;
+                nameCache.set(userId, resolvedName);
+            } catch (error) {
+                logger.warn(error, `Failed to resolve @ mention name for ${userId} in group ${msg.chat.id}`);
+                content.data.userName = providedName || userId;
+                nameCache.set(userId, content.data.userName);
+            }
+        }
+    }
 
     private handleModeCommand = async (msg: UnifiedMessage, args: string[]) => {
         const chatId = msg.chat.id;
