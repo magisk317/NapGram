@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-ARG NODE_VERSION=24-slim
+ARG NODE_VERSION=25-slim
 FROM node:${NODE_VERSION} AS base
 ARG USE_MIRROR=true
 ENV DEBIAN_FRONTEND=noninteractive
