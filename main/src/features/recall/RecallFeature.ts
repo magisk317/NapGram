@@ -88,6 +88,11 @@ export class RecallFeature {
             const chatId = update.channelId; // mtcute 使用 channelId
             const messageIds = update.messages; // 删除的消息 ID 数组
 
+            if (!messageIds || !Array.isArray(messageIds)) {
+                logger.debug('Invalid delete update: messageIds is missing or not an array');
+                return;
+            }
+
             logger.info(`TG messages deleted in ${chatId}: ${messageIds.join(', ')}`);
 
             // 检查是否启用自动撤回
