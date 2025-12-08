@@ -33,11 +33,26 @@ const createMockInstance = () => ({
     owner: 123456,
     forwardPairs: {
         find: vi.fn(),
+        findByTG: vi.fn().mockReturnValue(null),
+        findByQQ: vi.fn().mockReturnValue(null),
+        add: vi.fn().mockResolvedValue({ qqRoomId: '111', tgChatId: '789', tgThreadId: 222 }),
+        remove: vi.fn().mockResolvedValue(undefined),
     },
 } as any);
 
 const createMockTgBot = () => ({
     sendMessage: vi.fn(),
+    getChat: vi.fn().mockResolvedValue({
+        sendMessage: vi.fn().mockResolvedValue({}),
+        deleteMessages: vi.fn().mockResolvedValue(undefined),
+    }),
+    addNewMessageEventHandler: vi.fn(),
+    removeNewMessageEventHandler: vi.fn(),
+    addDeletedMessageEventHandler: vi.fn(),
+    removeDeletedMessageEventHandler: vi.fn(),
+    me: {
+        username: 'testbot',
+    },
 } as any);
 
 describe('CommandsFeature', () => {
@@ -61,9 +76,9 @@ describe('CommandsFeature', () => {
     describe('Command Registration', () => {
         it('should register default commands', () => {
             // Default commands should be registered
-            expect(commandsFeature['commands'].has('help')).toBe(true);
-            expect(commandsFeature['commands'].has('status')).toBe(true);
-            expect(commandsFeature['commands'].has('bind')).toBe(true);
+            expect(commandsFeature['registry'].get('help')).toBeDefined();
+            expect(commandsFeature['registry'].get('status')).toBeDefined();
+            expect(commandsFeature['registry'].get('bind')).toBeDefined();
         });
 
         it('should register command with aliases', () => {
@@ -74,9 +89,9 @@ describe('CommandsFeature', () => {
                 handler: vi.fn(),
             });
 
-            expect(commandsFeature['commands'].has('test')).toBe(true);
-            expect(commandsFeature['commands'].has('t')).toBe(true);
-            expect(commandsFeature['commands'].has('测试')).toBe(true);
+            expect(commandsFeature['registry'].get('test')).toBeDefined();
+            expect(commandsFeature['registry'].get('t')).toBeDefined();
+            expect(commandsFeature['registry'].get('测试')).toBeDefined();
         });
 
         it('should register custom command', () => {
@@ -88,8 +103,8 @@ describe('CommandsFeature', () => {
                 handler,
             });
 
-            expect(commandsFeature['commands'].has('custom')).toBe(true);
-            const command = commandsFeature['commands'].get('custom');
+            expect(commandsFeature['registry'].get('custom')).toBeDefined();
+            const command = commandsFeature['registry'].get('custom');
             expect(command?.handler).toBe(handler);
         });
     });
@@ -116,7 +131,7 @@ describe('CommandsFeature', () => {
                 timestamp: Date.now(),
             };
 
-            await commandsFeature['handleMessage'](msg);
+            await commandsFeature['handleQqMessage'](msg);
 
             // Help command should be executed
             // (实际实现中会发送帮助信息)
@@ -143,7 +158,7 @@ describe('CommandsFeature', () => {
                 timestamp: Date.now(),
             };
 
-            await commandsFeature['handleMessage'](msg);
+            await commandsFeature['handleQqMessage'](msg);
 
             // Status command should check online status
             expect(mockQQClient.isOnline).toHaveBeenCalled();
@@ -170,7 +185,7 @@ describe('CommandsFeature', () => {
                 timestamp: Date.now(),
             };
 
-            await commandsFeature['handleMessage'](msg);
+            await commandsFeature['handleQqMessage'](msg);
 
             // Should not execute any command
         });
@@ -198,7 +213,7 @@ describe('CommandsFeature', () => {
 
             // Should not throw error
             await expect(
-                commandsFeature['handleMessage'](msg)
+                commandsFeature['handleQqMessage'](msg)
             ).resolves.not.toThrow();
         });
     });
@@ -225,7 +240,7 @@ describe('CommandsFeature', () => {
                 timestamp: Date.now(),
             };
 
-            await commandsFeature['handleMessage'](msg);
+            await commandsFeature['handleQqMessage'](msg);
 
             // Should execute bind command
         });
@@ -251,7 +266,7 @@ describe('CommandsFeature', () => {
                 timestamp: Date.now(),
             };
 
-            await commandsFeature['handleMessage'](msg);
+            await commandsFeature['handleQqMessage'](msg);
 
             // Should not execute bind command
         });

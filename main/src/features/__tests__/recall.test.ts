@@ -41,6 +41,11 @@ const createMockQQClient = (): IQQClient => ({
 
 const createMockTgBot = () => ({
     deleteMessages: vi.fn(),
+    getChat: vi.fn().mockResolvedValue({
+        deleteMessages: vi.fn().mockResolvedValue(undefined),
+    }),
+    addDeletedMessageEventHandler: vi.fn(),
+    removeDeletedMessageEventHandler: vi.fn(),
 } as any);
 
 const createMockInstance = () => ({
@@ -88,6 +93,11 @@ describe('RecallFeature', () => {
             (db.message.findFirst as any).mockResolvedValue(mockDbEntry);
             (db.message.update as any).mockResolvedValue({ ...mockDbEntry, deleted: true });
 
+            const mockChat = {
+                deleteMessages: vi.fn().mockResolvedValue(undefined),
+            };
+            mockTgBot.getChat.mockResolvedValue(mockChat);
+
             await recallFeature['handleQQRecall'](recallEvent);
 
             expect(db.message.findFirst).toHaveBeenCalledWith({
@@ -98,11 +108,8 @@ describe('RecallFeature', () => {
                 },
             });
 
-            expect(mockTgBot.deleteMessages).toHaveBeenCalledWith(
-                mockDbEntry.tgChatId,
-                [mockDbEntry.tgMsgId],
-                { revoke: true }
-            );
+            expect(mockTgBot.getChat).toHaveBeenCalledWith(Number(mockDbEntry.tgChatId));
+            expect(mockChat.deleteMessages).toHaveBeenCalledWith([mockDbEntry.tgMsgId]);
 
             expect(db.message.update).toHaveBeenCalledWith({
                 where: { id: 1 },
@@ -226,7 +233,7 @@ describe('RecallFeature', () => {
         it('should cleanup on destroy', () => {
             recallFeature.destroy();
 
-            expect(mockQQClient.removeListener).toHaveBeenCalledWith('recall', expect.any(Function));
+            expect(mockQQClient.off).toHaveBeenCalledWith('recall', expect.any(Function));
         });
     });
 });
