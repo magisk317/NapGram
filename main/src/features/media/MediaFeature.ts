@@ -3,9 +3,9 @@ import type { IQQClient } from '../../infrastructure/clients/qq';
 import type { UnifiedMessage, ImageContent, VideoContent, AudioContent } from '../../domain/message';
 import type Telegram from '../../infrastructure/clients/telegram/client';
 import type Instance from '../../domain/models/Instance';
-import { fetch } from 'undici';
+
 import { createReadStream } from 'fs';
-import { file as createTempFile } from 'tmp-promise';
+import { file as createTempFile } from '../../shared/utils/temp';
 import fsP from 'fs/promises';
 
 const logger = getLogger('MediaFeature');

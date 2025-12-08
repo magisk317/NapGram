@@ -1,4 +1,3 @@
-import { Agent, fetch } from 'undici';
 import { Friend, Group } from '../../infrastructure/clients/qq';
 
 export function getAvatarUrl(room: number | bigint | Friend | Group): string {
@@ -22,16 +21,8 @@ export function getBigFaceUrl(file: string) {
   return `https://gxh.vip.qq.com/club/item/parcel/item/${file.substring(0, 2)}/${file.substring(0, 32)}/300x300.png`;
 }
 
-const httpsAgent = new Agent({
-  connect: {
-    rejectUnauthorized: false,
-  },
-});
-
 export async function fetchFile(url: string): Promise<Buffer> {
-  const res = await fetch(url, {
-    dispatcher: httpsAgent,
-  });
+  const res = await fetch(url);
 
   if (!res.ok) {
     throw new Error(`Fetch failed: ${res.status} ${res.statusText}`);

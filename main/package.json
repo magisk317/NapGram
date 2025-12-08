@@ -51,8 +51,6 @@
     "prisma": "7.1.0",
     "sharp": "0.34.5",
     "silk-sdk": "^0.2.2",
-    "tmp-promise": "^3.0.3",
-    "undici": "^7.16.0",
     "zod": "^3.25.76"
   },
   "engines": {
