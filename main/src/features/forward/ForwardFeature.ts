@@ -15,11 +15,11 @@ import { Message } from '@mtcute/core';
 import path from 'path';
 import fs from 'fs';
 import { md5Hex } from '../../shared/utils/hashing';
-import silk from '../../shared/encoding/silk';
+import silk from '../../shared/utils/encoding/silk';
 import { promisify } from 'util';
 import { execFile } from 'child_process';
 import { fileTypeFromBuffer } from 'file-type';
-import convert from '../../shared/helpers/convert';
+import convert from '../../shared/utils/convert';
 
 import { TelegramSender } from './senders/TelegramSender';
 import { ForwardMediaPreparer } from './senders/MediaPreparer';

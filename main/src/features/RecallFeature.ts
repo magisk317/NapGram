@@ -1,9 +1,10 @@
-import { getLogger } from '../../shared/logger';
-import type { IQQClient } from '../../infrastructure/clients/qq';
-import type { RecallEvent } from '../../domain/message';
-import type Telegram from '../../infrastructure/clients/telegram/client';
-import type Instance from '../../domain/models/Instance';
-import db from '../../domain/models/db';
+import { getLogger } from '../shared/logger';
+import type { IQQClient } from '../infrastructure/clients/qq';
+import type { RecallEvent } from '../domain/message';
+import type Telegram from '../infrastructure/clients/telegram/client';
+import type Instance from '../domain/models/Instance';
+import db from '../domain/models/db';
+import env from '../domain/models/env';
 
 const logger = getLogger('RecallFeature');
 
@@ -40,7 +41,6 @@ export class RecallFeature {
             logger.info(`QQ message recalled: ${event.messageId}`);
 
             // 检查是否启用自动撤回
-            const { default: env } = await import('../../domain/models/env');
             if (!env.ENABLE_AUTO_RECALL) {
                 logger.debug('Auto recall is disabled, skipping TG message deletion');
                 return;
@@ -96,7 +96,6 @@ export class RecallFeature {
             logger.info(`TG messages deleted in ${chatId}: ${messageIds.join(', ')}`);
 
             // 检查是否启用自动撤回
-            const { default: env } = await import('../../domain/models/env');
             if (!env.ENABLE_AUTO_RECALL) {
                 logger.debug('Auto recall disabled, skipping QQ message recall');
                 return;

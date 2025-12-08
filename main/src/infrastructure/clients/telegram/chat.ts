@@ -1,7 +1,7 @@
 import { TelegramClient } from '@mtcute/node';
 import { Chat, InputPeerLike, Message, InputText } from '@mtcute/core';
 import Telegram from './client';
-import WaitForMessageHelper from '../../../shared/helpers/WaitForMessageHelper';
+import WaitForMessageHelper from '../../../shared/services/WaitForMessageHelper';
 // import createPaginatedInlineSelector from '../../../shared/utils/paginatedInlineSelector';
 // import inlineDigitInput from '../../../shared/utils/inlineDigitInput';
 // import { TelegramImportSession } from './session';

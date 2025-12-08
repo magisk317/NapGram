@@ -1,11 +1,11 @@
 import { EventEmitter } from 'events';
-import { getLogger } from '../../../../shared/logger';
-import type { IQQClient, NapCatCreateParams } from '../interface';
-import type { UnifiedMessage, MessageReceipt, RecallEvent, Chat, Sender } from '../../../../domain/message/types';
-import { messageConverter } from '../../../../domain/message/converter';
-import { napCatForwardMultiple } from './convert';
-import type { ForwardMessage } from '../types';
-import { ReconnectingWebSocket } from '../../../../shared/network/ReconnectingWebSocket';
+import { getLogger } from '../../../shared/logger';
+import type { IQQClient, NapCatCreateParams } from './interface';
+import type { UnifiedMessage, MessageReceipt, RecallEvent, Chat, Sender } from '../../../domain/message/types';
+import { messageConverter } from '../../../domain/message/converter';
+import { napCatForwardMultiple } from './napcatConvert';
+import type { ForwardMessage } from './types';
+import { ReconnectingWebSocket } from '../../../shared/services/ReconnectingWebSocket';
 
 const logger = getLogger('NapCatAdapter');
 

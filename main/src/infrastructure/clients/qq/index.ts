@@ -4,6 +4,6 @@
  */
 
 export * from './interface';
-export * from './napcat/adapter';
+export * from './NapCatAdapter';
 export * from './factory';
 export * from './types';

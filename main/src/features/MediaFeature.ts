@@ -1,11 +1,11 @@
-import { getLogger } from '../../shared/logger';
-import type { IQQClient } from '../../infrastructure/clients/qq';
-import type { UnifiedMessage, ImageContent, VideoContent, AudioContent } from '../../domain/message';
-import type Telegram from '../../infrastructure/clients/telegram/client';
-import type Instance from '../../domain/models/Instance';
+import { getLogger } from '../shared/logger';
+import type { IQQClient } from '../infrastructure/clients/qq';
+import type { UnifiedMessage, ImageContent, VideoContent, AudioContent } from '../domain/message';
+import type Telegram from '../infrastructure/clients/telegram/client';
+import type Instance from '../domain/models/Instance';
 
 import { createReadStream } from 'fs';
-import { file as createTempFile } from '../../shared/utils/temp';
+import { file as createTempFile } from '../shared/utils/temp';
 import fsP from 'fs/promises';
 
 const logger = getLogger('MediaFeature');

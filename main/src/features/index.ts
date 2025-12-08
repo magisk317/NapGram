@@ -5,6 +5,6 @@
 
 export * from './FeatureManager';
 export * from './forward/ForwardFeature';
-export * from './recall/RecallFeature';
-export * from './media/MediaFeature';
+export * from './RecallFeature';
+export * from './MediaFeature';
 export * from './commands/CommandsFeature';

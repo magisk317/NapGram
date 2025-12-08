@@ -15,7 +15,7 @@ RUN if [ "$USE_MIRROR" = "true" ]; then \
     libpixman-1-0 libcairo2 libpango1.0-0 libgif7 libjpeg62-turbo libpng16-16 librsvg2-2 libvips42 ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
-RUN corepack enable && corepack prepare pnpm@latest --activate && npm install -g npm@latest
+RUN npm install -g corepack@latest --force && corepack enable && corepack prepare pnpm@latest --activate && npm install -g npm@latest
 WORKDIR /app
 
 FROM edasriyan/lottie-to-gif:latest AS lottie
@@ -41,7 +41,7 @@ COPY web/package.json /app/web/
 # 2. 然后递归重新编译必需的原生模块（-r 确保在所有 workspace 中执行）
 RUN pnpm install --frozen-lockfile --shamefully-hoist --ignore-scripts && \
     pnpm -r rebuild better-sqlite3 silk-sdk && \
-    pnpm --filter=@prisma/engines run postinstall
+    pnpm -r rebuild @prisma/engines
 
 # 源码构建
 COPY main/ /app/main/

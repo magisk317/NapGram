@@ -2,8 +2,8 @@ import { getLogger } from '../shared/logger';
 import type { IQQClient } from '../infrastructure/clients/qq';
 import type Telegram from '../infrastructure/clients/telegram/client';
 import type Instance from '../domain/models/Instance';
-import { RecallFeature } from './recall/RecallFeature';
-import { MediaFeature } from './media/MediaFeature';
+import { RecallFeature } from './RecallFeature';
+import { MediaFeature } from './MediaFeature';
 import { CommandsFeature } from './commands/CommandsFeature';
 import { ForwardFeature } from './forward/ForwardFeature';
 

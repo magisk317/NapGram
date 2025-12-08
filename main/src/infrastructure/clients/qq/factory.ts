@@ -1,5 +1,5 @@
 import type { IQQClient, IQQClientFactory, QQClientCreateParams } from './interface';
-import { NapCatAdapter } from './napcat/adapter';
+import { NapCatAdapter } from './NapCatAdapter';
 import { getLogger } from '../../../shared/logger';
 
 const logger = getLogger('QQClientFactory');

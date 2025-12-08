@@ -1,27 +1,21 @@
-import { Pair } from '../../domain/models/Pair';
-import { Group, GroupMemberInfo } from '../../infrastructure/clients/qq';
-import { Elysia } from 'elysia';
-import { html, Html } from '@elysiajs/html';
-import { getLogger } from '../../shared/logger';
-import posthog from '../../domain/models/posthog';
-import env from '../../domain/models/env';
+import { FastifyInstance } from 'fastify';
+import { Pair } from '../domain/models/Pair';
+import { Group, GroupMemberInfo } from '../infrastructure/clients/qq';
+import Html from '@kitajs/html';
+import { getLogger } from '../shared/logger';
+import posthog from '../domain/models/posthog';
+import env from '../domain/models/env';
 
 const logger = getLogger('Rich Header');
 
-const formatDate = (ts: number) => {
-  const date = new Date(ts);
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, '0');
-  const d = String(date.getDate()).padStart(2, '0');
-  const H = String(date.getHours()).padStart(2, '0');
-  const M = String(date.getMinutes()).padStart(2, '0');
-  return `${y}-${m}-${d} ${H}:${M}`;
-};
+import { formatDate } from '../shared/utils/date';
 
-const handler = async ({ params, error }: any) => {
+async function handler(request: any, reply: any) {
+  const params = request.params;
+
   try {
     const fallback = () => {
-      const now = new Date();
+      // @ts-ignore
       return <html lang="zh">
         <head>
           <meta charset="UTF-8" />
@@ -57,6 +51,7 @@ const handler = async ({ params, error }: any) => {
 
     if (!pairRecord || !instance || !instance.qqClient) {
       logger.warn(`[richHeader] Pair not found for apiKey=${params.apiKey}`);
+      reply.header('content-type', 'text/html; charset=utf-8');
       return fallback();
     }
 
@@ -70,6 +65,7 @@ const handler = async ({ params, error }: any) => {
       memberInfo = await instance.qqClient.getGroupMemberInfo(groupId, userId);
       if (!memberInfo) {
         logger.warn(`[richHeader] Member info is null for userId=${userId} in groupId=${groupId}`);
+        reply.header('content-type', 'text/html; charset=utf-8');
         return fallback();
       }
 
@@ -77,6 +73,7 @@ const handler = async ({ params, error }: any) => {
       strangerInfo = await instance.qqClient.getUserInfo(userId);
     } catch (e) {
       logger.warn(`[richHeader] Failed to get info: ${e}`);
+      reply.header('content-type', 'text/html; charset=utf-8');
       return fallback();
     }
 
@@ -101,10 +98,11 @@ const handler = async ({ params, error }: any) => {
       city: strangerInfo?.city || '',
     };
 
-    const now = new Date();
     const location = [profile.country, profile.province, profile.city].join(' ').trim();
     const birthday = (profile.birthday || []).some((it: any) => it) ? profile.birthday.join('/') : '';
 
+    reply.header('content-type', 'text/html; charset=utf-8');
+    // @ts-ignore
     return <html lang="zh">
       <head>
         <meta charset="UTF-8" />
@@ -239,10 +237,10 @@ const handler = async ({ params, error }: any) => {
   catch (e) {
     logger.error('Error:', e);
     posthog.capture('RichHeaderError', { error: e });
+    reply.status(500).send('Internal Server Error');
   }
 };
 
-export default new Elysia()
-  .use(html())
-  .get('/richHeader/:apiKey/:userId', handler)
-  .head('/richHeader/:apiKey/:userId', handler);
+export default async function (fastify: FastifyInstance) {
+  fastify.get('/richHeader/:apiKey/:userId', handler);
+}

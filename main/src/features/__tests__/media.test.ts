@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { MediaFeature } from '../media/MediaFeature';
+import { MediaFeature } from '../MediaFeature';
 import type { ImageContent, VideoContent, AudioContent } from '../../domain/message';
 
 // Mock global fetch

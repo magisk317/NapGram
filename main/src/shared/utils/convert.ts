@@ -41,9 +41,9 @@ const convert = {
     }),
   tgs2gif: (key: string, tgsData: () => Promise<Buffer | Uint8Array | string>) =>
     cachedConvert(key + '.gif', async (convertedPath) => {
-      const tempTgsPath = path.join(CACHE_PATH, key);
+      const tempTgsPath = path.join(CACHE_PATH, key + '.tgs');
       await fsP.writeFile(tempTgsPath, await tgsData());
-      await tgsToGif(tempTgsPath);
+      await tgsToGif(tempTgsPath, convertedPath);
       await fsP.rm(tempTgsPath);
     }),
   webp: (key: string, imageData: () => Promise<Buffer | Uint8Array | string>) =>
