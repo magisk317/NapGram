@@ -793,6 +793,6 @@ temp/
 tmp/
 .pnpm-store/
 # Internal analysis documents (not for version control)
-docs/technical_analysis.md
+
 docs/feature_comparison.md
 docs/dependency-analysis.md

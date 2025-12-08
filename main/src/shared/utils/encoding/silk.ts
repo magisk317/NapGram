@@ -1,4 +1,4 @@
-import { file } from 'tmp-promise';
+import { file } from '../temp';
 import silk from 'silk-sdk';
 import fsP from 'fs/promises';
 import { execFile } from 'node:child_process';

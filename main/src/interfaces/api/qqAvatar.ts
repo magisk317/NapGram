@@ -1,5 +1,5 @@
 import { Elysia } from 'elysia';
-import { fetch } from 'undici';
+
 import { getLogger } from '../../shared/logger';
 
 const logger = getLogger('QQAvatar');

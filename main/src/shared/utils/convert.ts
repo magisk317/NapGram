@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import sharp from 'sharp';
-import { file as createTempFile } from 'tmp-promise';
+import { file as createTempFile } from './temp';
 import fsP from 'fs/promises';
 import convertWithFfmpeg from './encoding/convertWithFfmpeg';
 import tgsToGif from './encoding/tgsToGif';

@@ -2,11 +2,8 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { MediaFeature } from '../media/MediaFeature';
 import type { ImageContent, VideoContent, AudioContent } from '../../domain/message';
 
-// Mock undici
-vi.mock('undici', () => ({
-    fetch: vi.fn(),
-}));
-import { fetch } from 'undici';
+// Mock global fetch
+global.fetch = vi.fn();
 
 const createMockInstance = () => ({} as any);
 const createMockTgBot = () => ({} as any);
@@ -35,7 +32,7 @@ describe('MediaFeature', () => {
 
             const result = await mediaFeature.downloadMedia('https://example.com/image.jpg');
 
-            expect(fetch).toHaveBeenCalledWith(
+            expect(global.fetch).toHaveBeenCalledWith(
                 'https://example.com/image.jpg',
                 expect.objectContaining({
                     signal: expect.any(AbortSignal),
