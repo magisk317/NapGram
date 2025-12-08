@@ -33,8 +33,10 @@ export class TelegramMessageHandler {
             });
 
             // 跳过命令消息，避免转发到 QQ
-            if (rawText.startsWith('/')) {
-                logger.debug(`[Forward] Skipping command message: ${rawText.slice(0, 20)}`);
+            // 跳过命令消息，避免转发到 QQ
+            const trimmedText = rawText.trim();
+            if (trimmedText.startsWith('/')) {
+                logger.debug({ text: rawText }, `[Forward] Skipping command message`);
                 return;
             }
 

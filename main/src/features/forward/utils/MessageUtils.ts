@@ -81,9 +81,18 @@ export class MessageUtils {
         replyTo?: any
     ): Promise<void> {
         try {
-            const chat = await tgBot.getChat(chatId as any);
+            // Ensure numeric chat IDs are passed as numbers to avoid being treated as usernames
+            const resolvedChatId = (typeof chatId === 'string' && /^-?\d+$/.test(chatId))
+                ? Number(chatId)
+                : chatId;
+
+            const chat = await tgBot.getChat(resolvedChatId);
             const params: any = { linkPreview: { disable: true } };
-            if (replyTo) params.replyTo = replyTo;
+            if (replyTo) {
+                params.replyTo = replyTo;
+                // Force implicit thread routing if replyTo is treated as threadId
+                params.messageThreadId = Number(replyTo);
+            }
             await chat.sendMessage(text, params);
         } catch (error) {
             logger.warn('Failed to send TG reply:', error);

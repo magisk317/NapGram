@@ -20,6 +20,8 @@ export class NapCatAdapter extends EventEmitter implements IQQClient {
     private _nickname: string = '';
     private apiCallbacks = new Map<string, { resolve: Function; reject: Function }>();
     private echoCounter = 0;
+    private heartbeatTimer?: NodeJS.Timeout;
+    private lastStatusWasOnline = false;
 
     constructor(private readonly params: NapCatCreateParams) {
         super();
@@ -44,6 +46,8 @@ export class NapCatAdapter extends EventEmitter implements IQQClient {
             // logger.info('NapCat WebSocket connected'); // ReconnectingWebSocket already logs this
             this.emit('online');
             this.refreshSelfInfo();
+            this.startHeartbeat();
+            this.lastStatusWasOnline = true;
 
             // 触发重连成功事件
             this.emit('connection:restored', {
@@ -69,6 +73,8 @@ export class NapCatAdapter extends EventEmitter implements IQQClient {
                 timestamp: Date.now(),
                 reason: 'WebSocket closed'
             });
+            this.stopHeartbeat();
+            this.lastStatusWasOnline = false;
         });
 
         this.ws.on('error', (error) => {
@@ -416,8 +422,43 @@ export class NapCatAdapter extends EventEmitter implements IQQClient {
     }
 
     async destroy(): Promise<void> {
+        this.stopHeartbeat();
         this.removeAllListeners();
         this.ws.close();
         this.apiCallbacks.clear();
+    }
+
+    private startHeartbeat() {
+        this.stopHeartbeat();
+        this.heartbeatTimer = setInterval(async () => {
+            try {
+                const status = await this.callApi('get_status');
+                const isOnline = status.online === true && status.good === true;
+
+                if (isOnline && !this.lastStatusWasOnline) {
+                    this.lastStatusWasOnline = true;
+                    this.emit('connection:restored', { timestamp: Date.now() });
+                    logger.info('NapCat logical connection restored (Session Valid)');
+                } else if (!isOnline && this.lastStatusWasOnline) {
+                    this.lastStatusWasOnline = false;
+                    this.emit('connection:lost', { timestamp: Date.now(), reason: 'Logical session offline' });
+                    logger.warn('NapCat logical connection lost (Session Invalid)');
+                }
+            } catch (error) {
+                // Only consider it a loss if we were previously online
+                if (this.lastStatusWasOnline) {
+                    this.lastStatusWasOnline = false;
+                    this.emit('connection:lost', { timestamp: Date.now(), reason: 'Heartbeat check failed' });
+                    logger.warn('NapCat heartbeat failed:', error);
+                }
+            }
+        }, 30000); // Check every 30 seconds
+    }
+
+    private stopHeartbeat() {
+        if (this.heartbeatTimer) {
+            clearInterval(this.heartbeatTimer);
+            this.heartbeatTimer = undefined;
+        }
     }
 }

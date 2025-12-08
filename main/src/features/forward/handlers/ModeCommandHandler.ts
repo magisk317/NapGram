@@ -1,6 +1,7 @@
 import { getLogger } from '../../../shared/logger';
 import type { UnifiedMessage } from '../../../domain/message';
 import type { ForwardModeService } from '../services/ForwardModeService';
+import { ThreadIdExtractor } from '../../commands/services/ThreadIdExtractor';
 
 const logger = getLogger('ModeCommandHandler');
 
@@ -19,11 +20,8 @@ export class ModeCommandHandler {
      */
     async handle(msg: UnifiedMessage, args: string[]): Promise<void> {
         const chatId = msg.chat.id;
-        // Extract threadId from raw message
-        const raw = (msg.metadata as any)?.raw;
-        const threadId = raw?.replyTo?.replyToTopId
-            || raw?.replyTo?.replyToMsgId
-            || raw?.replyToMsgId;
+        // Use standard ThreadIdExtractor via imports 
+        const threadId = new ThreadIdExtractor().extractFromRaw((msg.metadata as any)?.raw);
 
         const type = args[0];
         const value = args[1];

@@ -168,6 +168,8 @@ export class CommandsFeature {
             const text = tgMsg.text;
             const chatId = tgMsg.chat.id;
             const senderId = tgMsg.sender.id;
+            const myUsername = this.tgBot.me?.username?.toLowerCase();
+            const myId = this.tgBot.me?.id;
 
             // 记录所有到达的 TG 文本，方便排查是否收不到事件
             logger.debug('[Commands] TG message', {
@@ -176,6 +178,13 @@ export class CommandsFeature {
                 senderId,
                 text: (text || '').slice(0, 200),
             });
+
+            // 忽略由 Bot 发送的消息（包含自身），避免被其他转发 Bot 再次触发命令导致重复回复
+            const senderPeer = tgMsg.sender as any;
+            if (senderPeer?.isBot || (myId !== undefined && senderId === myId)) {
+                logger.debug(`Ignored bot/self message for command handling: ${senderId}`);
+                return false;
+            }
 
             // 检查是否有正在进行的绑定操作
             const bindingState = this.stateManager.getBindingState(String(chatId), String(senderId));
@@ -233,25 +242,57 @@ export class CommandsFeature {
             if (!chatId) return false;
 
             const senderName = tgMsg.sender.displayName || `${senderId}`;
-
-            // 兼容 /cmd@bot 的写法，并解决多 bot 冲突
             const parts = text.slice(this.registry.prefix.length).split(/\s+/);
-            let commandName = parts[0];
 
+            // 如果命令里显式 @ 了其他 bot，则忽略，避免多个 bot 同时回复
+            const mentionedBots = this.extractMentionedBotUsernames(tgMsg, parts);
+            if (mentionedBots.size > 0) {
+                if (!myUsername) {
+                    logger.debug('Bot username unavailable, skip explicitly-targeted command');
+                    return false;
+                }
+                if (!mentionedBots.has(myUsername)) {
+                    logger.debug(`Ignored command for other bot(s): ${Array.from(mentionedBots).join(',')}`);
+                    return false;
+                }
+            }
+
+            // 兼容 /cmd@bot 的写法，以及 /cmd @bot (空格分隔) 的写法
+            let commandName = parts[0];
+            let shiftArgs = 0;
+
+            // Scenario 1: /cmd@bot
             if (commandName.includes('@')) {
                 const [cmd, targetBot] = commandName.split('@');
-                const myUsername = this.tgBot.me?.username;
 
                 // 如果指定了 bot 但不是我，则忽略该命令
-                if (targetBot && myUsername && targetBot.toLowerCase() !== myUsername.toLowerCase()) {
-                    logger.debug(`Ignored command for other bot: ${targetBot}`);
+                if (targetBot && myUsername && targetBot.toLowerCase() !== myUsername) {
+                    logger.debug(`Ignored command for other bot (suffix): ${targetBot}`);
                     return false;
                 }
                 commandName = cmd;
             }
+            // Scenario 2: /cmd ... @bot (check ALL arguments for @mentions)
+            else {
+                // Find any @mention in the arguments (skip parts[0] which is the command)
+                const botMentionIndex = parts.findIndex((part, idx) => idx > 0 && part.startsWith('@'));
+
+                if (botMentionIndex > 0) {
+                    const targetBot = parts[botMentionIndex].slice(1);
+
+                    if (myUsername && targetBot.toLowerCase() !== myUsername) {
+                        // Addressed to another bot, ignore this command
+                        logger.debug(`Ignored command for other bot at position ${botMentionIndex}: ${targetBot}`);
+                        return false;
+                    } else if (myUsername && targetBot.toLowerCase() === myUsername) {
+                        // Addressed to me explicitly, remove the @mention from args
+                        parts.splice(botMentionIndex, 1);
+                    }
+                }
+            }
 
             commandName = commandName.toLowerCase();
-            const args = parts.slice(1);
+            const args = parts.slice(1 + shiftArgs);
 
             const command = this.registry.get(commandName);
             if (!command) {
@@ -364,11 +405,51 @@ export class CommandsFeature {
         try {
             const chat = await this.tgBot.getChat(Number(chatId));
             const params: any = { linkPreview: { disable: true } };
-            if (threadId) params.replyTo = threadId;
+            if (threadId) {
+                params.replyTo = threadId;
+                params.messageThreadId = threadId;
+            }
             await chat.sendMessage(text, params);
         } catch (error) {
             logger.warn(`Failed to send reply to ${chatId}: ${error}`);
         }
+    }
+
+    /**
+     * 提取消息中显式 @ 的 Bot 名称（只识别以 bot 结尾的用户名）
+     */
+    private extractMentionedBotUsernames(tgMsg: Message, parts: string[]): Set<string> {
+        const mentioned = new Set<string>();
+        const tryAdd = (raw?: string) => {
+            if (!raw) return;
+            const normalized = raw.trim().toLowerCase();
+            if (normalized.endsWith('bot')) {
+                mentioned.add(normalized);
+            }
+        };
+
+        // 1) 文本拆分片段
+        for (const part of parts) {
+            if (!part) continue;
+            if (part.startsWith('@')) {
+                tryAdd(part.slice(1));
+            } else if (part.includes('@')) {
+                const [, bot] = part.split('@');
+                tryAdd(bot);
+            }
+        }
+
+        // 2) Telegram entities（更准确地获取 bot_command/mention）
+        for (const entity of tgMsg.entities || []) {
+            if (entity.kind === 'mention' || entity.kind === 'bot_command') {
+                const match = entity.text?.match(/@([A-Za-z0-9_]+)/);
+                if (match?.[1]) {
+                    tryAdd(match[1]);
+                }
+            }
+        }
+
+        return mentioned;
     }
 
     /**
