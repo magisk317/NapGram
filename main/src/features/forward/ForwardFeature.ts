@@ -4,7 +4,7 @@ import type { UnifiedMessage, MessageContent, ImageContent, VideoContent, AudioC
 import { messageConverter } from '../../domain/message';
 import type Telegram from '../../infrastructure/clients/telegram/client';
 import type Instance from '../../domain/models/Instance';
-import ForwardMap from '../../domain/models/ForwardMap';
+import ForwardMap, { type ForwardPairRecord } from '../../domain/models/ForwardMap';
 import { MediaFeature } from '../media/MediaFeature';
 import { CommandsFeature } from '../commands/CommandsFeature';
 import env from '../../domain/models/env';
@@ -73,7 +73,7 @@ export class ForwardFeature {
             this.replyResolver,
             (msg) => this.mediaPreparer.prepareMediaForQQ(msg),
             this.renderContent.bind(this),
-            () => this.nicknameMode,
+            () => this.nicknameMode,   // MediaGroupHandler 暂时保持使用默认值
         );
         this.setupListeners();
         logger.info('ForwardFeature initialized');
@@ -96,11 +96,6 @@ export class ForwardFeature {
         this.tgBot.addNewMessageEventHandler(async (tgMsg: Message) => {
             const threadId = new ThreadIdExtractor().extractFromRaw((tgMsg as any).raw || tgMsg);
 
-            // Check forward mode (TG -> QQ is index 1)
-            if (this.forwardMode[1] === '0') {
-                return;
-            }
-
             const pair = this.forwardMap.findByTG(
                 tgMsg.chat.id,
                 threadId,
@@ -111,26 +106,49 @@ export class ForwardFeature {
                 return;
             }
 
+            // Check forward mode (TG -> QQ is index 1)
+            const forwardMode = this.getForwardMode(pair);
+            if (forwardMode[1] === '0') {
+                logger.debug(`Forward TG->QQ disabled for chat ${tgMsg.chat.id} (mode: ${forwardMode})`);
+                return;
+            }
+
             await this.tgMessageHandler.handleTGMessage(tgMsg, pair);
         });
         logger.debug('[ForwardFeature] listeners attached');
     }
 
-    public nicknameMode: string = env.SHOW_NICKNAME_MODE;
-    public forwardMode: string = env.FORWARD_MODE;
+    /**
+     * 获取指定 pair 的转发模式配置
+     * 优先使用 pair 的配置，若为 null 则使用环境变量默认值
+     */
+    private getForwardMode(pair: ForwardPairRecord): string {
+        return pair.forwardMode || env.FORWARD_MODE;
+    }
+
+    /**
+     * 获取指定 pair 的昵称模式配置
+     * 优先使用 pair 的配置，若为 null 则使用环境变量默认值
+     */
+    private getNicknameMode(pair: ForwardPairRecord): string {
+        return pair.nicknameMode || env.SHOW_NICKNAME_MODE;
+    }
 
     private handleQQMessage = async (msg: UnifiedMessage) => {
-        // Check forward mode (QQ -> TG is index 0)
-        if (this.forwardMode[0] === '0') {
-            return;
-        }
-
         try {
             const pair = this.forwardMap.findByQQ(msg.chat.id);
             if (!pair) {
                 logger.debug(`No TG mapping for QQ chat ${msg.chat.id}`);
                 return;
             }
+
+            // Check forward mode (QQ -> TG is index 0)
+            const forwardMode = this.getForwardMode(pair);
+            if (forwardMode[0] === '0') {
+                logger.debug(`Forward QQ->TG disabled for chat ${msg.chat.id} (mode: ${forwardMode})`);
+                return;
+            }
+
             logger.info('[Forward][QQ->TG] incoming', {
                 qqMsgId: msg.id,
                 qqRoomId: msg.chat.id,
@@ -177,7 +195,7 @@ export class ForwardFeature {
             // 处理回复 - 使用 ReplyResolver
             const replyToMsgId = await this.replyResolver.resolveQQReply(msg, pair.instanceId, pair.qqRoomId);
 
-            const sentMsg = await this.telegramSender.sendToTelegram(chat, msg, pair, replyToMsgId, this.nicknameMode);
+            const sentMsg = await this.telegramSender.sendToTelegram(chat, msg, pair, replyToMsgId, this.getNicknameMode(pair));
 
             if (sentMsg) {
                 await this.mapper.saveMessage(msg, sentMsg, pair.instanceId, pair.qqRoomId, BigInt(tgChatId));
@@ -187,6 +205,8 @@ export class ForwardFeature {
             logger.error('Failed to forward QQ message:', error);
         }
     };
+
+
 
 
 
@@ -207,18 +227,48 @@ export class ForwardFeature {
         const value = args[1];
 
         if (!type || !value || !/^[01]{2}$/.test(value)) {
-            await MessageUtils.replyTG(this.tgBot, chatId, '用法：/mode <nickname|forward> <00|01|10|11>\n示例：/mode nickname 10 (QQ->TG显示昵称，TG->QQ不显示)', threadId);
+            await MessageUtils.replyTG(this.tgBot, chatId, '用法：/mode <nickname|forward> <00|01|10|11>\n示例：/mode nickname 10 (QQ→TG显示昵称，TG→QQ不显示)', threadId);
             return;
         }
 
-        if (type === 'nickname') {
-            this.nicknameMode = value;
-            await MessageUtils.replyTG(this.tgBot, chatId, `昵称显示模式已更新为: ${value}`, threadId);
-        } else if (type === 'forward') {
-            this.forwardMode = value;
-            await MessageUtils.replyTG(this.tgBot, chatId, `转发模式已更新为: ${value}`, threadId);
-        } else {
-            await MessageUtils.replyTG(this.tgBot, chatId, '未知模式类型，请使用 nickname 或 forward', threadId);
+        // 查找当前聊天对应的 pair
+        const pair = this.forwardMap.findByTG(chatId, threadId, !threadId);
+        if (!pair) {
+            await MessageUtils.replyTG(this.tgBot, chatId, '错误：未找到对应的转发配置', threadId);
+            return;
+        }
+
+        try {
+            // 更新数据库
+            const updateData: any = {};
+            if (type === 'nickname') {
+                updateData.nicknameMode = value;
+            } else if (type === 'forward') {
+                updateData.forwardMode = value;
+            } else {
+                await MessageUtils.replyTG(this.tgBot, chatId, '未知模式类型，请使用 nickname 或 forward', threadId);
+                return;
+            }
+
+            const updated = await db.forwardPair.update({
+                where: { id: pair.id },
+                data: updateData,
+                select: { id: true, forwardMode: true, nicknameMode: true },
+            });
+
+            // 同步更新内存中的 pair 对象（立即生效）
+            if (type === 'nickname') {
+                pair.nicknameMode = value;
+            } else {
+                pair.forwardMode = value;
+            }
+
+            const modeName = type === 'nickname' ? '昵称显示模式' : '转发模式';
+            await MessageUtils.replyTG(this.tgBot, chatId, `${modeName}已更新为: ${value}`, threadId);
+            logger.info(`Updated ${type} mode to ${value} for pair ${pair.id} (QQ: ${pair.qqRoomId}, TG: ${pair.tgChatId})`);
+        } catch (error) {
+            logger.error('Failed to update mode:', error);
+            await MessageUtils.replyTG(this.tgBot, chatId, '更新失败，请查看日志', threadId);
         }
     };
 

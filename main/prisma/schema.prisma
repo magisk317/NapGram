@@ -100,6 +100,8 @@ model ForwardPair {
   flags           Int               @default(0)
   ignoreRegex     String?           /// 正则表达式，用于忽略匹配该正则的 QQ 消息 (防止循环转发)
   ignoreSenders   String?           /// 忽略的 QQ 发送者 ID 列表 (逗号分隔)
+  forwardMode     String?           /// 转发方向配置: "00"=全禁用, "01"=仅TG→QQ, "10"=仅QQ→TG, "11"=双向 (null=使用环境变量默认值)
+  nicknameMode    String?           /// 昵称显示配置: 同上格式 (null=使用环境变量默认值)
   apiKey          String            @unique @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   ForwardMultiple ForwardMultiple[]
 
