@@ -1,17 +1,17 @@
 # syntax=docker/dockerfile:1
+ARG NODE_VERSION=25-slim
 
 # === Stage: Extract TGS conversion binaries ===
 FROM edasriyan/lottie-to-gif:latest AS lottie
 
 # === Stage: Base ===
-ARG NODE_VERSION=25-slim
 FROM node:${NODE_VERSION} AS base
 ARG USE_MIRROR=true
 ENV DEBIAN_FRONTEND=noninteractive
 
 # 基础运行时依赖
 RUN if [ "$USE_MIRROR" = "true" ]; then \
-      sed -i 's/deb.debian.org/mirrors.ustc.edu.cn/g' /etc/apt/sources.list.d/debian.sources; \
+      sed -i 's/deb.debian.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apt/sources.list.d/debian.sources; \
     fi && \
     apt-get update && apt-get install -y --no-install-recommends \
     curl wget bash \
@@ -31,7 +31,7 @@ ARG USE_MIRROR=true
 
 # 编译环境依赖 (python3, build-essential)
 RUN if [ "$USE_MIRROR" = "true" ]; then \
-      sed -i 's/deb.debian.org/mirrors.ustc.edu.cn/g' /etc/apt/sources.list.d/debian.sources; \
+      sed -i 's/deb.debian.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apt/sources.list.d/debian.sources; \
     fi && \
     apt-get update && apt-get install -y --no-install-recommends \
     python3 build-essential pkg-config \

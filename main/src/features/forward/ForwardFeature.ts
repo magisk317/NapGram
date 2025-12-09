@@ -223,10 +223,10 @@ export class ForwardFeature {
     private handleModeCommand = async (msg: UnifiedMessage, args: string[]) => {
         const chatId = msg.chat.id;
         // Extract threadId from raw message
+        // Extract threadId from raw message
         const raw = (msg.metadata as any)?.raw;
-        const threadId = raw?.replyTo?.replyToTopId
-            || raw?.replyTo?.replyToMsgId
-            || raw?.replyToMsgId;
+        // Do not use .extract(msg, args) here because args may contain numbers (e.g. "10" for mode) that are NOT threadId
+        const threadId = new ThreadIdExtractor().extractFromRaw(raw);
 
         if (!MessageUtils.isAdmin(msg.sender.id, this.instance)) {
             await MessageUtils.replyTG(this.tgBot, chatId, '您没有权限执行此命令', threadId);
