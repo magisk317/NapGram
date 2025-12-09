@@ -1,4 +1,4 @@
-import lottie2gif from '@lottie2img/main';
+import Lottie2img from '@lottie2img/main';
 import fs from 'fs/promises';
 
 export default async function tgsToGif(tgsPath: string, outputPath?: string): Promise<string> {
@@ -7,8 +7,11 @@ export default async function tgsToGif(tgsPath: string, outputPath?: string): Pr
   // Read TGS file (gzipped Lottie JSON)
   const tgsBuffer = await fs.readFile(tgsPath);
 
-  // lottie2gif uses pure WASM, no Chromium needed!
-  const gifBuffer = await lottie2gif(tgsBuffer);
+  // Instantiate the converter class
+  const converter = new Lottie2img();
+
+  // Convert to GIF using pure WASM (no Chromium!)
+  const gifBuffer = await converter.toGIF(tgsBuffer);
 
   // Write output GIF
   await fs.writeFile(outPath, gifBuffer);
