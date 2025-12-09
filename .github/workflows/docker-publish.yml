@@ -81,3 +81,31 @@ jobs:
             NODE_VERSION=${{ matrix.node-version }}-slim
           secrets: |
             npmrc=//npm.pkg.github.com/:_authToken=${{ secrets.GPR_TOKEN }}
+
+      - name: Send Telegram Notification on Failure
+        if: failure()
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TELEGRAM_TO_GROUP }}
+          token: ${{ secrets.TELEGRAM_TOKEN }}
+          message: |
+            ❌ Docker Build Failed
+            
+            Repo: ${{ github.repository }}
+            Ref: ${{ github.ref_name }}
+            Commit: https://github.com/${{ github.repository }}/commit/${{ github.sha }}
+            
+            Check details: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
+
+      - name: Send Telegram Notification on Success
+        if: success() && (github.event_name != 'schedule' || steps.check_push.outputs.has_push == 'true')
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TELEGRAM_TO_GROUP }}
+          token: ${{ secrets.TELEGRAM_TOKEN }}
+          message: |
+            ✅ Docker Build Success
+            
+            Repo: ${{ github.repository }}
+            Tag/Branch: ${{ github.ref_name }}
+            Image: ghcr.io/${{ github.repository }}:${{ github.ref_name }}

@@ -1,0 +1,50 @@
+name: Release Notifications
+
+on:
+  release:
+    types: [published]
+
+permissions:
+  contents: read
+
+jobs:
+  notify-release:
+    name: Notify New Release
+    runs-on: ubuntu-latest
+    steps:
+      - name: Process Release Body
+        id: process_body
+        env:
+          RAW_BODY: ${{ github.event.release.body }}
+        run: |
+          BODY="$RAW_BODY"
+          MAX_LENGTH=1500
+          
+          if [ ${#BODY} -gt $MAX_LENGTH ]; then
+            # Truncate to max length
+            TRUNCATED="${BODY:0:$MAX_LENGTH}"
+            # Trim to last space to avoid cutting words
+            FINAL_BODY="${TRUNCATED% *}..."
+            
+            echo "RELEASE_BODY<<EOF" >> $GITHUB_ENV
+            echo "$FINAL_BODY" >> $GITHUB_ENV
+            echo "" >> $GITHUB_ENV
+            echo "_（内容过长，仅显示前部分）_" >> $GITHUB_ENV
+            echo "EOF" >> $GITHUB_ENV
+          else
+            echo "RELEASE_BODY<<EOF" >> $GITHUB_ENV
+            echo "$BODY" >> $GITHUB_ENV
+            echo "EOF" >> $GITHUB_ENV
+          fi
+
+      - name: Send Telegram Notification
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TELEGRAM_TO_GROUP }}
+          token: ${{ secrets.TELEGRAM_TOKEN }}
+          message: |
+            🚀 New Release: ${{ github.event.release.tag_name }}
+            
+            ${{ env.RELEASE_BODY }}
+            
+            Link: ${{ github.event.release.html_url }}

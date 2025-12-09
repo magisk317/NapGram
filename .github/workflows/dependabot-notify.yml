@@ -1,0 +1,40 @@
+name: Dependabot Notifications
+
+on:
+  pull_request:
+    types: [opened, closed, reopened]
+
+permissions:
+  contents: read
+
+jobs:
+  notify-dependabot:
+    name: Notify Dependabot PR
+    runs-on: ubuntu-latest
+    if: github.actor == 'dependabot[bot]'
+    steps:
+      - name: Send Telegram Notification (Opened/Reopened)
+        if: github.event.action == 'opened' || github.event.action == 'reopened'
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TELEGRAM_TO_CHANNEL }}
+          token: ${{ secrets.TELEGRAM_TOKEN }}
+          message: |
+            📦 Dependabot Update
+            
+            Repo: ${{ github.repository }}
+            PR: #${{ github.event.number }} ${{ github.event.pull_request.title }}
+            
+            Link: ${{ github.event.pull_request.html_url }}
+
+      - name: Send Telegram Notification (Merged)
+        if: github.event.action == 'closed' && github.event.pull_request.merged == true
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TELEGRAM_TO_CHANNEL }}
+          token: ${{ secrets.TELEGRAM_TOKEN }}
+          message: |
+            ✅ Dependabot PR Merged
+            
+            Repo: ${{ github.repository }}
+            PR: #${{ github.event.number }} ${{ github.event.pull_request.title }}
