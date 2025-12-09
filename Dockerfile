@@ -28,13 +28,7 @@ RUN if [ "$USE_MIRROR" = "true" ]; then \
     apt-get update && apt-get install -y --no-install-recommends \
     python3 build-essential pkg-config \
     libpixman-1-dev libcairo2-dev libpango1.0-dev libgif-dev libjpeg62-turbo-dev libpng-dev librsvg2-dev libvips-dev \
-    # Puppeteer/Chrome dependencies for tgs-to (TGS to GIF conversion)
-    chromium libnss3 libfreetype6 libharfbuzz0b fonts-freefont-ttf \
     && rm -rf /var/lib/apt/lists/*
-
-# Tell Puppeteer to use installed chromium instead of downloading
-ENV PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
-    PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true
 
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json* /app/
 COPY main/package.json /app/main/
