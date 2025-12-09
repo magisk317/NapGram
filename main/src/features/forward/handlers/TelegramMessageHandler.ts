@@ -112,6 +112,28 @@ export class TelegramMessageHandler {
                     ...(await messageConverter.toNapCat(unified))
                 ];
 
+                // 构造提示语
+                if (showTGToQQNickname) {
+                    let actionText = '发来一条消息';
+                    if (unified.content.some(c => c.type === 'video')) actionText = '发来一个视频';
+                    else if (unified.content.some(c => c.type === 'file')) actionText = '发来一个文件';
+
+                    // 发送提示消息
+                    try {
+                        const hintMsg: UnifiedMessage = {
+                            id: unified.id + '_hint',
+                            platform: 'qq',
+                            sender: unified.sender,
+                            chat: { id: String(pair.qqRoomId), type: 'group' },
+                            content: [{ type: 'text', data: { text: `${unified.sender.name} ${actionText}` } }],
+                            timestamp: Date.now()
+                        };
+                        await this.qqClient.sendMessage(String(pair.qqRoomId), hintMsg);
+                    } catch (e) {
+                        logger.warn('Failed to send hint message:', e);
+                    }
+                }
+
                 const node = {
                     type: 'node',
                     data: {
@@ -125,7 +147,13 @@ export class TelegramMessageHandler {
 
             } else if (hasSplitMedia) {
                 // 语音和图片消息特殊处理：分两次调用 API 发送
-                const headerText = showTGToQQNickname ? `${unified.sender.name}:\n` : '';
+                let actionText = '';
+                if (showTGToQQNickname) {
+                    if (unified.content.some(c => c.type === 'image')) actionText = '发来一张图片';
+                    else if (unified.content.some(c => c.type === 'audio')) actionText = '发来一条语音';
+                }
+
+                const headerText = showTGToQQNickname ? `${unified.sender.name}${actionText ? ' ' + actionText : ''}:\n` : '';
                 const textSegments = unified.content.filter(c =>
                     !['audio', 'image'].includes(c.type) &&
                     !(c.type === 'text' && !c.data.text)
