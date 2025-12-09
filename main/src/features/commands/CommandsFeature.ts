@@ -17,6 +17,13 @@ import { StatusCommandHandler } from './handlers/StatusCommandHandler';
 import { BindCommandHandler } from './handlers/BindCommandHandler';
 import { UnbindCommandHandler } from './handlers/UnbindCommandHandler';
 import { RecallCommandHandler } from './handlers/RecallCommandHandler';
+import { ForwardControlCommandHandler } from './handlers/ForwardControlCommandHandler';
+import { InfoCommandHandler } from './handlers/InfoCommandHandler';
+import { ExtendedRecallCommandHandler } from './handlers/ExtendedRecallCommandHandler';
+import { QQInteractionCommandHandler } from './handlers/QQInteractionCommandHandler';
+import { RefreshCommandHandler } from './handlers/RefreshCommandHandler';
+import { FlagsCommandHandler } from './handlers/FlagsCommandHandler';
+import { QuotLyCommandHandler } from './handlers/QuotLyCommandHandler';
 
 const logger = getLogger('CommandsFeature');
 
@@ -42,6 +49,13 @@ export class CommandsFeature {
     private readonly bindHandler: BindCommandHandler;
     private readonly unbindHandler: UnbindCommandHandler;
     private readonly recallHandler: RecallCommandHandler;
+    private readonly forwardControlHandler: ForwardControlCommandHandler;
+    private readonly infoHandler: InfoCommandHandler;
+    private readonly extendedRecallHandler: ExtendedRecallCommandHandler;
+    private readonly qqInteractionHandler: QQInteractionCommandHandler;
+    private readonly refreshHandler: RefreshCommandHandler;
+    private readonly flagsHandler: FlagsCommandHandler;
+    private readonly quotlyHandler: QuotLyCommandHandler;
 
     constructor(
         private readonly instance: Instance,
@@ -70,6 +84,13 @@ export class CommandsFeature {
         this.bindHandler = new BindCommandHandler(this.commandContext);
         this.unbindHandler = new UnbindCommandHandler(this.commandContext);
         this.recallHandler = new RecallCommandHandler(this.commandContext);
+        this.forwardControlHandler = new ForwardControlCommandHandler(this.commandContext);
+        this.infoHandler = new InfoCommandHandler(this.commandContext);
+        this.extendedRecallHandler = new ExtendedRecallCommandHandler(this.commandContext);
+        this.qqInteractionHandler = new QQInteractionCommandHandler(this.commandContext);
+        this.refreshHandler = new RefreshCommandHandler(this.commandContext);
+        this.flagsHandler = new FlagsCommandHandler(this.commandContext);
+        this.quotlyHandler = new QuotLyCommandHandler(this.commandContext);
 
         this.registerDefaultCommands();
         this.setupListeners();
@@ -129,6 +150,131 @@ export class CommandsFeature {
             adminOnly: false,
         });
 
+        // 扩展撤回命令
+        this.registerCommand({
+            name: 'rmt',
+            description: '仅在 Telegram 端撤回消息',
+            usage: '/rmt (请回复要撤回的消息)',
+            handler: (msg, args) => this.extendedRecallHandler.execute(msg, args, 'rmt'),
+            adminOnly: false,
+        });
+
+        this.registerCommand({
+            name: 'rmq',
+            description: '仅在 QQ 端撤回消息',
+            usage: '/rmq (请回复要撤回的消息)',
+            handler: (msg, args) => this.extendedRecallHandler.execute(msg, args, 'rmq'),
+            adminOnly: false,
+        });
+
+        // 转发控制命令
+        this.registerCommand({
+            name: 'forwardoff',
+            description: '暂停双向转发',
+            handler: (msg, args) => this.forwardControlHandler.execute(msg, args, 'forwardoff'),
+            adminOnly: true,
+        });
+
+        this.registerCommand({
+            name: 'forwardon',
+            description: '恢复双向转发',
+            handler: (msg, args) => this.forwardControlHandler.execute(msg, args, 'forwardon'),
+            adminOnly: true,
+        });
+
+        this.registerCommand({
+            name: 'disable_qq_forward',
+            description: '停止 QQ → TG 的转发',
+            handler: (msg, args) => this.forwardControlHandler.execute(msg, args, 'disable_qq_forward'),
+            adminOnly: true,
+        });
+
+        this.registerCommand({
+            name: 'enable_qq_forward',
+            description: '恢复 QQ → TG 的转发',
+            handler: (msg, args) => this.forwardControlHandler.execute(msg, args, 'enable_qq_forward'),
+            adminOnly: true,
+        });
+
+        this.registerCommand({
+            name: 'disable_tg_forward',
+            description: '停止 TG → QQ 的转发',
+            handler: (msg, args) => this.forwardControlHandler.execute(msg, args, 'disable_tg_forward'),
+            adminOnly: true,
+        });
+
+        this.registerCommand({
+            name: 'enable_tg_forward',
+            description: '恢复 TG → QQ 的转发',
+            handler: (msg, args) => this.forwardControlHandler.execute(msg, args, 'enable_tg_forward'),
+            adminOnly: true,
+        });
+
+        // Info 命令
+        this.registerCommand({
+            name: 'info',
+            aliases: ['信息'],
+            description: '查看本群或选定消息的详情',
+            handler: (msg, args) => this.infoHandler.execute(msg, args),
+        });
+
+        // QQ 交互命令
+        this.registerCommand({
+            name: 'poke',
+            aliases: ['戳一戳'],
+            description: '戳一戳（需要 NapCat API 支持）',
+            handler: (msg, args) => this.qqInteractionHandler.execute(msg, args, 'poke'),
+        });
+
+        this.registerCommand({
+            name: 'nick',
+            aliases: ['群名片'],
+            description: '获取/设置 QQ 群名片',
+            usage: '/nick [新名片]',
+            handler: (msg, args) => this.qqInteractionHandler.execute(msg, args, 'nick'),
+        });
+
+        this.registerCommand({
+            name: 'mute',
+            aliases: ['禁言'],
+            description: '禁言 QQ 群成员',
+            usage: '/mute <QQ号> <秒数>',
+            handler: (msg, args) => this.qqInteractionHandler.execute(msg, args, 'mute'),
+            adminOnly: true,
+        });
+
+        // 刷新命令
+        this.registerCommand({
+            name: 'refresh',
+            aliases: ['刷新'],
+            description: '刷新当前群组的头像和简介',
+            handler: (msg, args) => this.refreshHandler.execute(msg, args, 'refresh'),
+            adminOnly: true,
+        });
+
+        this.registerCommand({
+            name: 'refresh_all',
+            description: '刷新所有群组的头像和简介',
+            handler: (msg, args) => this.refreshHandler.execute(msg, args, 'refresh_all'),
+            adminOnly: true,
+        });
+
+        // Flags 命令
+        this.registerCommand({
+            name: 'flags',
+            description: '管理实验性功能标志',
+            usage: '/flags [list|enable|disable] [flag_name]',
+            handler: (msg, args) => this.flagsHandler.execute(msg, args),
+            adminOnly: true,
+        });
+
+        // QuotLy 命令
+        this.registerCommand({
+            name: 'q',
+            description: '生成 QuotLy 引用图片（开发中）',
+            usage: '/q (请回复要引用的消息)',
+            handler: (msg, args) => this.quotlyHandler.execute(msg, args),
+        });
 
         logger.debug(`Registered ${this.registry.getUniqueCommandCount()} commands (${this.registry.getAll().size} including aliases)`);
     }

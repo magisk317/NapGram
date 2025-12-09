@@ -194,13 +194,83 @@ export class MediaFeature {
      * 压缩图片（如果需要）
      */
     async compressImage(buffer: Buffer, maxSize: number = 5 * 1024 * 1024): Promise<Buffer> {
-        // TODO: 实现图片压缩逻辑
-        // 可以使用 sharp 库
-        if (buffer.length <= maxSize) {
+        try {
+            // 如果文件已经小于限制，直接返回
+            if (buffer.length <= maxSize) {
+                return buffer;
+            }
+
+            logger.info(`Compressing image: ${buffer.length} bytes > ${maxSize} bytes`);
+
+            // 动态导入 sharp（避免在没有使用时加载）
+            const sharp = (await import('sharp')).default;
+
+            // 获取图片元信息
+            const metadata = await sharp(buffer).metadata();
+            const format = metadata.format as 'jpeg' | 'png' | 'webp' | 'gif' | undefined;
+
+            if (!format || !['jpeg', 'png', 'webp', 'gif'].includes(format)) {
+                logger.warn(`Unsupported image format for compression: ${format}`);
+                return buffer;
+            }
+
+            // 计算压缩目标
+            // 策略：从 80% 质量开始，如果还是太大，尝试降低质量或缩小尺寸
+            let quality = 80;
+            let compressed = buffer;
+
+            // 第一次尝试：压缩质量
+            while (quality >= 50) {
+                let sharpInstance = sharp(buffer);
+
+                if (format === 'jpeg') {
+                    compressed = await sharpInstance.jpeg({ quality }).toBuffer();
+                } else if (format === 'png') {
+                    compressed = await sharpInstance.png({ quality, compressionLevel: 9 }).toBuffer();
+                } else if (format === 'webp') {
+                    compressed = await sharpInstance.webp({ quality }).toBuffer();
+                } else {
+                    // GIF 转换为 WebP
+                    compressed = await sharpInstance.webp({ quality }).toBuffer();
+                }
+
+                if (compressed.length <= maxSize) {
+                    logger.info(`Compressed with quality ${quality}: ${buffer.length} -> ${compressed.length} bytes`);
+                    return compressed;
+                }
+
+                quality -= 10;
+            }
+
+            // 第二次尝试：缩小尺寸
+            if (metadata.width && metadata.height) {
+                const scaleFactor = Math.sqrt(maxSize / compressed.length);
+                const newWidth = Math.floor(metadata.width * scaleFactor);
+                const newHeight = Math.floor(metadata.height * scaleFactor);
+
+                logger.info(`Resizing image from ${metadata.width}x${metadata.height} to ${newWidth}x${newHeight}`);
+
+                let sharpInstance = sharp(buffer).resize(newWidth, newHeight, {
+                    fit: 'inside',
+                    withoutEnlargement: true,
+                });
+
+                if (format === 'jpeg') {
+                    compressed = await sharpInstance.jpeg({ quality: 70 }).toBuffer();
+                } else {
+                    compressed = await sharpInstance.webp({ quality: 70 }).toBuffer();
+                }
+
+                logger.info(`Final compressed size: ${compressed.length} bytes`);
+            }
+
+            return compressed;
+
+        } catch (error) {
+            logger.error('Image compression failed:', error);
+            // 压缩失败时返回原图
             return buffer;
         }
-        logger.warn('Image compression not implemented yet');
-        return buffer;
     }
 
     /**
