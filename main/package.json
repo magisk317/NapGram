@@ -34,8 +34,6 @@
     "@fastify/cors": "^11.1.0",
     "@fastify/static": "^8.3.0",
     "@kitajs/html": "^4.2.11",
-    "@lottie2img/core-mt": "^0.1.0",
-    "@lottie2img/main": "^0.1.0",
     "@mtcute/core": "^0.27.2",
     "@mtcute/dispatcher": "^0.27.2",
     "@mtcute/node": "^0.27.2",

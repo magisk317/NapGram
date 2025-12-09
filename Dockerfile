@@ -1,5 +1,9 @@
 # syntax=docker/dockerfile:1
 
+# === Stage: Extract TGS conversion binaries ===
+FROM edasriyan/lottie-to-gif:latest AS lottie
+
+# === Stage: Base ===
 ARG NODE_VERSION=25-slim
 FROM node:${NODE_VERSION} AS base
 ARG USE_MIRROR=true
@@ -14,6 +18,10 @@ RUN if [ "$USE_MIRROR" = "true" ]; then \
     fonts-wqy-microhei \
     libpixman-1-0 libcairo2 libpango1.0-0 libgif7 libjpeg62-turbo libpng16-16 librsvg2-2 libvips42 ffmpeg \
     && rm -rf /var/lib/apt/lists/*
+
+# 复制TGS转换工具（lottie_to_png和gifski）
+COPY --from=lottie /usr/bin/lottie_to_png /usr/bin/
+COPY --from=lottie /usr/bin/gifski /usr/bin/
 
 RUN npm install -g corepack@latest --force && corepack enable && corepack prepare pnpm@latest --activate && npm install -g npm@latest
 WORKDIR /app

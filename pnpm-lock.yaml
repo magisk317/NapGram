@@ -19,12 +19,6 @@ importers:
       '@kitajs/html':
         specifier: ^4.2.11
         version: 4.2.11
-      '@lottie2img/core-mt':
-        specifier: ^0.1.0
-        version: 0.1.0
-      '@lottie2img/main':
-        specifier: ^0.1.0
-        version: 0.1.0
       '@mtcute/core':
         specifier: ^0.27.2
         version: 0.27.2
@@ -938,13 +932,6 @@ packages:
     peerDependencies:
       '@kitajs/html': ^4.2.10
       typescript: ^5.6.2
-
-  '@lottie2img/core-mt@0.1.0':
-    resolution: {integrity: sha512-EpsAJPB9+0G/E4wtfs6UkAGj6PZ4opZ1xXHBTN4MYESW+Wz1/A571tgFRPrxykQ1tJKxYCif+xVq1GW6a6l8dA==}
-
-  '@lottie2img/main@0.1.0':
-    resolution: {integrity: sha512-CbQ72nlcEXi8YKHc0HwxEgyES2rJg8r9sGg9JHzZRu1EJ+/84TLma6HrVWsoFc0I1hEtaRkDUUYLEXxLJywexw==}
-    engines: {node: '>=16'}
 
   '@lukeed/ms@2.0.2':
     resolution: {integrity: sha512-9I2Zn6+NJLfaGoz9jN3lpwDgAYvfGeNYdbAIjJOqzs4Tpc+VU3Jqq4IofSUBKajiDS8k9fZIg18/z13mpk1bsA==}
@@ -4479,10 +4466,6 @@ snapshots:
       tslib: 2.8.1
       typescript: 5.9.3
       yargs: 18.0.0
-
-  '@lottie2img/core-mt@0.1.0': {}
-
-  '@lottie2img/main@0.1.0': {}
 
   '@lukeed/ms@2.0.2': {}
 
