@@ -8,6 +8,7 @@ import { Message } from '@mtcute/core';
 import { NapCatConverter } from './converters';
 import sharp from 'sharp';
 import { fileTypeFromBuffer } from 'file-type';
+import convert from '../../shared/utils/convert';
 
 const logger = getLogger('MessageConverter');
 
@@ -273,10 +274,37 @@ export class MessageConverter {
                                     logger.debug('Converting sticker buffer for QQ', {
                                         mimeType: content.data.mimeType,
                                         detectedExt: detected?.ext,
+                                        bufferSize: file.length,
                                     });
-                                    // 转成 png，避免 TGS/WEBP 直接当 jpg 触发 QQ 富媒体失败
-                                    targetBuffer = await sharp(file).png().toBuffer();
-                                    targetExt = '.png';
+
+                                    // 检查是否是 TGS (gzip 压缩的 JSON)
+                                    // TGS 文件以 0x1f 0x8b 开头（gzip magic number）
+                                    const isTGS = file.length >= 2 && file[0] === 0x1f && file[1] === 0x8b;
+
+                                    if (isTGS) {
+                                        logger.info('Detected TGS sticker, converting to GIF...');
+                                        const tempDir = path.join(env.DATA_DIR, 'temp');
+                                        await fs.mkdir(tempDir, { recursive: true });
+                                        const tgsKey = `tgs-sticker-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+                                        try {
+                                            const gifPath = await convert.tgs2gif(tgsKey, () => Promise.resolve(file));
+                                            logger.info(`TGS converted to GIF: ${gifPath}`);
+                                            targetBuffer = await fs.readFile(gifPath);
+                                            targetExt = '.gif';
+                                        } catch (tgsErr) {
+                                            logger.error('TGS to GIF conversion failed', tgsErr);
+                                            segments.push({
+                                                type: 'text',
+                                                data: { text: '[动画贴纸转换失败]' },
+                                            });
+                                            break;
+                                        }
+                                    } else {
+                                        // 静态贴纸：转成 png，避免 WEBP 直接当 jpg 触发 QQ 富媒体失败
+                                        targetBuffer = await sharp(file).png().toBuffer();
+                                        targetExt = '.png';
+                                    }
                                 } catch (e) {
                                     logger.warn('Failed to convert sticker buffer, fallback to text', e);
                                     segments.push({

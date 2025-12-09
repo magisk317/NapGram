@@ -31,6 +31,12 @@ export class ForwardMediaPreparer {
         await Promise.all(msg.content.map(async (content) => {
             try {
                 if (content.type === 'image') {
+                    // Skip file conversion for stickers - let toNapCat handle TGS conversion
+                    if ((content.data as any).isSticker) {
+                        this.logger.debug('Skipping file conversion for sticker, will be handled by toNapCat');
+                        // Keep the buffer/object as-is for toNapCat to process
+                        return;
+                    }
                     content.data.file = await this.ensureFilePath(await this.ensureBufferOrPath(content as ImageContent), '.jpg');
                 } else if (content.type === 'video') {
                     content.data.file = await this.ensureFilePath(await this.ensureBufferOrPath(content as VideoContent), '.mp4', false);
