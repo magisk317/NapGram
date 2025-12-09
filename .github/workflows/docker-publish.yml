@@ -98,7 +98,7 @@ jobs:
             Check details: https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }}
 
       - name: Send Telegram Notification on Success
-        if: success() && (github.event_name != 'schedule' || steps.check_push.outputs.has_push == 'true')
+        if: success() && (github.event_name != 'schedule' || steps.check_push.outputs.has_push == 'true') && matrix.node-version == 25
         uses: appleboy/telegram-action@master
         with:
           to: ${{ secrets.TELEGRAM_TO_GROUP }}
