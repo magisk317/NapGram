@@ -36,12 +36,13 @@ COPY pnpm-workspace.yaml pnpm-lock.yaml package.json* /app/
 COPY main/package.json /app/main/
 COPY web/package.json /app/web/
 
-# 分两步安装以精确控制原生模块编译：
-# 1. 先安装所有依赖但跳过所有安装脚本（避免 sharp 尝试源码编译）
-# 2. 然后递归重新编译必需的原生模块（-r 确保在所有 workspace 中执行）
-RUN pnpm install --frozen-lockfile --shamefully-hoist --ignore-scripts && \
-    pnpm -r rebuild better-sqlite3 silk-sdk && \
-    pnpm -r rebuild @prisma/engines
+# 三步安装策略：
+# 1. 先安装 Prisma 相关包并运行 postinstall（下载引擎）
+# 2. 再安装其他依赖并跳过脚本（避免 sharp 尝试源码编译）
+# 3. 最后重新编译必需的原生模块
+RUN pnpm install --filter=prisma --filter=@prisma/client --filter=@prisma/engines --frozen-lockfile --shamefully-hoist && \
+    pnpm install --frozen-lockfile --shamefully-hoist --ignore-scripts && \
+    pnpm -r rebuild better-sqlite3 silk-sdk
 
 # 源码构建
 COPY main/ /app/main/
