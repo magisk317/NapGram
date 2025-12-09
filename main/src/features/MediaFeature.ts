@@ -5,6 +5,8 @@ import type Telegram from '../infrastructure/clients/telegram/client';
 import type Instance from '../domain/models/Instance';
 
 import { createReadStream } from 'fs';
+import { Jimp } from 'jimp';
+import { fileTypeFromBuffer } from 'file-type';
 import { file as createTempFile } from '../shared/utils/temp';
 import fsP from 'fs/promises';
 
@@ -202,73 +204,73 @@ export class MediaFeature {
 
             logger.info(`Compressing image: ${buffer.length} bytes > ${maxSize} bytes`);
 
-            // 动态导入 sharp（避免在没有使用时加载）
-            const sharp = (await import('sharp')).default;
+            // 使用 file-type 检测类型
+            const type = await fileTypeFromBuffer(buffer);
+            const mime = type?.mime || 'image/jpeg';
 
-            // 获取图片元信息
-            const metadata = await sharp(buffer).metadata();
-            const format = metadata.format as 'jpeg' | 'png' | 'webp' | 'gif' | undefined;
-
-            if (!format || !['jpeg', 'png', 'webp', 'gif'].includes(format)) {
-                logger.warn(`Unsupported image format for compression: ${format}`);
+            // 简单的格式检查 (Jimp 支持的格式)
+            if (!['image/jpeg', 'image/png', 'image/bmp', 'image/tiff', 'image/gif'].includes(mime)) {
+                logger.warn(`Unsupported/Unnecessary image format for compression: ${mime}`);
                 return buffer;
             }
 
+            // 使用 Jimp 读取图片
+            const image = await Jimp.read(buffer);
+
             // 计算压缩目标
-            // 策略：从 80% 质量开始，如果还是太大，尝试降低质量或缩小尺寸
             let quality = 80;
-            let compressed = buffer;
+            // 获取原始宽高
+            let width = image.bitmap.width;
+            let height = image.bitmap.height;
 
-            // 第一次尝试：压缩质量
-            while (quality >= 50) {
-                let sharpInstance = sharp(buffer);
-
-                if (format === 'jpeg') {
-                    compressed = await sharpInstance.jpeg({ quality }).toBuffer();
-                } else if (format === 'png') {
-                    compressed = await sharpInstance.png({ quality, compressionLevel: 9 }).toBuffer();
-                } else if (format === 'webp') {
-                    compressed = await sharpInstance.webp({ quality }).toBuffer();
+            // 如果图片过大，先尝试调整尺寸
+            // 限制最大边长为 1920
+            const MAX_DIMENSION = 1920;
+            if (width > MAX_DIMENSION || height > MAX_DIMENSION) {
+                if (width > height) {
+                    height = Math.round(height * (MAX_DIMENSION / width));
+                    width = MAX_DIMENSION;
                 } else {
-                    // GIF 转换为 WebP
-                    compressed = await sharpInstance.webp({ quality }).toBuffer();
+                    width = Math.round(width * (MAX_DIMENSION / height));
+                    height = MAX_DIMENSION;
                 }
-
-                if (compressed.length <= maxSize) {
-                    logger.info(`Compressed with quality ${quality}: ${buffer.length} -> ${compressed.length} bytes`);
-                    return compressed;
-                }
-
-                quality -= 10;
+                logger.info(`Resizing image to ${width}x${height}`);
+                image.resize({ w: width, h: height });
             }
 
-            // 第二次尝试：缩小尺寸
-            if (metadata.width && metadata.height) {
-                const scaleFactor = Math.sqrt(maxSize / compressed.length);
-                const newWidth = Math.floor(metadata.width * scaleFactor);
-                const newHeight = Math.floor(metadata.height * scaleFactor);
+            // 尝试压缩循环
+            let compressedBuffer: Buffer;
 
-                logger.info(`Resizing image from ${metadata.width}x${metadata.height} to ${newWidth}x${newHeight}`);
-
-                let sharpInstance = sharp(buffer).resize(newWidth, newHeight, {
-                    fit: 'inside',
-                    withoutEnlargement: true,
-                });
-
-                if (format === 'jpeg') {
-                    compressed = await sharpInstance.jpeg({ quality: 70 }).toBuffer();
-                } else {
-                    compressed = await sharpInstance.webp({ quality: 70 }).toBuffer();
-                }
-
-                logger.info(`Final compressed size: ${compressed.length} bytes`);
+            // Jimp 无法直接输出 buffer 到 buffer 多次而不重新 encode
+            // 对于 WebP，Jimp 可能不支持写入，统一转为 JPEG 或 PNG
+            let targetMime = mime;
+            if (targetMime === 'image/webp') {
+                targetMime = 'image/png'; // WebP -> PNG
             }
 
-            return compressed;
+            // 第一次尝试
+            // Cast to any to avoid type issues with specific Jimp version definitions
+            (image as any).quality(quality);
+            compressedBuffer = await (image as any).getBuffer(targetMime);
+
+            // 如果还是太大，继续降低质量
+            while (compressedBuffer.length > maxSize && quality > 20) {
+                quality -= 20;
+                logger.debug(`Image still too large (${compressedBuffer.length}), trying quality ${quality}`);
+                (image as any).quality(quality);
+                compressedBuffer = await (image as any).getBuffer(targetMime);
+            }
+
+            if (compressedBuffer.length > maxSize) {
+                logger.warn(`Failed to compress image below ${maxSize} bytes even at quality ${quality}. Current: ${compressedBuffer.length}`);
+            }
+
+            logger.info(`Compression result: ${buffer.length} -> ${compressedBuffer.length} bytes (Quality: ${quality}, Format: ${targetMime})`);
+            return compressedBuffer;
 
         } catch (error) {
             logger.error('Image compression failed:', error);
-            // 压缩失败时返回原图
+            // 压缩失败返回原图
             return buffer;
         }
     }
