@@ -41,10 +41,62 @@ const convert = {
     }),
   tgs2gif: (key: string, tgsData: () => Promise<Buffer | Uint8Array | string>) =>
     cachedConvert(key + '.gif', async (convertedPath) => {
-      const tempTgsPath = path.join(CACHE_PATH, key + '.tgs');
-      await fsP.writeFile(tempTgsPath, await tgsData());
-      await tgsToGif(tempTgsPath, convertedPath);
-      await fsP.rm(tempTgsPath);
+      const logger = getLogger('TGSConverter');
+      const src = await tgsData();
+
+      logger.debug(`[tgs2gif] Start conversion for key: ${key}, dest: ${convertedPath}`);
+      logger.debug(`[tgs2gif] src type: ${typeof src}, isBuffer: ${Buffer.isBuffer(src)}`);
+
+      if (Buffer.isBuffer(src)) {
+        logger.debug(`[tgs2gif] Processing buffer, size: ${src.length}`);
+        const tempDir = path.join(env.DATA_DIR, 'temp');
+        await fsP.mkdir(tempDir, { recursive: true });
+
+        const tempTgsPath = path.join(tempDir, `sticker-${Date.now()}-${Math.random().toString(16).slice(2)}.tgs`);
+
+        try {
+          logger.debug(`[tgs2gif] Writing TGS buffer to: ${tempTgsPath}`);
+          await fsP.writeFile(tempTgsPath, src);
+          logger.info(`[tgs2gif] TGS file written successfully, calling tgsToGif...`);
+
+          await tgsToGif(tempTgsPath, convertedPath);
+          logger.info(`[tgs2gif] tgsToGif completed, checking output...`);
+
+          // Verify output file exists
+          try {
+            const stats = await fsP.stat(convertedPath);
+            logger.info(`[tgs2gif] GIF created successfully, size: ${stats.size}`);
+          } catch (statErr) {
+            logger.error(`[tgs2gif] Output GIF file not found: ${convertedPath}`);
+            throw new Error('TGS to GIF conversion produced no output file');
+          }
+
+          // Cleanup temp files
+          try {
+            await fsP.unlink(tempTgsPath);
+            logger.debug(`[tgs2gif] Cleaned up temp TGS file: ${tempTgsPath}`);
+          } catch (cleanupErr) {
+            logger.warn(cleanupErr, '[tgs2gif] Failed to cleanup temp TGS file');
+          }
+        } catch (e) {
+          logger.error(e, `[tgs2gif] Conversion failed for key: ${key}`);
+          logger.error(`[tgs2gif] Error details: ${e instanceof Error ? e.stack : String(e)}`);
+          throw e;
+        }
+      } else if (typeof src === 'string' && /\.tgs$/i.test(src)) {
+        logger.debug(`[tgs2gif] Processing TGS file path: ${src}`);
+        try {
+          await tgsToGif(src, convertedPath);
+          logger.info(`[tgs2gif] Direct file conversion completed for key: ${key}`);
+        } catch (e) {
+          logger.error(e, `[tgs2gif] Direct file conversion failed for key: ${key}`);
+          throw e;
+        }
+      } else {
+        const errMsg = `Unsupported sticker source type for key ${key}: ${typeof src}`;
+        logger.error(`[tgs2gif] ${errMsg}`);
+        throw new Error(errMsg);
+      }
     }),
   webp: (key: string, imageData: () => Promise<Buffer | Uint8Array | string>) =>
     cachedConvert(key + '.webp', async (convertedPath) => {
