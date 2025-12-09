@@ -18,8 +18,6 @@ RUN if [ "$USE_MIRROR" = "true" ]; then \
 RUN npm install -g corepack@latest --force && corepack enable && corepack prepare pnpm@latest --activate && npm install -g npm@latest
 WORKDIR /app
 
-FROM edasriyan/lottie-to-gif:latest AS lottie
-
 FROM base AS build
 ARG USE_MIRROR=true
 
@@ -55,20 +53,8 @@ RUN pnpm --filter=@napgram/core run build
 COPY web/ /app/web/
 RUN pnpm --filter=web run build
 
-# Dev/Build 阶段也带上 tgs 转换工具，便于 compose.dev 使用 target=build
-COPY --from=lottie /usr/bin/lottie_to_gif.sh /usr/local/bin/tgs_to_gif
-COPY --from=lottie /usr/bin/lottie_common.sh /usr/local/bin/lottie_common.sh
-COPY --from=lottie /usr/bin/lottie_to_png /usr/local/bin/lottie_to_png
-COPY --from=lottie /usr/bin/gifski /usr/local/bin/gifski
-ENV TGS_TO_GIF=/usr/local/bin/tgs_to_gif
-
 FROM base AS release
-# Lottie Converter
-COPY --from=lottie /usr/bin/lottie_to_gif.sh /usr/local/bin/tgs_to_gif
-COPY --from=lottie /usr/bin/lottie_common.sh /usr/local/bin/lottie_common.sh
-COPY --from=lottie /usr/bin/lottie_to_png /usr/local/bin/lottie_to_png
-COPY --from=lottie /usr/bin/gifski /usr/local/bin/gifski
-ENV TGS_TO_GIF=/usr/local/bin/tgs_to_gif
+# Note: TGS to GIF conversion now handled by tgs-to npm package
 
 COPY --from=build --chown=node:node /app/node_modules /app/node_modules
 COPY --from=build --chown=node:node /app/main/build /app/build
