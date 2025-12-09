@@ -4,7 +4,7 @@ import { gunzipSync } from 'zlib';
 import fs from 'fs/promises';
 import path from 'path';
 import os from 'os';
-import { getLogger } from '../../shared/logger';
+import { getLogger } from '../../logger';
 
 const execFileAsync = promisify(execFile);
 const logger = getLogger('TGSConverter');
