@@ -17,8 +17,9 @@ jobs:
         if: github.event.action == 'opened' || github.event.action == 'reopened'
         uses: appleboy/telegram-action@master
         with:
-          to: ${{ secrets.TELEGRAM_TO_CHANNEL }}
+          to: ${{ secrets.TELEGRAM_TO_GROUP }}
           token: ${{ secrets.TELEGRAM_TOKEN }}
+          message_thread_id: ${{ secrets.TELEGRAM_DEPENDABOT_TOPIC_ID }}
           message: |
             📦 Dependabot Update
             
@@ -31,8 +32,9 @@ jobs:
         if: github.event.action == 'closed' && github.event.pull_request.merged == true
         uses: appleboy/telegram-action@master
         with:
-          to: ${{ secrets.TELEGRAM_TO_CHANNEL }}
+          to: ${{ secrets.TELEGRAM_TO_GROUP }}
           token: ${{ secrets.TELEGRAM_TOKEN }}
+          message_thread_id: ${{ secrets.TELEGRAM_DEPENDABOT_TOPIC_ID }}
           message: |
             ✅ Dependabot PR Merged
             

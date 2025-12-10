@@ -88,6 +88,7 @@ jobs:
         with:
           to: ${{ secrets.TELEGRAM_TO_GROUP }}
           token: ${{ secrets.TELEGRAM_TOKEN }}
+          message_thread_id: ${{ secrets.TELEGRAM_TOPIC_ID }}
           message: |
             ❌ Docker Build Failed
             
@@ -103,6 +104,7 @@ jobs:
         with:
           to: ${{ secrets.TELEGRAM_TO_GROUP }}
           token: ${{ secrets.TELEGRAM_TOKEN }}
+          message_thread_id: ${{ secrets.TELEGRAM_TOPIC_ID }}
           message: |
             ✅ Docker Build Success
             

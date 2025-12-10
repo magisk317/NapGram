@@ -44,10 +44,24 @@ jobs:
             echo "EOF" >> $GITHUB_ENV
           fi
 
-      - name: Send Telegram Notification
+      - name: Send Telegram Notification to Group Topic
         uses: appleboy/telegram-action@master
         with:
           to: ${{ secrets.TELEGRAM_TO_GROUP }}
+          token: ${{ secrets.TELEGRAM_TOKEN }}
+          message_thread_id: ${{ secrets.TELEGRAM_RELEASE_TOPIC_ID }}
+          format: markdown
+          message: |
+            🚀 New Release: ${{ github.event.release.tag_name }}
+            
+            ${{ env.RELEASE_BODY }}
+            
+            Link: ${{ github.event.release.html_url }}
+
+      - name: Send Telegram Notification to Channel
+        uses: appleboy/telegram-action@master
+        with:
+          to: ${{ secrets.TELEGRAM_TO_CHANNEL }}
           token: ${{ secrets.TELEGRAM_TOKEN }}
           format: markdown
           message: |
