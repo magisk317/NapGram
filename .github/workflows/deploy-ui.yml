@@ -59,6 +59,7 @@ jobs:
           pnpm run build
         env:
           NODE_ENV: production
+          VITE_API_ORIGIN: ${{ secrets.VITE_API_ORIGIN }}
 
       # 直接上传 dist 到 Cloudflare Pages，跳过 CF 的自带构建
       - name: Publish to Cloudflare Pages
