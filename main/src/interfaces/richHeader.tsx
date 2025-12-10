@@ -5,6 +5,7 @@ import Html from '@kitajs/html';
 import { getLogger } from '../shared/logger';
 import posthog from '../domain/models/posthog';
 import env from '../domain/models/env';
+import Instance from '../domain/models/Instance';
 
 const logger = getLogger('Rich Header');
 
@@ -36,8 +37,7 @@ async function handler(request: any, reply: any) {
 
     // Find pair by apiKey across all instances
     // @ts-ignore
-    const instances = (await import('../../domain/models/Instance')).default.instances;
-    for (const inst of instances) {
+    for (const inst of Instance.instances) {
       if (inst.forwardPairs) {
         const pairs = inst.forwardPairs.getAll();
         const found = pairs.find(p => p.apiKey === params.apiKey);

@@ -42,6 +42,26 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  /* Common Tailwind palette entries used by components */
+  --color-slate-50: #f8fafc;
+  --color-slate-100: #f1f5f9;
+  --color-slate-300: #cbd5e1;
+  --color-slate-400: #94a3b8;
+  --color-slate-500: #64748b;
+  --color-slate-700: #334155;
+  --color-slate-800: #1e293b;
+  --color-slate-900: #0f172a;
+  --color-blue-400: #60a5fa;
+  --color-blue-500: #3b82f6;
+  --color-blue-600: #2563eb;
+  --color-blue-700: #1d4ed8;
+  --color-blue-950: #0b1220;
+  --color-purple-400: #a855f7;
+  --color-purple-500: #9333ea;
+  --color-purple-600: #7e22ce;
+  --color-indigo-500: #6366f1;
+  --color-red-400: #f87171;
+  --color-red-500: #ef4444;
 }
 
 :root {
@@ -119,6 +139,43 @@
   }
 
   body {
+    margin: 0;
     @apply bg-background text-foreground;
   }
+}
+
+/* Fallback styles: ensure登录页有基本美化，即便某些实用类缺失 */
+.login-page {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  overflow: hidden;
+  background: radial-gradient(circle at 20% 20%, rgba(59, 130, 246, 0.08), transparent 35%),
+    radial-gradient(circle at 80% 10%, rgba(147, 51, 234, 0.08), transparent 30%),
+    radial-gradient(circle at 50% 80%, rgba(99, 102, 241, 0.08), transparent 30%),
+    linear-gradient(135deg, #0f172a 0%, #0b1220 50%, #0f172a 100%);
+}
+
+.login-card {
+  width: 100%;
+  max-width: 400px;
+  background: rgba(15, 23, 42, 0.65);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.35), 0 1px 0 rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(18px);
+  border-radius: 16px;
+  color: #e2e8f0;
+  padding: 0.5rem;
+}
+
+.login-input {
+  background: rgba(15, 23, 42, 0.5);
+  border: 1px solid rgba(148, 163, 184, 0.35);
+  color: #e2e8f0;
+}
+
+.login-footer {
+  color: #94a3b8;
 }
