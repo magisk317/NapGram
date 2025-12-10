@@ -22,33 +22,37 @@ export class FeatureManager {
         private readonly tgBot: Telegram,
         private readonly qqClient: IQQClient,
     ) {
-        logger.info('FeatureManager initializing...');
+        logger.info('FeatureManager 正在初始化...');
     }
 
     async initialize() {
         try {
+            logger.info('MediaFeature 正在初始化...');
             this.media = new MediaFeature(this.instance, this.tgBot, this.qqClient);
             this.features.set('media', this.media);
-            logger.info('✓ Media feature initialized');
+            logger.info('MediaFeature ✓ 初始化完成');
 
             // Set instance to messageConverter for sticker download
             const { messageConverter } = await import('../domain/message');
             messageConverter.setInstance(this.instance);
             logger.debug('✓ MessageConverter instance set');
 
+            logger.info('CommandsFeature 正在初始化...');
             this.commands = new CommandsFeature(this.instance, this.tgBot, this.qqClient);
             this.features.set('commands', this.commands);
-            logger.info('✓ Commands feature initialized');
+            logger.info('CommandsFeature ✓ 初始化完成');
 
+            logger.info('ForwardFeature 正在初始化...');
             this.forward = new ForwardFeature(this.instance, this.tgBot, this.qqClient, this.media, this.commands);
             this.features.set('forward', this.forward);
-            logger.info('✓ Forward feature initialized');
+            logger.info('ForwardFeature ✓ 初始化完成');
 
+            logger.info('RecallFeature 正在初始化...');
             this.recall = new RecallFeature(this.instance, this.tgBot, this.qqClient);
             this.features.set('recall', this.recall);
-            logger.info('✓ Recall feature initialized');
+            logger.info('RecallFeature ✓ 初始化完成');
 
-            logger.info(`FeatureManager initialized with ${this.features.size} features`);
+            logger.info(`FeatureManager 初始化完成，共 ${this.features.size} 个功能`);
         } catch (error) {
             logger.error('Failed to initialize features:', error);
             throw error;

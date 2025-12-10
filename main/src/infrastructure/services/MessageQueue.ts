@@ -49,7 +49,7 @@ export class MessageQueue {
         this.maxQueueSize = config.maxQueueSize || 1000;
         this.enablePriority = config.priority || false;
 
-        logger.info(`MessageQueue initialized (batch: ${this.batchSize}, interval: ${this.processInterval}ms)`);
+        logger.info(`MessageQueue ✓ 初始化完成（批量大小: ${this.batchSize}, 间隔: ${this.processInterval}ms）`);
     }
 
     /**

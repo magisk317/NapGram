@@ -13,6 +13,7 @@ export default async function (fastify: FastifyInstance) {
     fastify.get('/api/admin/statistics/overview', {
         preHandler: authMiddleware
     }, async () => {
+        const startOfToday = Math.floor(new Date().setHours(0, 0, 0, 0) / 1000);
         const [
             pairCount,
             instanceCount,
@@ -25,7 +26,7 @@ export default async function (fastify: FastifyInstance) {
             db.message.count({
                 where: {
                     time: {
-                        gte: new Date(new Date().setHours(0, 0, 0, 0))
+                        gte: startOfToday
                     }
                 }
             })
@@ -55,17 +56,16 @@ export default async function (fastify: FastifyInstance) {
         const daysNum = Math.min(Math.max(parseInt(String(days)), 1), 90);
 
         // 生成日期范围
-        const endDate = new Date();
-        const startDate = new Date();
-        startDate.setDate(startDate.getDate() - daysNum);
+        const endTimestamp = Math.floor(Date.now() / 1000);
+        const startTimestamp = endTimestamp - daysNum * 24 * 60 * 60;
 
         // 按天分组统计消息数量
         const messages = await db.message.groupBy({
             by: ['time'],
             where: {
                 time: {
-                    gte: startDate,
-                    lte: endDate
+                    gte: startTimestamp,
+                    lte: endTimestamp
                 }
             },
             _count: {
@@ -76,15 +76,14 @@ export default async function (fastify: FastifyInstance) {
         // 生成每日数据映射
         const dailyCounts = new Map<string, number>();
         for (let i = 0; i < daysNum; i++) {
-            const date = new Date(startDate);
-            date.setDate(date.getDate() + i);
+            const date = new Date((startTimestamp + i * 24 * 60 * 60) * 1000);
             const dateKey = date.toISOString().split('T')[0];
             dailyCounts.set(dateKey, 0);
         }
 
         // 填充实际数据
         messages.forEach(msg => {
-            const dateKey = new Date(msg.time).toISOString().split('T')[0];
+            const dateKey = new Date(msg.time * 1000).toISOString().split('T')[0];
             dailyCounts.set(dateKey, (dailyCounts.get(dateKey) || 0) + msg._count.id);
         });
 
@@ -107,30 +106,51 @@ export default async function (fastify: FastifyInstance) {
     fastify.get('/api/admin/statistics/pairs/activity', {
         preHandler: authMiddleware
     }, async () => {
-        const pairs = await db.forwardPair.findMany({
-            include: {
+        const topPairs = await db.message.groupBy({
+            by: ['qqRoomId', 'tgChatId', 'instanceId'],
+            _count: { id: true },
+            orderBy: {
                 _count: {
-                    select: {
-                        Message: true
-                    }
+                    id: 'desc'
                 }
             },
-            take: 10,
-            orderBy: {
-                Message: {
-                    _count: 'desc'
-                }
+            take: 10
+        });
+
+        const relatedPairs = topPairs.length > 0 ? await db.forwardPair.findMany({
+            where: {
+                OR: topPairs.map(pair => ({
+                    qqRoomId: pair.qqRoomId,
+                    tgChatId: pair.tgChatId,
+                    instanceId: pair.instanceId
+                }))
+            },
+            select: {
+                id: true,
+                qqRoomId: true,
+                tgChatId: true,
+                instanceId: true
             }
+        }) : [];
+
+        const pairIdMap = new Map<string, number>();
+        relatedPairs.forEach(pair => {
+            const key = `${pair.qqRoomId.toString()}-${pair.tgChatId.toString()}-${pair.instanceId}`;
+            pairIdMap.set(key, pair.id);
         });
 
         return {
             success: true,
-            data: pairs.map(pair => ({
-                id: pair.id,
-                qqRoomId: pair.qqRoomId.toString(),
-                tgChatId: pair.tgChatId.toString(),
-                messageCount: pair._count.Message
-            }))
+            data: topPairs.map(pair => {
+                const key = `${pair.qqRoomId.toString()}-${pair.tgChatId.toString()}-${pair.instanceId}`;
+                const pairId = pairIdMap.get(key) ?? null;
+                return {
+                    id: pairId,
+                    qqRoomId: pair.qqRoomId.toString(),
+                    tgChatId: pair.tgChatId.toString(),
+                    messageCount: pair._count.id
+                };
+            })
         };
     });
 
@@ -212,7 +232,7 @@ export default async function (fastify: FastifyInstance) {
         preHandler: authMiddleware
     }, async () => {
         // 计算最近1小时的消息速率
-        const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+        const oneHourAgo = Math.floor((Date.now() - 60 * 60 * 1000) / 1000);
         const recentMessages = await db.message.count({
             where: {
                 time: {

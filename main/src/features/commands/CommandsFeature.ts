@@ -91,7 +91,7 @@ export class CommandsFeature {
 
         this.registerDefaultCommands();
         this.setupListeners();
-        logger.info('CommandsFeature initialized');
+        logger.info('CommandsFeature ✓ 初始化完成');
     }
 
     /**

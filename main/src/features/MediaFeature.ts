@@ -22,7 +22,7 @@ export class MediaFeature {
         private readonly tgBot: Telegram,
         private readonly qqClient: IQQClient,
     ) {
-        logger.info('MediaFeature initialized');
+        logger.info('MediaFeature ✓ 初始化完成');
     }
 
     /**

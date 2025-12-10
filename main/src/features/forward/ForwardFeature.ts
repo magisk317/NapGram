@@ -77,7 +77,7 @@ export class ForwardFeature {
             (pair) => this.getNicknameMode(pair),
         );
         this.setupListeners();
-        logger.info('ForwardFeature initialized');
+        logger.info('ForwardFeature ✓ 初始化完成');
 
         // Register commands
         if (this.commands) {
