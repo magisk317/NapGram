@@ -25,10 +25,16 @@ import env from './domain/models/env';
   // 打印 Admin Token（如果已配置）
   if (process.env.ADMIN_TOKEN) {
     const token = process.env.ADMIN_TOKEN;
-    const maskedToken = token.length > 12
-      ? `${'*'.repeat(token.length - 8)}${token.slice(-8)}`
-      : token;
-    log.info(`ADMIN_TOKEN: ${maskedToken} (use this to login to /ui/login)`);
+    // 在开发环境或设置了 SHOW_FULL_TOKEN 时显示完整 token
+    if (process.env.SHOW_FULL_TOKEN === 'true' || process.env.NODE_ENV === 'development') {
+      log.info(`ADMIN_TOKEN (FULL): ${token}`);
+      log.info(`Login URL: ${env.WEB_ENDPOINT || 'http://localhost:8080'}/ui/login`);
+    } else {
+      const maskedToken = token.length > 12
+        ? `${'*'.repeat(token.length - 8)}${token.slice(-8)}`
+        : token;
+      log.info(`ADMIN_TOKEN: ${maskedToken} (use this to login to /ui/login)`);
+    }
   } else {
     log.info(`ADMIN_TOKEN: not set (admin access disabled)`);
   }
