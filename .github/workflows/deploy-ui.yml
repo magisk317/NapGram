@@ -12,6 +12,9 @@ on:
 jobs:
   deploy-ui:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      deployments: write
 
     steps:
       - name: Checkout repository
