@@ -26,9 +26,9 @@ const normalizeLevel = (level: string | undefined): EnvLogLevel => {
   return 'info';
 };
 
-const consoleLevel = normalizeLevel(env.LOG_LEVEL);
+let consoleLevel = normalizeLevel(env.LOG_LEVEL);
 const fileLevel = normalizeLevel(env.LOG_FILE_LEVEL);
-const consoleThreshold = levelId[consoleLevel];
+let consoleThreshold = levelId[consoleLevel];
 const fileThreshold = levelId[fileLevel];
 const tz = process.env.TZ || 'Asia/Shanghai';
 const timeFormatter = new Intl.DateTimeFormat('sv-SE', {
@@ -245,6 +245,11 @@ export type AppLogger = {
   warn: (...args: unknown[]) => void;
   error: (...args: unknown[]) => void;
   fatal: (...args: unknown[]) => void;
+};
+
+export const setConsoleLogLevel = (level: EnvLogLevel) => {
+  consoleLevel = level;
+  consoleThreshold = levelId[level];
 };
 
 export const getLogger = (name: string): AppLogger => {

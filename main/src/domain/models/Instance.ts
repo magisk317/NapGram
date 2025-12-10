@@ -60,7 +60,7 @@ export default class Instance {
 
   private init(botToken?: string) {
     (async () => {
-      this.log.debug('正在登录 TG Bot');
+      this.log.debug('TG Bot 正在登录');
       const token = botToken ?? env.TG_BOT_TOKEN;
       if (this.botSessionId) {
         this.tgBot = await Telegram.connect(this._botSessionId, 'NapGram', token);
@@ -74,35 +74,36 @@ export default class Instance {
         });
         this.botSessionId = this.tgBot.sessionId;
       }
-      this.log.info('TG Bot 登录完成');
+      this.log.info('TG Bot ✓ 登录完成');
 
       const wsUrl = this._qq?.wsUrl || env.NAPCAT_WS_URL;
       if (!wsUrl) {
         throw new Error('NapCat WebSocket 地址未配置 (qqBot.wsUrl 或 NAPCAT_WS_URL)');
       }
 
-      this.log.debug('正在初始化 NapCat 客户端');
+      this.log.debug('NapCat 客户端 正在初始化');
       this.qqClient = await qqClientFactory.create({
         type: 'napcat',
         wsUrl,
         reconnect: true,
       });
       await this.qqClient.login();
-      this.log.info('NapCat 客户端初始化完成');
+      this.log.info('NapCat 客户端 ✓ 初始化完成');
 
       // 仅 NapCat 链路，使用轻量转发表
       this.forwardPairs = await ForwardMap.load(this.id);
 
       // 初始化新架构的功能管理器
       if (this.qqClient) {
-        this.log.debug(' 正在初始化 FeatureManager');
+        this.log.debug('FeatureManager 正在初始化');
         this.featureManager = new FeatureManager(this, this.tgBot, this.qqClient);
         await this.featureManager.initialize();
-        this.log.info('FeatureManager 初始化完成');
+        this.log.info('FeatureManager ✓ 初始化完成');
 
         // 初始化掉线通知服务
         if (env.ENABLE_OFFLINE_NOTIFICATION) {
           const { NotificationService } = await import('../../shared/services/NotificationService');
+          this.log.info('Offline notification service 正在初始化');
           const notificationService = new NotificationService(env.OFFLINE_NOTIFICATION_COOLDOWN);
 
           // 监听掉线事件
@@ -135,13 +136,13 @@ export default class Instance {
             }
           });
 
-          this.log.info('Offline notification service initialized');
+          this.log.info('Offline notification service ✓ 初始化完成');
         }
       }
 
       this.isInit = true;
     })()
-      .then(() => this.log.info('初始化已完成'))
+      .then(() => this.log.info('Instance ✓ 初始化完成'))
       .catch((err) => {
         this.log.error('初始化失败', err);
         posthog.capture('初始化失败', { error: err });

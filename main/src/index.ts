@@ -19,10 +19,10 @@ import env from './domain/models/env';
     log.info(`WEB_ENDPOINT: ${env.WEB_ENDPOINT || 'not set'}`);
     log.info(`LOG_LEVEL: ${env.LOG_LEVEL}`);
     log.info(`TG_LOG_LEVEL: ${env.TG_LOG_LEVEL}`);
-    if (env.PROXY_IP && env.PROXY_PORT) {
-        log.info(`PROXY: socks5://${env.PROXY_IP}:${env.PROXY_PORT}`);
-    }
-    log.info('=================================');
+  if (env.PROXY_IP && env.PROXY_PORT) {
+    log.info(`PROXY: socks5://${env.PROXY_IP}:${env.PROXY_PORT}`);
+  }
+  log.info('=================================');
 
     process.on('unhandledRejection', error => {
         log.error(error, 'UnhandledRejection: ');

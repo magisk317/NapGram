@@ -19,7 +19,7 @@ export class RecallFeature {
         private readonly qqClient: IQQClient,
     ) {
         this.setupListeners();
-        logger.info('RecallFeature initialized');
+        logger.info('RecallFeature ✓ 初始化完成');
     }
 
     /**
