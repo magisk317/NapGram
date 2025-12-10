@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, type ReactNode } from 'react';
+import { API_CONFIG } from '@/config/api';
 
 interface User {
     id?: number;
@@ -35,7 +36,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const verifyToken = async (tkn: string) => {
         try {
-            const response = await fetch('/api/auth/me', {
+            const response = await fetch(API_CONFIG.endpoints.auth.me, {
                 headers: {
                     'Authorization': `Bearer ${tkn}`
                 }
@@ -62,14 +63,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
             if (password) {
                 // Username + password login
-                response = await fetch('/api/auth/login', {
+                response = await fetch(API_CONFIG.endpoints.auth.login, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ username: usernameOrToken, password })
                 });
             } else {
                 // Token login
-                response = await fetch('/api/auth/login/token', {
+                response = await fetch(API_CONFIG.endpoints.auth.loginWithToken, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ token: usernameOrToken })
@@ -98,7 +99,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const logout = async () => {
         try {
             if (token) {
-                await fetch('/api/auth/logout', {
+                await fetch(API_CONFIG.endpoints.auth.logout, {
                     method: 'POST',
                     headers: {
                         'Authorization': `Bearer ${token}`
