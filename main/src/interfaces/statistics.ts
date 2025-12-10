@@ -1,0 +1,236 @@
+import { FastifyInstance } from 'fastify';
+import { authMiddleware } from '../infrastructure/auth/authMiddleware';
+import db from '../domain/models/db';
+
+/**
+ * 统计分析 API
+ */
+export default async function (fastify: FastifyInstance) {
+    /**
+     * GET /api/admin/statistics/overview
+     * 获取系统概览统计
+     */
+    fastify.get('/api/admin/statistics/overview', {
+        preHandler: authMiddleware
+    }, async () => {
+        const [
+            pairCount,
+            instanceCount,
+            messageCount,
+            todayMessageCount
+        ] = await Promise.all([
+            db.forwardPair.count(),
+            db.instance.count(),
+            db.message.count(),
+            db.message.count({
+                where: {
+                    time: {
+                        gte: new Date(new Date().setHours(0, 0, 0, 0))
+                    }
+                }
+            })
+        ]);
+
+        return {
+            success: true,
+            data: {
+                pairCount,
+                instanceCount,
+                messageCount,
+                todayMessageCount,
+                avgMessagesPerDay: messageCount > 0 ? Math.round(messageCount / 30) : 0,
+                status: 'healthy' // TODO: 实际健康检查
+            }
+        };
+    });
+
+    /**
+     * GET /api/admin/statistics/messages/trend
+     * 获取消息趋势（按天）
+     */
+    fastify.get('/api/admin/statistics/messages/trend', {
+        preHandler: authMiddleware
+    }, async (request) => {
+        const { days = 7 } = request.query as { days?: number };
+        const daysNum = Math.min(Math.max(parseInt(String(days)), 1), 90);
+
+        // 生成日期范围
+        const endDate = new Date();
+        const startDate = new Date();
+        startDate.setDate(startDate.getDate() - daysNum);
+
+        // 按天分组统计消息数量
+        const messages = await db.message.groupBy({
+            by: ['time'],
+            where: {
+                time: {
+                    gte: startDate,
+                    lte: endDate
+                }
+            },
+            _count: {
+                id: true
+            }
+        });
+
+        // 生成每日数据映射
+        const dailyCounts = new Map<string, number>();
+        for (let i = 0; i < daysNum; i++) {
+            const date = new Date(startDate);
+            date.setDate(date.getDate() + i);
+            const dateKey = date.toISOString().split('T')[0];
+            dailyCounts.set(dateKey, 0);
+        }
+
+        // 填充实际数据
+        messages.forEach(msg => {
+            const dateKey = new Date(msg.time).toISOString().split('T')[0];
+            dailyCounts.set(dateKey, (dailyCounts.get(dateKey) || 0) + msg._count.id);
+        });
+
+        // 转换为数组
+        const trend = Array.from(dailyCounts.entries()).map(([date, count]) => ({
+            date,
+            count
+        }));
+
+        return {
+            success: true,
+            data: trend
+        };
+    });
+
+    /**
+     * GET /api/admin/statistics/pairs/activity
+     * 获取配对活跃度统计
+     */
+    fastify.get('/api/admin/statistics/pairs/activity', {
+        preHandler: authMiddleware
+    }, async () => {
+        const pairs = await db.forwardPair.findMany({
+            include: {
+                _count: {
+                    select: {
+                        Message: true
+                    }
+                }
+            },
+            take: 10,
+            orderBy: {
+                Message: {
+                    _count: 'desc'
+                }
+            }
+        });
+
+        return {
+            success: true,
+            data: pairs.map(pair => ({
+                id: pair.id,
+                qqRoomId: pair.qqRoomId.toString(),
+                tgChatId: pair.tgChatId.toString(),
+                messageCount: pair._count.Message
+            }))
+        };
+    });
+
+    /**
+     * GET /api/admin/statistics/instances/status
+     * 获取实例状态统计
+     */
+    fastify.get('/api/admin/statistics/instances/status', {
+        preHandler: authMiddleware
+    }, async () => {
+        const instances = await db.instance.findMany({
+            include: {
+                qqBot: true,
+                _count: {
+                    select: {
+                        ForwardPair: true
+                    }
+                }
+            }
+        });
+
+        const stats = {
+            total: instances.length,
+            online: instances.filter(i => i.isSetup && i.qqBot).length,
+            offline: instances.filter(i => !i.isSetup || !i.qqBot).length,
+            instances: instances.map(instance => ({
+                id: instance.id,
+                owner: instance.owner.toString(),
+                isOnline: instance.isSetup && !!instance.qqBot,
+                pairCount: instance._count.ForwardPair,
+                botType: instance.qqBot?.type || null
+            }))
+        };
+
+        return {
+            success: true,
+            data: stats
+        };
+    });
+
+    /**
+     * GET /api/admin/statistics/messages/recent
+     * 获取最近消息（用于实时监控）
+     */
+    fastify.get('/api/admin/statistics/messages/recent', {
+        preHandler: authMiddleware
+    }, async (request) => {
+        const { limit = 20 } = request.query as { limit?: number };
+        const limitNum = Math.min(Math.max(parseInt(String(limit)), 1), 100);
+
+        const messages = await db.message.findMany({
+            take: limitNum,
+            orderBy: {
+                time: 'desc'
+            },
+            include: {
+                instance: true
+            }
+        });
+
+        return {
+            success: true,
+            data: messages.map(msg => ({
+                id: msg.id,
+                qqRoomId: msg.qqRoomId.toString(),
+                tgChatId: msg.tgChatId.toString(),
+                time: msg.time,
+                instanceId: msg.instanceId,
+                instanceOwner: msg.instance?.owner.toString() || null
+            }))
+        };
+    });
+
+    /**
+     * GET /api/admin/statistics/performance
+     * 获取性能指标
+     */
+    fastify.get('/api/admin/statistics/performance', {
+        preHandler: authMiddleware
+    }, async () => {
+        // 计算最近1小时的消息速率
+        const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000);
+        const recentMessages = await db.message.count({
+            where: {
+                time: {
+                    gte: oneHourAgo
+                }
+            }
+        });
+
+        const messagesPerHour = recentMessages;
+        const messagesPerMinute = Math.round(recentMessages / 60);
+
+        return {
+            success: true,
+            data: {
+                messagesPerHour,
+                messagesPerMinute,
+                timestamp: new Date().toISOString()
+            }
+        };
+    });
+}
