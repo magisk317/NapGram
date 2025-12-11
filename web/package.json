@@ -21,7 +21,7 @@
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
-    "lucide-react": "^0.556.0",
+    "lucide-react": "^0.560.0",
     "react": "^19.2.1",
     "react-day-picker": "^9.12.0",
     "react-dom": "^19.2.1",
