@@ -7,57 +7,68 @@
 
 ---
 
-## [0.0.1] - 2025-12-05
+## [v0.0.7] - 2025-12-09
 
-### ✨ 新增功能
+- **Node.js 25 升级**: 运行时升级至 `node:25-slim` 基础镜像，保持高性能。
+- **配置持久化**: 实现 `/mode` (转发模式/昵称模式) 的数据库持久化存储，无需重启即生效。
+- **通知修复**: 修复构建成功时重复发送 Telegram 通知的问题。
+- **依赖清理**: 移除冗余文件，优化项目导入路径。
+- **数据库迁移**: 新增 `forwardMode` 和 `nicknameMode` 字段。
 
-- **原生 QQ 回复支持**: 为所有消息类型添加了原生 QQ 回复功能 (fa088ab)
-- **Web 前端**: 新增 Web 管理界面，改进聊天历史 UI 设计 (2e47ed1, d91770a)
-- **架构升级**: 完成项目架构现代化改造，升级到 DDD 分层架构 (f862f35)
-  - 领域层 (Domain Layer)
-  - 基础设施层 (Infrastructure Layer)
-  - 功能特性层 (Features Layer)
-  - 接口层 (Interfaces Layer)
-  - 共享层 (Shared Layer)
+[查看 Release 说明](https://github.com/magisk317/NapGram/releases/tag/v0.0.7)
 
-### 🔧 改进优化
+## [v0.0.6] - 2025-12-09
 
-- **消息转发增强**: 优化媒体转发机制，标准化 API 路由，改进话题处理 (08ea545)
-- **回复逻辑重构**: 修复回复 API 并集中管理消息解析逻辑 (466dc1a)
-- **日志系统统一**: 将日志系统统一到 `shared/logger`，移除 pino 相关依赖 (626b9e2, f03cf21)
-- **依赖清理**: 清理未使用的依赖，优化 Docker 构建流程 (16842e5)
-- **UI 样式改进**: 优化聊天气泡布局、边框、背景和文字间距 (2745614, 67f1c42)
+- **架构重构**: 核心框架从 Elysia 迁移至 **Fastify**，提升插件生态支持与稳定性。
+- **代码去重**: 移除重复工具库 (tmp-promise, undici)，统一各类 Helper 函数。
+- **目录简化**: 拍平 `interfaces`, `features`, `clients` 等多层嵌套目录，结构更清晰。
+- **共享模块**: 提取 `TTLCache`, `ErrorResponses` 等通用工具类，提升复用率。
+- **全量测试**: 所有 40 个单元测试通过，确保重构的稳定性。
 
-### 🐛 Bug 修复
+[查看 Release 说明](https://github.com/magisk317/NapGram/releases/tag/v0.0.6)
 
-- **构建依赖**: 添加缺失的构建依赖 (15b856d)
-- **调试日志清理**: 移除 rich header 和回复功能的调试日志 (915625e, 0c46804)
+## [v0.0.5] - 2025-12-08
 
-### 📦 依赖更新
+- **模块化重构**: 将 `TelegramSender`, `CommandsFeature` 等千行大文件拆分为 16 个独立模块。
+- **媒体增强**: 支持从 Telegram 向 QQ 转发**图文混排 (Media Group)** 消息。
+- **质量提升**: 代码量减少 49%，可维护性大幅提升；全面修复单元测试。
+- **配置优化**: 移除 Prisma Schema 中过时的 `driverAdapters` 特性。
 
-- **Prisma 升级**: 从 7.0.1 升级到 7.1.0
-  - `prisma@7.1.0` (6e452ef, b1b817d)
-  - `@prisma/client@7.1.0` (769da42)
-  - `@prisma/adapter-pg@7.1.0` (8bd0afa, 38b5703)
-- **file-type 升级**: 从 20.5.0 升级到 21.1.1 (f82b8b1, af37431)
-- **@types/node 升级**: 升级到 24.10.1
-  - main workspace (92d566f, 4617daf)
-  - web workspace (f76d367, 8fa2700)
-- **date-fns**: 添加缺失的 date-fns 依赖 (157e4a6)
-- **pnpm-lock.yaml**: 更新锁文件以反映依赖变更 (5dca925)
+[查看 Release 说明](https://github.com/magisk317/NapGram/releases/tag/v0.0.5)
 
-### 🔒 CI/CD
+## [v0.0.4] - 2025-12-07
 
-- **GitHub Actions**: 为 GHCR 推送添加 packages 写入权限 (cc34856)
+- **小程序支持**: 新增 **QQ 小程序卡片** (Ark/JSON) 智能解析，转发为带标题和链接的富文本。
+- **显示优化**: 转发消息时优先展示群名片 (Card)，无名片时回退显示昵称。
+- **UI 修复**: 修复 Web 管理界面头像显示过大的问题，统一固定为 36px。
+- **依赖更新**: 升级 `lucide-react` 和 `react-day-picker` 等前端组件库。
 
-### 🎉 初始发布
+[查看 Release 说明](https://github.com/magisk317/NapGram/releases/tag/v0.0.4)
 
-- **NapGram v0.0.1**: 基于 Q2TG 的重大架构重构版本 (c388368)
-  - 迁移到 ESM 模块系统
-  - 采用分层 DDD 架构
-  - 从 log4js 迁移到 pino
-  - 从 GramJS 迁移到 mtcute
-  - 移除 OICQ，专注 NapCat
-  - 引入 Vitest 测试框架
-  - 添加 Telegram Forum Topics 支持
-  - 添加消息过滤功能 (ignoreRegex, ignoreSenders)
+## [v0.0.3] - 2025-12-07
+
+- **交互体验**: 新增 `/bind` 命令的交互式引导流程；支持 `/cmd@botname` 命令格式。
+- **Bug 修复**: 修复 **Telegram 论坛话题** 回复错乱问题；修复删除消息时的程序崩溃。
+- **API 修复**: 统一前后端头像 API 路由，解决头像加载失败问题。
+- **构建优化**: 修复 Docker 构建过程中的 NPM 版本警告。
+
+[查看 Release 说明](https://github.com/magisk317/NapGram/releases/tag/v0.0.3)
+
+## [v0.0.2] - 2025-12-06
+
+- **双向撤回**: 完整支持 QQ 与 Telegram 消息的双向即时撤回同步。
+- **连接监控**: 新增 NapCat 掉线/重连的管理员通知，支持冷却时间配置。
+- **命令增强**: 新增 `/rm` 命令，支持同时撤回双端消息并删除命令记录。
+- **底座修复**: 修复 `mtcute` 消息结构兼容性问题及多处所有的类型安全修正。
+
+[查看 Release 说明](https://github.com/magisk317/NapGram/releases/tag/v0.0.2)
+
+## [v0.0.1] - 2025-12-05
+
+- **首个发布**: 现代化 QQ ↔ Telegram 双向消息桥接工具，基于 DDD 分层架构设计。
+- **核心功能**: 支持文本、图片、视频、文件等全类型消息转发；支持 Telegram Topic。
+- **原生体验**: 独家实现 **QQ 原生引用回复** (灰色框)；支持双向昵称/头像展示。
+- **管理能力**: 提供 `/status` 监控、`/bind` 绑定、`/mode` 模式切换等管理命令。
+- **技术栈**: Node.js 22+, TypeScript, NapCat (OneBot 11), mtcute, PostgreSQL, Prisma。
+
+[查看 Release 说明](https://github.com/magisk317/NapGram/releases/tag/v0.0.1)

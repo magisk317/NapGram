@@ -5,8 +5,18 @@
 > 基于 NapCat 和 mtcute 的现代化 QQ-Telegram 消息桥接工具
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Node.js](https://img.shields.io/badge/Node.js-25-green.svg)](https://nodejs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.0+-blue.svg)](https://www.typescriptlang.org/)
-[![Node.js](https://img.shields.io/badge/Node.js-18+-green.svg)](https://nodejs.org/)
+[![CI/CD](https://img.shields.io/github/actions/workflow/status/magisk317/NapGram/docker-publish.yml?branch=main&label=Build%20%26%20Publish&logo=githubactions)](https://github.com/magisk317/NapGram/actions/workflows/docker-publish.yml)
+[![Release](https://img.shields.io/github/v/release/magisk317/NapGram?display_name=tag&include_prereleases&logo=git&label=Latest)](https://github.com/magisk317/NapGram/releases)
+[![Downloads](https://img.shields.io/github/downloads/magisk317/NapGram/total?label=Release%20Downloads&logo=github)](https://github.com/magisk317/NapGram/releases)
+[![GHCR Image](https://img.shields.io/badge/ghcr.io%2Fmagisk317%2Fnapgram-blue?logo=docker&label=Container)](https://github.com/users/magisk317/packages/container/package/napgram)
+[![Last Commit](https://img.shields.io/github/last-commit/magisk317/NapGram/main?logo=github&label=Last%20Commit)](https://github.com/magisk317/NapGram/commits/main)
+[![Commit Activity](https://img.shields.io/github/commit-activity/m/magisk317/NapGram?logo=github&label=Commit%20Activity)](https://github.com/magisk317/NapGram/pulse)
+[![Issues](https://img.shields.io/github/issues/magisk317/NapGram?logo=github)](https://github.com/magisk317/NapGram/issues)
+[![PRs](https://img.shields.io/github/issues-pr/magisk317/NapGram?logo=github&label=Pull%20Requests)](https://github.com/magisk317/NapGram/pulls)
+[![Stars](https://img.shields.io/github/stars/magisk317/NapGram?style=social)](https://github.com/magisk317/NapGram/stargazers)
+[![Forks](https://img.shields.io/github/forks/magisk317/NapGram?style=social)](https://github.com/magisk317/NapGram/network/members)
 
 ## ✨ 核心特性
 
@@ -38,6 +48,9 @@
   - 实时延迟统计 (p50/p95/p99)
   - 错误率追踪与自动恢复
   - 消息队列优先级管理
+- **Web 控制台 (WIP)**:
+  - 🚧 可视化配置管理 (开发中)
+  - 📊 系统状态监控大屏 (开发中)
 
 ## 🏗️ 技术栈列表
 
@@ -46,7 +59,8 @@
 | **QQ 适配** | [NapCat](https://github.com/NapNeko/NapCatQQ) | 基于 WebSocket 的现代化协议实现 |
 | **TG 适配** | [mtcute](https://github.com/mtcute/mtcute) | 原生 MTProto 实现，无需 Bot API 中转 |
 | **核心语言** | TypeScript 5.0+ | 严格模式，全链路类型安全 |
-| **运行时** | Node.js 18+ (ESM) | 现代化模块系统 |
+| **前端框架** | React 19 + Vite | Tailwind CSS 4, Shadcn UI, Recharts |
+| **运行时** | Node.js 25 (ESM) | 现代化模块系统 |
 | **数据持久化** | PostgreSQL + Prisma 7 | 强类型 ORM，支持自动迁移 |
 | **测试框架** | Vitest | 单元测试覆盖率 >80% |
 
@@ -73,12 +87,17 @@
 
 3. **启动服务**
    ```bash
+   cp compose.example.yaml docker-compose.yml
    docker-compose up -d
    ```
 
 ## 📖 开发者文档
 
+## 📅 更新日志
+
 📝 **[查看版本更新日志](./docs/changelog.md)**
+
+## 📖 开发者文档
 
 ### 目录结构
 ```bash
@@ -126,9 +145,8 @@ featureManager.register(new MyFeature(...));
 
 ## 🤝 贡献与致谢
 
-- 本项目采用先进的 Feature 架构设计，欢迎提交 PR 扩展功能
 - 核心协议库感谢 [NapCat](https://github.com/NapNeko/NapCatQQ) 和 [mtcute](https://github.com/mtcute/mtcute) 的开源贡献
-- 特别感谢 [原始 q2tg 项目](https://github.com/Clansty/Q2TG) 为本项目提供了重要的参考和灵感
+- 感谢 [原始 q2tg 项目](https://github.com/Clansty/Q2TG) 为本项目提供了重要的参考和灵感
 
 
 ## ⚠️ 免责声明
@@ -141,10 +159,14 @@ featureManager.register(new MyFeature(...));
 - **Telegram 频道**: [https://t.me/napgram_offical](https://t.me/napgram_offical)
 - **QQ 群**: 1036505332
 
+## ⭐ Star 趋势
+
+[![Star History Chart](https://starchart.cc/magisk317/NapGram.svg)](https://starchart.cc/magisk317/NapGram)
+
+---
+
 ## 📧 联系方式
 
 - GitHub Issues: [报告问题](https://github.com/magisk317/NapGram/issues)
 
 ---
-
-由 [magisk317](https://github.com/magisk317) 用 ❤️ 制作
