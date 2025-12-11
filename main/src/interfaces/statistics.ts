@@ -32,6 +32,14 @@ export default async function (fastify: FastifyInstance) {
             })
         ]);
 
+        // 健康检查
+        let status = 'healthy';
+        try {
+            await db.$queryRaw`SELECT 1`;
+        } catch (e) {
+            status = 'unhealthy';
+        }
+
         return {
             success: true,
             data: {
@@ -40,7 +48,7 @@ export default async function (fastify: FastifyInstance) {
                 messageCount,
                 todayMessageCount,
                 avgMessagesPerDay: messageCount > 0 ? Math.round(messageCount / 30) : 0,
-                status: 'healthy' // TODO: 实际健康检查
+                status
             }
         };
     });

@@ -11,6 +11,7 @@ import { CommandRegistry, type Command } from './services/CommandRegistry';
 import { PermissionChecker } from './services/PermissionChecker';
 import { InteractiveStateManager } from './services/InteractiveStateManager';
 import { ThreadIdExtractor } from './services/ThreadIdExtractor';
+import { performanceMonitor } from '../../infrastructure/services/PerformanceMonitor';
 import { CommandContext } from './handlers/CommandContext';
 import { HelpCommandHandler } from './handlers/HelpCommandHandler';
 import { StatusCommandHandler } from './handlers/StatusCommandHandler';
@@ -115,6 +116,27 @@ export class CommandsFeature {
             aliases: ['状态'],
             description: '显示机器人状态',
             handler: (msg, args) => this.statusHandler.execute(msg, args),
+        });
+
+        // 健康检查 (同 status, 但仅返回简略信息)
+        this.registerCommand({
+            name: 'healthy',
+            description: '系统健康检查',
+            handler: async (msg, args) => {
+                const stats = performanceMonitor.getStats();
+                const response = `=== Performance Statistics ===
+Uptime: ${(stats.uptime / 1000 / 60).toFixed(2)} minutes
+Total Messages: ${stats.totalMessages}
+Messages/sec: ${stats.messagesPerSecond.toFixed(2)}
+Avg Latency: ${stats.avgLatency.toFixed(2)}ms
+P95 Latency: ${stats.p95Latency.toFixed(2)}ms
+P99 Latency: ${stats.p99Latency.toFixed(2)}ms
+Error Rate: ${(stats.errorRate * 100).toFixed(2)}%
+Cache Hit Rate: ${(stats.cacheHitRate * 100).toFixed(2)}%
+Memory Usage: ${stats.memoryUsageMB.toFixed(2)}MB
+=============================`;
+                await this.commandContext.reply(msg, response);
+            }
         });
 
         // 绑定命令
@@ -510,7 +532,7 @@ export class CommandsFeature {
         // 1. 优先从命令参数获取（显式指定）
         const arg = args[1];
         if (arg && /^\d+$/.test(arg)) {
-            logger.info(`[extractThreadId] From arg: ${arg}`);
+            logger.debug(`[extractThreadId] From arg: ${arg}`);
             return Number(arg);
         }
 
@@ -518,12 +540,12 @@ export class CommandsFeature {
         const raw = (msg.metadata as any)?.raw;
         if (raw) {
             const threadId = new ThreadIdExtractor().extractFromRaw(raw);
-            logger.info(`[extractThreadId] From raw: ${threadId}, raw keys: ${Object.keys(raw).join(',')}`);
+            logger.debug(`[extractThreadId] From raw: ${threadId}, raw keys: ${Object.keys(raw).join(',')}`);
             if (threadId) return threadId;
         }
 
         // 3. 回退：无 thread
-        logger.info(`[extractThreadId] No thread ID found`);
+        logger.debug(`[extractThreadId] No thread ID found`);
         return undefined;
     }
 

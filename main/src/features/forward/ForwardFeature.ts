@@ -94,6 +94,7 @@ export class ForwardFeature {
 
     private setupListeners() {
         this.qqClient.on('message', this.handleQQMessage);
+        this.qqClient.on('poke', this.handlePokeEvent);
         this.tgBot.addNewMessageEventHandler(async (tgMsg: Message) => {
             const threadId = new ThreadIdExtractor().extractFromRaw((tgMsg as any).raw || tgMsg);
 
@@ -213,6 +214,47 @@ export class ForwardFeature {
             // 📊 记录错误
             performanceMonitor.recordError();
             logger.error('Failed to forward QQ message:', error);
+        }
+    };
+
+    private handlePokeEvent = async (groupId: string, operatorId: string, targetId: string) => {
+        try {
+            // Find mapping for this group
+            const pair = this.forwardMap.findByQQ(groupId);
+            if (!pair) return;
+
+            // Check if forwarding is enabled (QQ->TG)
+            const forwardMode = this.getForwardMode(pair);
+            if (forwardMode[0] === '0') return;
+
+            const tgChatId = Number(pair.tgChatId);
+
+            // Get user info for operator and target to show nice names
+            // We can just use raw IDs or try to look them up if needed, but names are better.
+            // Using a simple message for now.
+
+            let msgText = '';
+            if (operatorId === targetId) {
+                msgText = `User ${operatorId} poked themselves`;
+            } else {
+                msgText = `👉 User ${operatorId} poked ${targetId}`;
+
+                // Try to get names/cards asynchronously if we want to be fancy, but keeping it simple for stability first.
+                try {
+                    const opInfo = await this.qqClient.getGroupMemberInfo(groupId, operatorId);
+                    const targetInfo = await this.qqClient.getGroupMemberInfo(groupId, targetId);
+                    const opName = opInfo?.card || opInfo?.nickname || operatorId;
+                    const targetName = targetInfo?.card || targetInfo?.nickname || targetId;
+                    msgText = `👉 ${opName} 戳了戳 ${targetName}`;
+                } catch (e) {
+                    // ignore errors fetching names
+                }
+            }
+
+            await MessageUtils.replyTG(this.tgBot, tgChatId, msgText, pair.tgThreadId);
+            // logger.info(`Forwarded poke from ${groupId}: ${msgText}`);
+        } catch (error) {
+            logger.error('Failed to handle poke event:', error);
         }
     };
 

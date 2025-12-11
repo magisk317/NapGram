@@ -405,6 +405,48 @@ export class NapCatAdapter extends EventEmitter implements IQQClient {
         }
     }
 
+    async setGroupCard(groupId: string, userId: string, card: string): Promise<boolean> {
+        try {
+            await this.callApi('set_group_card', {
+                group_id: Number(groupId),
+                user_id: Number(userId),
+                card: card
+            });
+            return true;
+        } catch (error) {
+            logger.error(`Failed to set group card: ${error}`);
+            return false;
+        }
+    }
+
+    async setGroupBan(groupId: string, userId: string, duration: number = 30 * 60): Promise<boolean> {
+        try {
+            await this.callApi('set_group_ban', {
+                group_id: Number(groupId),
+                user_id: Number(userId),
+                duration: duration
+            });
+            return true;
+        } catch (error) {
+            logger.error(`Failed to set group ban: ${error}`);
+            return false;
+        }
+    }
+
+    async sendGroupPoke(groupId: string, userId: string): Promise<boolean> {
+        try {
+            // 尝试使用 group_poke API
+            await this.callApi('group_poke', {
+                group_id: Number(groupId),
+                user_id: Number(userId)
+            });
+            return true;
+        } catch (error) {
+            logger.warn(`Failed to send group poke via API, trying alternative... ${error}`);
+            return false;
+        }
+    }
+
     async login(): Promise<void> {
         // NapCat 通过 WebSocket 连接自动登录
         return new Promise((resolve) => {

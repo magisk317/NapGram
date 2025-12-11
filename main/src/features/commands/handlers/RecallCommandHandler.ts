@@ -40,21 +40,21 @@ export class RecallCommandHandler {
 
         // 只在 Telegram 端处理批量撤回
         if (msg.platform !== 'telegram') {
-            await this.context.replyTG(chatId, '批量撤回仅支持 Telegram 端');
+            await this.context.reply(msg, '批量撤回仅支持 Telegram 端');
             return;
         }
 
         // 检查权限
         const isAdmin = this.context.permissionChecker.isAdmin(String(senderId));
         if (!isAdmin) {
-            await this.context.replyTG(chatId, '批量撤回需要管理员权限');
+            await this.context.reply(msg, '批量撤回需要管理员权限');
             return;
         }
 
         // 限制最大撤回数量
         const maxCount = 100;
         if (count > maxCount) {
-            await this.context.replyTG(chatId, `批量撤回最多支持 ${maxCount} 条消息`);
+            await this.context.reply(msg, `批量撤回最多支持 ${maxCount} 条消息`);
             return;
         }
 
@@ -75,7 +75,7 @@ export class RecallCommandHandler {
             logger.info(`查询到 ${records.length} 条记录, tgMsgIds: ${records.map(r => r.tgMsgId).join(', ')}`);
 
             if (records.length === 0) {
-                await this.context.replyTG(chatId, '没有找到可撤回的消息');
+                await this.context.reply(msg, '没有找到可撤回的消息');
                 return;
             }
 
@@ -137,7 +137,7 @@ export class RecallCommandHandler {
             }
         } catch (error) {
             logger.error('批量撤回失败:', error);
-            await this.context.replyTG(chatId, '❌ 批量撤回失败，请查看日志');
+            await this.context.reply(msg, '❌ 批量撤回失败，请查看日志');
         }
     }
 
@@ -171,7 +171,7 @@ export class RecallCommandHandler {
         const senderId = msg.sender.id;
 
         if (!replyToId || !chatId) {
-            await this.context.replyTG(chatId, '请回复要撤回的消息再使用 /rm，或使用 /rm <数字> 批量撤回');
+            await this.context.reply(msg, '请回复要撤回的消息再使用 /rm，或使用 /rm <数字> 批量撤回');
             return;
         }
 
@@ -201,7 +201,7 @@ export class RecallCommandHandler {
         const isSelf = record?.tgSenderId ? String(record.tgSenderId) === String(senderId) : false;
 
         if (!isAdmin && !isSelf) {
-            await this.context.replyTG(chatId, '无权限撤回他人消息');
+            await this.context.reply(msg, '无权限撤回他人消息');
             return;
         }
 
@@ -291,8 +291,8 @@ export class RecallCommandHandler {
             }
         }
 
-        // 尝试删除命令消息自身
-        if (cmdMsgId) {
+        // 尝试删除命令消息自身 (仅 TG)
+        if (cmdMsgId && msg.platform === 'telegram') {
             try {
                 const chat = await this.context.tgBot.getChat(Number(chatId));
                 await chat.deleteMessages([Number(cmdMsgId)]);

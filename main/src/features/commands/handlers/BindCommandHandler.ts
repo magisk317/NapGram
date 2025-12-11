@@ -12,6 +12,11 @@ export class BindCommandHandler {
     constructor(private readonly context: CommandContext) { }
 
     async execute(msg: UnifiedMessage, args: string[]): Promise<void> {
+        if (msg.platform !== 'telegram') {
+            await this.context.reply(msg, '绑定命令仅支持在 Telegram 端使用');
+            return;
+        }
+
         const threadId = this.context.extractThreadId(msg, args);
 
         if (args.length < 1) {

@@ -105,6 +105,31 @@ export interface IQQClient extends EventEmitter {
      */
     getUserInfo(userId: string): Promise<any>;
 
+    // ============ 交互操作 ============
+
+    /**
+     * 设置群名片
+     * @param groupId 群号
+     * @param userId 成员 QQ 号
+     * @param card 新名片（为空则删除）
+     */
+    setGroupCard(groupId: string, userId: string, card: string): Promise<boolean>;
+
+    /**
+     * 设置群禁言
+     * @param groupId 群号
+     * @param userId 成员 QQ 号
+     * @param duration 禁言时长（秒），0 为解除
+     */
+    setGroupBan(groupId: string, userId: string, duration?: number): Promise<boolean>;
+
+    /**
+     * 发送群戳一戳
+     * @param groupId 群号
+     * @param userId 目标成员 QQ 号
+     */
+    sendGroupPoke(groupId: string, userId: string): Promise<boolean>;
+
     // ============ 事件监听 ============
 
     on(event: 'message', listener: (message: UnifiedMessage) => void): this;

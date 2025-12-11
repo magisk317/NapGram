@@ -36,7 +36,7 @@ export class HelpCommandHandler {
         const helpText = `可用命令:\n${commandList.join('\n')}`;
 
         try {
-            await this.context.replyTG(msg.chat.id, helpText, this.context.extractThreadId(msg, []));
+            await this.context.reply(msg, helpText);
         } catch (e) {
             logger.warn('发送帮助信息失败', e);
         }
