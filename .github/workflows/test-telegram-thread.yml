@@ -1,0 +1,16 @@
+name: Test Telegram Thread
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-thread:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Send Telegram Notification
+        run: |
+          curl -s -X POST https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendMessage \
+          -d chat_id=${{ secrets.TELEGRAM_TO_GROUP }} \
+          -d message_thread_id=${{ secrets.TELEGRAM_DEPENDABOT_TOPIC_ID }} \
+          -d parse_mode=Markdown \
+          -d text="🧪 *Test Message* from GitHub Actions."
