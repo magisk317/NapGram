@@ -19,7 +19,7 @@ jobs:
         with:
           to: ${{ secrets.TELEGRAM_TO_GROUP }}
           token: ${{ secrets.TELEGRAM_TOKEN }}
-          message_thread_id: ${{ secrets.TELEGRAM_DEPENDABOT_TOPIC_ID }}
+
           message: |
             📦 Dependabot Update
             
@@ -34,7 +34,7 @@ jobs:
         with:
           to: ${{ secrets.TELEGRAM_TO_GROUP }}
           token: ${{ secrets.TELEGRAM_TOKEN }}
-          message_thread_id: ${{ secrets.TELEGRAM_DEPENDABOT_TOPIC_ID }}
+
           message: |
             ✅ Dependabot PR Merged
             
