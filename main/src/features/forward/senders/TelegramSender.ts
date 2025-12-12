@@ -334,7 +334,15 @@ export class TelegramSender {
             } else if (content.type === 'file') {
                 const filename = (content as any).data.filename;
                 const normalized = await this.fileNormalizer.normalizeInputFile(fileSrc, filename || 'file');
-                if (!normalized) throw new Error('File source not available');
+                if (!normalized) {
+                    this.logger.warn(`File source not available, sending placeholder. src=${fileSrc}`);
+                    try {
+                        await chat.sendMessage(`[文件不可用] ${filename || ''}`.trim(), commonParams);
+                    } catch (e) {
+                        this.logger.warn(e, 'Failed to send file placeholder:');
+                    }
+                    return null;
+                }
                 mediaInput = {
                     type: 'document',
                     file: normalized.data,

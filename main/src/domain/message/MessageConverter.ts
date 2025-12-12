@@ -1,6 +1,6 @@
 import type { UnifiedMessage, MessageContent } from './types';
 import { getLogger } from '../../shared/logger';
-import type { Receive } from 'node-napcat-ts';
+import type { Receive } from '../../infrastructure/clients/qq/types/onebot-types';
 import env from '../models/env';
 import fs from 'fs/promises';
 import path from 'path';

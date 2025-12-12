@@ -21,12 +21,17 @@ const createMockForwardMap = () => {
 
 const createMockTgBot = () => {
     const chat = {
-        sendMessage: vi.fn().mockResolvedValue({}),
+        sendMessage: vi.fn().mockResolvedValue({ id: 100, sender: { id: 999 } }),
+        client: {
+            sendMedia: vi.fn().mockResolvedValue({ id: 123 }),
+        },
+        id: 1001,
     };
     const bot = {
         addNewMessageEventHandler: vi.fn(),
         removeNewMessageEventHandler: vi.fn(),
         getChat: vi.fn().mockResolvedValue(chat),
+        downloadMedia: vi.fn().mockResolvedValue(Buffer.from('mock')),
         me: { id: 999 },
     };
     return { bot: bot as any, chat };
@@ -78,7 +83,7 @@ describe('ForwardFeature', () => {
         const msg: UnifiedMessage = {
             id: '1',
             platform: 'qq',
-            sender: { id: 'u', name: 'User' },
+            sender: { id: '123456', name: 'User' },
             chat: { id: '2001', type: 'group' },
             content: [
                 { type: 'text', data: { text: 'hello' } },

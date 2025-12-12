@@ -62,6 +62,16 @@ export interface IQQClient extends EventEmitter {
      */
     getForwardMsg(messageId: string, fileName?: string): Promise<ForwardMessage[]>;
 
+    /**
+     * 获取文件直链或本地路径（NapCat get_file）
+     */
+    getFile?(fileId: string): Promise<any>;
+
+    /**
+     * 透传 OneBot API 调用（NapLink）
+     */
+    callApi?(method: string, params?: any): Promise<any>;
+
     // ============ 联系人操作 ============
 
     /**

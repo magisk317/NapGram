@@ -10,6 +10,7 @@
     "test": "vitest",
     "test:ui": "vitest --ui",
     "test:coverage": "vitest --coverage",
+    "pretest": "DATABASE_URL=postgres://user:pass@localhost:5432/db pnpm exec prisma generate",
     "prisma": "prisma",
     "import": "ts-node tools/import"
   },
@@ -44,7 +45,7 @@
     "fastify": "^5.6.2",
     "file-type": "^21.1.1",
     "jimp": "^1.6.0",
-    "node-napcat-ts": "^0.4.20",
+    "@naplink/naplink": "^0.0.1",
     "pg": "^8.16.3",
     "prisma": "7.1.0",
     "silk-wasm": "^3.7.1",

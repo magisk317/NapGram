@@ -80,6 +80,55 @@ export class MediaFeature {
     }
 
     /**
+     * 通过 NapCat file_id 获取文件（兜底：naplink get_file / download_file）
+     */
+    async fetchFileById(fileId: string): Promise<{ buffer?: Buffer; url?: string; path?: string }> {
+        const normalizedId = fileId.replace(/^\//, '');
+        const qq: any = this.qqClient as any;
+        try {
+            if (typeof qq.getFile === 'function') {
+                const res = await qq.getFile(normalizedId);
+                if (res) {
+                    const fileUrl = res.url || res.file;
+                    if (fileUrl) {
+                        // http 直链
+                        if (/^https?:\/\//.test(fileUrl)) {
+                            return { buffer: await this.downloadMedia(fileUrl), url: fileUrl };
+                        }
+                        // 本地路径
+                        if (fileUrl.startsWith('/')) {
+                            try {
+                                return { buffer: await fsP.readFile(fileUrl), path: fileUrl };
+                            } catch {
+                                // fallthrough
+                            }
+                        }
+                    }
+                    if (res.data && Buffer.isBuffer(res.data)) {
+                        return { buffer: res.data };
+                    }
+                }
+            }
+
+            // NapLink download_file 兜底（若暴露）
+            if (typeof qq.callApi === 'function') {
+                const downloaded = await qq.callApi('download_file', { url: normalizedId, thread_count: 3 }).catch(() => null);
+                const local = downloaded?.file || downloaded?.path;
+                if (local && typeof local === 'string') {
+                    try {
+                        return { buffer: await fsP.readFile(local), path: local };
+                    } catch {
+                        // ignore
+                    }
+                }
+            }
+        } catch (err) {
+            logger.warn(err, `Failed to fetch file by id=${fileId}`);
+        }
+        return {};
+    }
+
+    /**
      * 处理图片
      */
     async processImage(content: ImageContent): Promise<Buffer | string> {

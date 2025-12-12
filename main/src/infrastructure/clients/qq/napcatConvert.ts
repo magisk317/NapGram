@@ -1,93 +1,107 @@
-import type { WSSendReturn } from 'node-napcat-ts';
+import type { Receive, WSSendReturn } from './types/onebot-types';
 import type { ForwardMessage } from './types';
 
 /**
  * 将 NapCat 的合并转发消息转换为统一格式
  */
-export const napCatForwardMultiple = (messages: WSSendReturn['get_forward_msg']['messages']): ForwardMessage[] => messages.map(it => ({
-    group_id: it.message_type === 'group' ? it.group_id : undefined,
-    nickname: it.sender.card || it.sender.nickname,
-    time: it.time,
-    user_id: it.sender.user_id,
-    seq: it.message_id,
-    raw_message: it.raw_message,
-    message: ((it as any).content || (it as any).message).map(napCatReceiveToMessageElem),
-}));
+export const napCatForwardMultiple = (messages: WSSendReturn['get_forward_msg']['messages']): ForwardMessage[] => messages.map(it => {
+    const anyIt = it as any;
+    return {
+        group_id: it.message_type === 'group' ? it.group_id : undefined,
+        nickname: it.sender.card || it.sender.nickname,
+        time: it.time,
+        user_id: it.sender.user_id,
+        seq: it.message_id,
+        raw_message: it.raw_message,
+        message: (Array.isArray(anyIt.content) ? anyIt.content : [anyIt.content]).map(napCatReceiveToMessageElem),
+    };
+});
 
 /**
  * 将 NapCat 接收的消息元素转换为统一格式
  */
-function napCatReceiveToMessageElem(data: any): any {
-    const type = data.type as string;
+function napCatReceiveToMessageElem(data: Receive[keyof Receive]): any {
+    const anyData = data as any;
+    const type = anyData.type as string;
     switch (type) {
         case 'text':
+            return {
+                ...(anyData.data || {}),
+                type,
+            };
         case 'face':
+            return {
+                ...(anyData.data || {}),
+                type,
+                asface: 'sub_type' in anyData.data && parseInt(String(anyData.data.sub_type)) > 0,
+            };
         case 'sface':
         case 'image':
         case 'record':
         case 'json':
         case 'markdown':
             return {
-                ...data.data,
+                ...(anyData.data || {}),
                 type,
-                asface: 'sub_type' in data.data && parseInt(String(data.data.sub_type)) > 0,
+                asface: 'sub_type' in anyData.data && parseInt(String(anyData.data.sub_type)) > 0,
             };
         case 'mface':
             return {
                 type: 'image',
-                url: data.data.url,
-                file: data.data.url,
+                url: anyData.data.url,
+                file: anyData.data.url,
             };
         case 'at':
-            const qqNum = Number(data.data.qq);
             return {
                 type,
-                qq: isNaN(qqNum) ? data.data.qq : qqNum,
-                text: data.data.text,
-                userName: data.data.text?.replace(/^@/, '') || undefined,
+                qq: anyData.data.qq === 'all' ? -1 : parseInt(String(anyData.data.qq)),
+                text: anyData.data.qq === 'all' ? '@全体成员' : `@${anyData.data.qq}`,
             };
         case 'bface':
             return {
                 type: 'image',
-                url: data.data?.url || data.data?.file,
-                file: data.data?.file || data.data?.url,
-                brief: data.data?.text,
-                asface: true,
+                file: anyData.data?.url || anyData.data?.file,
+                url: anyData.data?.url || anyData.data?.file,
+                brief: anyData.data?.text,
             };
-        case 'file':
+        case 'reply':
             return {
-                ...data.data,
-                type: 'file',
-                duration: 0,
-                name: data.data.file,
-                fid: data.data.file_id || data.data.file,
-                size: Number(data.data.file_size),
-                md5: '',
+                type,
+                id: anyData.data.id,
             };
         case 'video':
             return {
                 type,
-                fid: data.data?.file || data.data?.url,
-                file: data.data?.url || data.data?.file,
+                file: anyData.data.file || anyData.data.url,
+                url: anyData.data.url,
+                name: anyData.data.url || anyData.data.file,
+            };
+        case 'file':
+            return {
+                type,
+                file: anyData.data.file,
+                file_id: anyData.data.file_id || anyData.data.file,
+                url: anyData.data.file || anyData.data.url,
+                file_size: anyData.data.file_size,
+            };
+        case 'forward':
+            return {
+                type,
+                file: anyData.data.file || anyData.data.url,
+                url: anyData.data.url || anyData.data.file,
             };
         case 'dice':
         case 'rps':
             return {
-                id: Number(data.data.result),
-                type: type,
+                type,
+                result: Number(anyData.data.result),
             };
-        case 'forward':
+        case 'poke':
             return {
-                type: 'forward',
-                id: data.data.id,
-                content: 'content' in data.data ? napCatForwardMultiple(data.data.content) : undefined,
-            };
-        case 'reply':
-            return {
-                type: 'reply',
-                id: data.data.id,
+                type,
+                id: Number(anyData.data.id),
             };
         default:
-            throw new Error('不支持此元素');
+            return anyData;
     }
 }

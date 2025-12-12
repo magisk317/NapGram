@@ -73,6 +73,7 @@ export interface FileContent extends MessageContent {
         url?: string;
         file?: Buffer | string;
         filename: string;
+        fileId?: string;
         size?: number;
     };
 }

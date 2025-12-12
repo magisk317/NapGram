@@ -95,7 +95,7 @@ export class NapCatConverter extends BaseConverter {
                 return this.mediaConverter.convertFlash(data);
 
             case 'file':
-                return this.mediaConverter.convertFile(data);
+                return this.mediaConverter.convertFile(data, rawMessage);
 
             case 'mface':
                 return this.mediaConverter.convertSticker(data);
@@ -158,5 +158,4 @@ export class NapCatConverter extends BaseConverter {
         return `${text.slice(0, maxLength - 3)}...`;
     }
 }
-
 

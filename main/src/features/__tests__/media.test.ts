@@ -5,9 +5,29 @@ import type { ImageContent, VideoContent, AudioContent } from '../../domain/mess
 // Mock global fetch
 global.fetch = vi.fn();
 
+vi.mock('../../shared/logger', () => ({
+    getLogger: vi.fn(() => ({
+        info: vi.fn(),
+        debug: vi.fn(),
+        warn: vi.fn(),
+        error: vi.fn(),
+    })),
+}));
+
 const createMockInstance = () => ({} as any);
 const createMockTgBot = () => ({} as any);
 const createMockQQClient = () => ({} as any);
+
+vi.mock('jimp', () => ({
+    Jimp: {
+        read: vi.fn().mockResolvedValue({
+            resize: vi.fn().mockReturnThis(),
+            quality: vi.fn().mockReturnThis(),
+            getBuffer: vi.fn().mockResolvedValue(Buffer.from('compressed')),
+            bitmap: { width: 100, height: 100 }
+        }),
+    }
+}));
 
 describe('MediaFeature', () => {
     let mediaFeature: MediaFeature;
@@ -211,8 +231,10 @@ describe('MediaFeature', () => {
 
             const result = await mediaFeature.compressImage(largeBuffer);
 
-            // Currently not implemented, should return original
-            expect(result).toBe(largeBuffer);
+            expect(result).toBeInstanceOf(Buffer);
+            expect(result).not.toBe(largeBuffer);
+            expect(result.length).toBeLessThan(largeBuffer.length);
+            expect(result.length).toBeLessThanOrEqual(5 * 1024 * 1024);
         });
     });
 });

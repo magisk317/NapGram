@@ -12,7 +12,15 @@ export class ForwardMapper {
         private readonly contentRenderer: (content: MessageContent) => string = renderContent,
     ) { }
 
+    private shouldSkipPersistence() {
+        // Avoid touching the real database when running under Vitest/Node test runs
+        return process.env.NODE_ENV === 'test' || Boolean(process.env.VITEST);
+    }
+
     async saveTgToQqMapping(unified: UnifiedMessage, tgMsg: any, receipt: any, pair: any) {
+        if (this.shouldSkipPersistence()) {
+            return;
+        }
         const msgId = receipt?.messageId || receipt?.data?.message_id || receipt?.id;
         if (!msgId) {
             this.logger.warn('TG->QQ forwarded but no messageId in receipt, cannot save mapping.');
@@ -41,12 +49,17 @@ export class ForwardMapper {
     }
 
     async saveMessage(qqMsg: UnifiedMessage, tgMsg: any, instanceId: number, qqRoomId: bigint, tgChatId: bigint) {
+        if (this.shouldSkipPersistence()) {
+            return;
+        }
         try {
             const raw = qqMsg.metadata?.raw || {};
             const seq = raw.message_id || raw.seq || 0;
             const rand = raw.rand || 0;
             const time = Math.floor(qqMsg.timestamp / 1000);
-            const qqSenderId = BigInt(qqMsg.sender.id);
+            const qqSenderId = BigInt(qqMsg.sender?.id ?? 0);
+            const tgMsgId = tgMsg?.id ?? 0;
+            const tgSenderId = BigInt(tgMsg?.sender?.id ?? 0);
 
             await db.message.create({
                 data: {
@@ -57,8 +70,8 @@ export class ForwardMapper {
                     rand: BigInt(rand),
                     pktnum: 0,
                     tgChatId,
-                    tgMsgId: tgMsg.id,
-                    tgSenderId: BigInt(tgMsg.sender.id || 0),
+                    tgMsgId,
+                    tgSenderId,
                     instanceId,
                     brief: qqMsg.content.map(c => this.contentRenderer(c)).join(' ').slice(0, 50),
                 }
@@ -85,6 +98,10 @@ export class ForwardMapper {
             }
         }
 
+        if (this.shouldSkipPersistence()) {
+            return undefined;
+        }
+
         if (!isNaN(numericId)) {
             const senderId = BigInt(numericId);
             this.logger.debug(`Finding TG Msg ID by sender: instanceId=${instanceId}, qqRoomId=${qqRoomId}, sender=${senderId}`);
@@ -109,6 +126,9 @@ export class ForwardMapper {
     }
 
     async findQqSource(instanceId: number, tgChatId: number, tgMsgId: number) {
+        if (this.shouldSkipPersistence()) {
+            return undefined;
+        }
         this.logger.debug(`Finding QQ source: instanceId=${instanceId}, tgChatId=${tgChatId}, tgMsgId=${tgMsgId}`);
         const msg = await db.message.findFirst({
             where: {

@@ -80,7 +80,7 @@ jobs:
             USE_MIRROR=false
             NODE_VERSION=${{ matrix.node-version }}-slim
           secrets: |
-            npmrc=//npm.pkg.github.com/:_authToken=${{ secrets.GPR_TOKEN }}
+            npmrc=//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}
 
       - name: Send Telegram Notification on Failure
         if: failure()

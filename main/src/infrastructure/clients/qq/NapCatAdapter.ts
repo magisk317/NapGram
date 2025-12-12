@@ -5,32 +5,48 @@ import type { UnifiedMessage, MessageReceipt, RecallEvent, Chat, Sender } from '
 import { messageConverter } from '../../../domain/message/converter';
 import { napCatForwardMultiple } from './napcatConvert';
 import type { ForwardMessage } from './types';
-import { ReconnectingWebSocket } from '../../../shared/services/ReconnectingWebSocket';
+import { NapLink, OneBotApi, type MessageEvent, type NoticeEvent, type RequestEvent, type MetaEvent } from '@naplink/naplink';
 
 const logger = getLogger('NapCatAdapter');
 
 /**
  * NapCat 客户端适配器
  * Phase 1: 将 NapCat 适配到统一的 IQQClient 接口
+ * Note: Does not explicitly implement IQQClient to avoid EventEmitter interface conflict,
+ * but provides all required methods and is cast to IQQClient in the factory.
  */
-export class NapCatAdapter extends EventEmitter implements IQQClient {
+export class NapCatAdapter extends EventEmitter {
     readonly clientType = 'napcat' as const;
-    private ws: ReconnectingWebSocket;
     private _uin: number = 0;
     private _nickname: string = '';
-    private apiCallbacks = new Map<string, { resolve: Function; reject: Function }>();
-    private echoCounter = 0;
-    private heartbeatTimer?: NodeJS.Timeout;
-    private lastStatusWasOnline = false;
+    private client: NapLink;
 
     constructor(private readonly params: NapCatCreateParams) {
+        const clientLogger = getLogger('NapLink');
+
         super();
-        this.ws = new ReconnectingWebSocket(params.wsUrl, {
-            maxRetries: params.reconnect ? Infinity : 0,
-            factor: 1.3,
+        this.client = new NapLink({
+            connection: {
+                url: params.wsUrl,
+                // token: params.token,
+            },
+            reconnect: params.reconnect ? {
+                enabled: true,
+                maxAttempts: 100,
+            } : undefined,
+            logging: {
+                level: 'info',
+                logger: {
+                    // 过滤掉 NapLink 的 debug 日志，避免心跳刷屏
+                    debug: (msg, ...args) => { },
+                    info: (msg, ...args) => clientLogger.info(msg, ...args),
+                    warn: (msg, ...args) => clientLogger.warn(msg, ...args),
+                    error: (msg, err, ...args) => clientLogger.error(msg, err, ...args),
+                }
+            }
         });
 
-        this.setupWebSocket();
+        this.setupEvents();
     }
 
     get uin(): number {
@@ -41,31 +57,24 @@ export class NapCatAdapter extends EventEmitter implements IQQClient {
         return this._nickname;
     }
 
-    private setupWebSocket() {
-        this.ws.on('open', () => {
-            // logger.info('NapCat WebSocket connected'); // ReconnectingWebSocket already logs this
+    private setupEvents() {
+        this.client.on('connect', () => {
             this.emit('online');
             this.refreshSelfInfo();
-            this.startHeartbeat();
-            this.lastStatusWasOnline = true;
+            // this.startHeartbeat(); // SDK handles heartbeat if configured
 
-            // 触发重连成功事件
+            // 触发重连成功事件  
             this.emit('connection:restored', {
                 timestamp: Date.now()
             });
         });
 
-        this.ws.on('message', (event: any) => {
-            try {
-                const data = JSON.parse(event.data.toString());
-                this.handleWebSocketMessage(data).catch(err => logger.error('Failed to handle WebSocket message:', err));
-            } catch (error) {
-                logger.error('Failed to parse WebSocket message:', error);
-            }
+        // NapLink splits events, but we can listen to 'raw' to get everything and process it via existing handler
+        this.client.on('raw', (context: any) => {
+            this.handleWebSocketMessage(context).catch(err => logger.error('Failed to handle WebSocket message:', err));
         });
 
-        this.ws.on('close', () => {
-            // logger.warn('NapCat WebSocket disconnected'); // ReconnectingWebSocket already logs this
+        this.client.on('disconnect', () => {
             this.emit('offline');
 
             // 触发掉线通知事件
@@ -73,89 +82,30 @@ export class NapCatAdapter extends EventEmitter implements IQQClient {
                 timestamp: Date.now(),
                 reason: 'WebSocket closed'
             });
-            this.stopHeartbeat();
-            this.lastStatusWasOnline = false;
-        });
-
-        this.ws.on('error', (error) => {
-            logger.error('NapCat WebSocket error:', error);
-            // avoid throwing unhandled error; reconnecting websocket will retry
         });
     }
 
-    private async handleWebSocketMessage(data: any) {
-        // 处理 API 响应
-        if (data.echo) {
-            const callback = this.apiCallbacks.get(data.echo);
-            if (callback) {
-                if (data.status === 'ok') {
-                    callback.resolve(data.data);
-                } else {
-                    callback.reject(new Error(data.message || 'API call failed'));
-                }
-                this.apiCallbacks.delete(data.echo);
-            }
-            return;
-        }
-
+    private async handleWebSocketMessage(data: MessageEvent | NoticeEvent | RequestEvent | MetaEvent) {
+        // SDK handles Echo/API responses internally, we only get events here
         // 处理事件
         if (data.post_type === 'message') {
-            await this.hydrateMediaUrls(data.message);
+            const msgEvent = data as MessageEvent;
+            // Use SDK's media hydration
+            await this.client.hydrateMessage(msgEvent.message);
             const unifiedMsg = messageConverter.fromNapCat(data);
-            this.emit('message', unifiedMsg);
+            (this as any).emit('message', unifiedMsg);
         } else if (data.post_type === 'notice') {
-            this.handleNotice(data);
+            this.handleNotice(data as NoticeEvent);
         } else if (data.post_type === 'request') {
             // 处理请求事件
         }
-    }
-
-    /**
-     * 补充媒体直链，确保图片/语音/视频可直接下载
-     */
-    private async hydrateMediaUrls(message?: any[]) {
-        if (!Array.isArray(message)) return;
-        await Promise.all(message.map(async (segment) => {
-            const type = segment?.type;
-            const data = segment?.data;
-            if (!type || !data) return;
-
-            if (type === 'image' || type === 'video' || type === 'record' || type === 'audio' || type === 'file') {
-                const fileId = data.file;
-                if (typeof fileId === 'string' && !/^https?:\/\//.test(fileId) && !fileId.startsWith('file://')) {
-                    try {
-                        const res = await this.callApi<any>('get_file', { file_id: fileId });
-                        if (res?.file) {
-                            data.url = res.file;
-                            data.file = res.file;
-                        } else if (type === 'record' || type === 'audio') {
-                            // 部分版本 get_file 不支持语音，用 get_record
-                            const rec = await this.callApi<any>('get_record', { file: fileId, out_format: 'mp3' });
-                            if (rec?.file) {
-                                data.url = rec.file;
-                                data.file = rec.file;
-                            }
-                        } else if (type === 'image') {
-                            // 尝试 get_image 兜底
-                            const img = await this.callApi<any>('get_image', { file: fileId });
-                            if (img?.file) {
-                                data.url = img.file;
-                                data.file = img.file;
-                            }
-                        }
-                    } catch (e) {
-                        logger.warn('get_file/get_record/get_image failed for incoming media', e);
-                    }
-                }
-            }
-        }));
     }
 
     private handleNotice(data: any) {
         switch (data.notice_type) {
             case 'group_recall':
             case 'friend_recall':
-                this.emit('recall', {
+                (this as any).emit('recall', {
                     messageId: String(data.message_id),
                     chatId: String(data.group_id || data.user_id),
                     operatorId: String(data.operator_id || data.user_id),
@@ -164,18 +114,18 @@ export class NapCatAdapter extends EventEmitter implements IQQClient {
                 break;
 
             case 'group_increase':
-                this.emit('group.increase', String(data.group_id), {
+                (this as any).emit('group.increase', String(data.group_id), {
                     id: String(data.user_id),
                     name: '',
                 });
                 break;
 
             case 'group_decrease':
-                this.emit('group.decrease', String(data.group_id), String(data.user_id));
+                (this as any).emit('group.decrease', String(data.group_id), String(data.user_id));
                 break;
 
             case 'friend_add':
-                this.emit('friend.increase', {
+                (this as any).emit('friend.increase', {
                     id: String(data.user_id),
                     name: '',
                 });
@@ -183,37 +133,15 @@ export class NapCatAdapter extends EventEmitter implements IQQClient {
 
             case 'notify':
                 if (data.sub_type === 'poke') {
-                    this.emit('poke', String(data.group_id || data.user_id), String(data.user_id), String(data.target_id));
+                    (this as any).emit('poke', String(data.group_id || data.user_id), String(data.user_id), String(data.target_id));
                 }
                 break;
         }
     }
 
-    private async callApi<T = any>(action: string, params?: any): Promise<T> {
-        const echo = `${Date.now()}_${this.echoCounter++}`;
-
-        return new Promise((resolve, reject) => {
-            this.apiCallbacks.set(echo, { resolve, reject });
-
-            this.ws.send(JSON.stringify({
-                action,
-                params,
-                echo,
-            }));
-
-            // 30 秒超时
-            setTimeout(() => {
-                if (this.apiCallbacks.has(echo)) {
-                    this.apiCallbacks.delete(echo);
-                    reject(new Error('API call timeout'));
-                }
-            }, 30000);
-        });
-    }
-
     private async refreshSelfInfo() {
         try {
-            const info = await this.callApi('get_login_info');
+            const info = await this.client.getLoginInfo();
             this._uin = info.user_id;
             this._nickname = info.nickname;
             logger.info(`Logged in as ${this._nickname} (${this._uin})`);
@@ -224,7 +152,7 @@ export class NapCatAdapter extends EventEmitter implements IQQClient {
 
     async isOnline(): Promise<boolean> {
         try {
-            const status = await this.callApi('get_status');
+            const status = await this.client.getStatus();
             return status.online === true;
         } catch {
             return false;
@@ -237,13 +165,12 @@ export class NapCatAdapter extends EventEmitter implements IQQClient {
             ? message.content
             : await messageConverter.toNapCat(message);
 
-
-
         try {
-            const result = await this.callApi('send_msg', {
+            // SDK method: send_msg
+            const result = await this.client.sendMessage({
                 [message.chat.type === 'group' ? 'group_id' : 'user_id']: Number(chatId),
                 message: segments,
-            });
+            } as any);
 
             return {
                 messageId: String(result.message_id),
@@ -262,10 +189,10 @@ export class NapCatAdapter extends EventEmitter implements IQQClient {
 
     async sendGroupForwardMsg(groupId: string, messages: any[]): Promise<MessageReceipt> {
         try {
-            const result = await this.callApi('send_group_forward_msg', {
-                group_id: Number(groupId),
-                messages: messages,
-            });
+            const result = await this.client.sendGroupForwardMessage(
+                groupId,
+                messages
+            );
 
             return {
                 messageId: String(result.message_id),
@@ -283,16 +210,12 @@ export class NapCatAdapter extends EventEmitter implements IQQClient {
     }
 
     async recallMessage(messageId: string): Promise<void> {
-        await this.callApi('delete_msg', {
-            message_id: Number(messageId),
-        });
+        await this.client.deleteMessage(messageId);
     }
 
     async getMessage(messageId: string): Promise<UnifiedMessage | null> {
         try {
-            const msg = await this.callApi('get_msg', {
-                message_id: Number(messageId),
-            });
+            const msg = await this.client.getMessage(messageId);
             return messageConverter.fromNapCat(msg);
         } catch {
             return null;
@@ -300,10 +223,8 @@ export class NapCatAdapter extends EventEmitter implements IQQClient {
     }
 
     async getForwardMsg(messageId: string, fileName?: string): Promise<ForwardMessage[]> {
-        const data = await this.callApi<any>('get_forward_msg', {
-            message_id: messageId as any,
-            file_name: fileName,
-        });
+        const data = await this.client.getForwardMessage(messageId); // file_name not supported in SDK types yet or not common
+
         const messages = napCatForwardMultiple((data as any)?.messages || []);
 
         // 补齐媒体直链，避免 video/file 只有 file_id
@@ -313,7 +234,7 @@ export class NapCatAdapter extends EventEmitter implements IQQClient {
                     && typeof (elem as any).file === 'string'
                     && !(elem as any).file.startsWith('http')) {
                     try {
-                        const res = await this.callApi<any>('get_file', { file_id: (elem as any).file });
+                        const res = await this.client.getFile((elem as any).file);
                         if (res?.file) {
                             (elem as any).url = res.file;
                             (elem as any).file = res.file;
@@ -328,17 +249,33 @@ export class NapCatAdapter extends EventEmitter implements IQQClient {
         return messages;
     }
 
+    /**
+     * 获取 NapCat 文件信息（直链或本地路径）
+     */
+    async getFile(fileId: string): Promise<any> {
+        try {
+            const normalizedId = fileId.replace(/^\//, '');
+            if (typeof (this.client as any).getFile === 'function') {
+                return await (this.client as any).getFile(normalizedId);
+            }
+            return await this.client.callApi('get_file', { file_id: normalizedId });
+        } catch (e) {
+            logger.warn(e, 'get_file failed');
+            return null;
+        }
+    }
+
     async getFriendList(): Promise<Sender[]> {
-        const friends = await this.callApi<any[]>('get_friend_list');
-        return friends.map(f => ({
+        const friends = await this.client.getFriendList();
+        return friends.map((f: any) => ({
             id: String(f.user_id),
             name: f.nickname || f.remark,
         }));
     }
 
     async getGroupList(): Promise<Chat[]> {
-        const groups = await this.callApi<any[]>('get_group_list');
-        return groups.map(g => ({
+        const groups = await this.client.getGroupList();
+        return groups.map((g: any) => ({
             id: String(g.group_id),
             type: 'group' as const,
             name: g.group_name,
@@ -346,10 +283,8 @@ export class NapCatAdapter extends EventEmitter implements IQQClient {
     }
 
     async getGroupMemberList(groupId: string): Promise<Sender[]> {
-        const members = await this.callApi<any[]>('get_group_member_list', {
-            group_id: Number(groupId),
-        });
-        return members.map(m => ({
+        const members = await this.client.getGroupMemberList(groupId);
+        return members.map((m: any) => ({
             id: String(m.user_id),
             name: m.card || m.nickname,
         }));
@@ -357,7 +292,7 @@ export class NapCatAdapter extends EventEmitter implements IQQClient {
 
     async getFriendInfo(uin: string): Promise<Sender | null> {
         try {
-            const info = await this.callApi('get_stranger_info', {
+            const info = await this.client.callApi<any>('get_stranger_info', {
                 user_id: Number(uin),
             });
             return {
@@ -371,9 +306,7 @@ export class NapCatAdapter extends EventEmitter implements IQQClient {
 
     async getGroupInfo(groupId: string): Promise<Chat | null> {
         try {
-            const info = await this.callApi('get_group_info', {
-                group_id: Number(groupId),
-            });
+            const info = await this.client.getGroupInfo(groupId);
             return {
                 id: String(info.group_id),
                 type: 'group',
@@ -386,10 +319,7 @@ export class NapCatAdapter extends EventEmitter implements IQQClient {
 
     async getGroupMemberInfo(groupId: string, userId: string): Promise<any> {
         try {
-            return await this.callApi('get_group_member_info', {
-                group_id: Number(groupId),
-                user_id: Number(userId),
-            });
+            return await this.client.getGroupMemberInfo(groupId, userId);
         } catch {
             return null;
         }
@@ -397,7 +327,7 @@ export class NapCatAdapter extends EventEmitter implements IQQClient {
 
     async getUserInfo(userId: string): Promise<any> {
         try {
-            return await this.callApi('get_stranger_info', {
+            return await this.client.callApi('get_stranger_info', {
                 user_id: Number(userId),
             });
         } catch {
@@ -407,58 +337,20 @@ export class NapCatAdapter extends EventEmitter implements IQQClient {
 
     async login(): Promise<void> {
         // NapCat 通过 WebSocket 连接自动登录
-        return new Promise((resolve) => {
-            const isOpen = this.ws.readyState === WebSocket.OPEN;
-            if (isOpen) {
-                resolve();
-                return;
-            }
-            this.once('online', resolve);
-        });
+        // SDK handles reconnection logic, but we can wait for initial connection if needed
+        return this.client.connect(); // NCWebsocket has connect()
     }
 
     async logout(): Promise<void> {
-        this.ws.close();
+        this.client.disconnect();
     }
 
     async destroy(): Promise<void> {
-        this.stopHeartbeat();
-        this.removeAllListeners();
-        this.ws.close();
-        this.apiCallbacks.clear();
+        // NCWebsocket handles its own listener cleanup
+        this.client.disconnect();
     }
 
-    private startHeartbeat() {
-        this.stopHeartbeat();
-        this.heartbeatTimer = setInterval(async () => {
-            try {
-                const status = await this.callApi('get_status');
-                const isOnline = status.online === true && status.good === true;
-
-                if (isOnline && !this.lastStatusWasOnline) {
-                    this.lastStatusWasOnline = true;
-                    this.emit('connection:restored', { timestamp: Date.now() });
-                    logger.info('NapCat logical connection restored (Session Valid)');
-                } else if (!isOnline && this.lastStatusWasOnline) {
-                    this.lastStatusWasOnline = false;
-                    this.emit('connection:lost', { timestamp: Date.now(), reason: 'Logical session offline' });
-                    logger.warn('NapCat logical connection lost (Session Invalid)');
-                }
-            } catch (error) {
-                // Only consider it a loss if we were previously online
-                if (this.lastStatusWasOnline) {
-                    this.lastStatusWasOnline = false;
-                    this.emit('connection:lost', { timestamp: Date.now(), reason: 'Heartbeat check failed' });
-                    logger.warn('NapCat heartbeat failed:', error);
-                }
-            }
-        }, 30000); // Check every 30 seconds
-    }
-
-    private stopHeartbeat() {
-        if (this.heartbeatTimer) {
-            clearInterval(this.heartbeatTimer);
-            this.heartbeatTimer = undefined;
-        }
+    async callApi(method: string, params?: any): Promise<any> {
+        return this.client.callApi(method, params);
     }
 }

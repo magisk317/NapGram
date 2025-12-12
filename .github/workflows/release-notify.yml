@@ -19,11 +19,13 @@ jobs:
         run: |
           BODY="$RAW_BODY"
           
-          # Convert GFM to Telegram Markdown
-          # 1. Bold: **text** -> *text*
-          BODY=$(echo "$BODY" | sed 's/\*\*/\*/g')
-          # 2. Headers: # Text -> *Text*
-          BODY=$(echo "$BODY" | sed -E 's/^#{1,6} (.*)$/*\1*/')
+          # Convert GFM to Telegram HTML
+          # 1. Bold: **text** -> <b>text</b>
+          BODY=$(echo "$BODY" | sed -E 's/\*\*([^*]+)\*\*/<b>\1<\/b>/g')
+          # 2. Code: `text` -> <code>text</code>
+          BODY=$(echo "$BODY" | sed -E 's/`([^`]+)`/<code>\1<\/code>/g')
+          # 3. Headers: ### Text -> <b>Text</b>
+          BODY=$(echo "$BODY" | sed -E 's/^#{1,6} (.*)$/<b>\1<\/b>/')
           
           MAX_LENGTH=1500
           
@@ -36,7 +38,7 @@ jobs:
             echo "RELEASE_BODY<<EOF" >> $GITHUB_ENV
             echo "$FINAL_BODY" >> $GITHUB_ENV
             echo "" >> $GITHUB_ENV
-            echo "_（内容过长，仅显示前部分）_" >> $GITHUB_ENV
+            echo "<i>（内容过长，仅显示前部分）</i>" >> $GITHUB_ENV
             echo "EOF" >> $GITHUB_ENV
           else
             echo "RELEASE_BODY<<EOF" >> $GITHUB_ENV
@@ -56,7 +58,7 @@ jobs:
           curl -s -X POST https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendMessage \
           -d chat_id=${{ secrets.TELEGRAM_TO_GROUP }} \
           -d message_thread_id=${{ secrets.TELEGRAM_RELEASE_TOPIC_ID }} \
-          -d parse_mode=Markdown \
+          -d parse_mode=HTML \
           --data-urlencode "text=$MESSAGE"
 
       - name: Send Telegram Notification to Channel
@@ -70,5 +72,5 @@ jobs:
         run: |
           curl -s -X POST https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendMessage \
           -d chat_id=${{ secrets.TELEGRAM_TO_CHANNEL }} \
-          -d parse_mode=Markdown \
+          -d parse_mode=HTML \
           --data-urlencode "text=$MESSAGE"
