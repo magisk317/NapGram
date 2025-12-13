@@ -427,7 +427,7 @@ export class TelegramSender {
             let messageText = richHeaderUsed ? '[转发消息]' : `${header}[转发消息]`;
 
             if (baseUrl) {
-                const webAppUrl = `${baseUrl}/ui/chatRecord?tgWebAppStartParam=${entry.id}&uuid=${entry.id}`;
+                const webAppUrl = `${baseUrl}/chatRecord?tgWebAppStartParam=${entry.id}&uuid=${entry.id}`;
                 // mtcute 期望 { type: 'inline', buttons: [[{_: 'keyboardButtonUrl', ...}]] }
                 const buttons = [[{ _: 'keyboardButtonUrl', text: '查看合并转发', url: webAppUrl }]];
                 return await chat.sendMessage(messageText, {

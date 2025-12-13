@@ -55,6 +55,7 @@ const configParsed = z.object({
 
   LISTEN_PORT: z.string().regex(/^\d+$/).transform(Number).default('8080'),
 
+  ADMIN_TOKEN: z.string().optional(),
   UI_PATH: z.string().optional(),
   UI_PROXY: z.string().url().optional(),
   WEB_ENDPOINT: z.string().url().optional(),

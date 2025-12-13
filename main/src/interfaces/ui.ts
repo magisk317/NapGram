@@ -9,7 +9,7 @@ import { ErrorResponses } from '../shared/utils/fastify';
 
 export default async function (fastify: FastifyInstance) {
   if (env.UI_PROXY) {
-    fastify.all('/ui/*', async (request: any, reply: any) => {
+    fastify.all('/*', async (request: any, reply: any) => {
       const targetUrl = new URL(env.UI_PROXY!);
       const reqUrl = new URL(request.url, targetUrl);
       reqUrl.protocol = targetUrl.protocol;
@@ -51,7 +51,7 @@ export default async function (fastify: FastifyInstance) {
     if (fs.existsSync(assetsPath)) {
       const assets = fs.readdirSync(assetsPath);
       for (const asset of assets) {
-        fastify.get('/ui/assets/' + asset, async (req: any, reply: any) => {
+        fastify.get('/assets/' + asset, async (req: any, reply: any) => {
           reply.header('content-type', getMimeType(asset));
           return fs.createReadStream(path.join(assetsPath, asset));
         });
@@ -74,8 +74,8 @@ export default async function (fastify: FastifyInstance) {
       return ErrorResponses.notFound(reply);
     });
 
-    // Fallback for SPA
-    fastify.get('/ui/*', async (req: any, reply: any) => {
+    // Fallback for SPA (must be last)
+    fastify.get('/*', async (req: any, reply: any) => {
       reply.header('content-type', 'text/html');
       return fs.createReadStream(path.join(env.UI_PATH!, 'index.html'));
     });

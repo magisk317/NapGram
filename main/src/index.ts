@@ -27,16 +27,33 @@ import env from './domain/models/env';
     const token = process.env.ADMIN_TOKEN;
     // 在开发环境或设置了 SHOW_FULL_TOKEN 时显示完整 token
     if (process.env.SHOW_FULL_TOKEN === 'true' || process.env.NODE_ENV === 'development') {
-      log.info(`ADMIN_TOKEN (FULL): ${token}`);
-      log.info(`Login URL: ${env.WEB_ENDPOINT || 'http://localhost:8080'}/ui/login`);
+      log.info(`ADMIN_TOKEN (FULL): ${env.ADMIN_TOKEN}`);
+      log.info(`Login URL: ${env.WEB_ENDPOINT || 'http://localhost:8080'}/login`);
     } else {
-      const maskedToken = token.length > 12
-        ? `${'*'.repeat(token.length - 8)}${token.slice(-8)}`
-        : token;
-      log.info(`ADMIN_TOKEN: ${maskedToken} (use this to login to /ui/login)`);
+      const maskedToken = env.ADMIN_TOKEN.length > 12
+        ? `${'*'.repeat(env.ADMIN_TOKEN.length - 8)}${env.ADMIN_TOKEN.slice(-8)}`
+        : env.ADMIN_TOKEN;
+      log.info(`ADMIN_TOKEN: ${maskedToken} (use this to login to /login`);
     }
   } else {
-    log.info(`ADMIN_TOKEN: not set (admin access disabled)`);
+    // Generate random 32-character token
+    const randomToken = Array.from({ length: 32 }, () =>
+      'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789'[Math.floor(Math.random() * 62)]
+    ).join('');
+
+    // Set to both process.env and env object
+    process.env.ADMIN_TOKEN = randomToken;
+    (env as any).ADMIN_TOKEN = randomToken;
+
+    log.info('━'.repeat(80));
+    log.info('⚠️  ADMIN_TOKEN auto-generated for this session:');
+    log.info('');
+    log.info(`    ${randomToken}`);
+    log.info('');
+    log.info('    Copy this token to access the admin panel at /login');
+    log.info('    This token is temporary and will change on restart.');
+    log.info('    To use a permanent token, set ADMIN_TOKEN in your .env file.');
+    log.info('━'.repeat(80));
   }
   log.info('=================================');
 

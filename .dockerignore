@@ -1,7 +1,10 @@
 **/node_modules
 node_modules
+.pnpm-store
 .git
 .env
 dist
+!web/dist
 build
+web/src
 npm-debug.log

@@ -65,6 +65,12 @@ export default async function (fastify: FastifyInstance) {
                     ...item.qqBot,
                     uin: item.qqBot.uin?.toString() || null
                 } : null,
+                ForwardPair: item.ForwardPair.map(pair => ({
+                    ...pair,
+                    qqRoomId: pair.qqRoomId.toString(),
+                    tgChatId: pair.tgChatId.toString(),
+                    qqFromGroupId: pair.qqFromGroupId?.toString() || null
+                })),
                 pairCount: item.ForwardPair.length
             })),
             total,

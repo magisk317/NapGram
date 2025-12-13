@@ -2,6 +2,11 @@ import { FastifyInstance } from 'fastify';
 import { authMiddleware } from '../infrastructure/auth/authMiddleware';
 import db from '../domain/models/db';
 import { z } from 'zod';
+import Instance from '../domain/models/Instance';
+import { groupInfoCache } from '../infrastructure/services/CacheManager';
+import { getLogger } from '../shared/logger';
+
+const log = getLogger('PairsApi');
 
 /**
  * 配对管理 API
@@ -32,7 +37,8 @@ export default async function (fastify: FastifyInstance) {
     fastify.get('/api/admin/pairs', {
         preHandler: authMiddleware
     }, async (request) => {
-        const { page = 1, pageSize = 20, instanceId, search } = request.query as any;
+        const { page = 1, pageSize = 20, instanceId, search, withNames = 'false' } = request.query as any;
+        const needNames = String(withNames).toLowerCase() === 'true';
 
         const where: any = {};
 
@@ -66,14 +72,39 @@ export default async function (fastify: FastifyInstance) {
             db.forwardPair.count({ where })
         ]);
 
+        const mapped = items.map(item => ({
+            ...item,
+            qqRoomId: item.qqRoomId.toString(),
+            tgChatId: item.tgChatId.toString(),
+            qqFromGroupId: item.qqFromGroupId?.toString() || null,
+            instance: item.instance ? {
+                ...item.instance,
+                owner: item.instance.owner.toString(),
+                qqBot: item.instance.qqBot ? {
+                    ...item.instance.qqBot,
+                    uin: item.instance.qqBot.uin?.toString() || null
+                } : null
+            } : null
+        }));
+
+        if (needNames) {
+            await Promise.all(mapped.map(async (pair) => {
+                try {
+                    pair.qqRoomName = await resolveQqGroupName(pair.instanceId, pair.qqRoomId);
+                } catch (e: any) {
+                    log.debug(e, 'resolveQqGroupName error');
+                }
+                try {
+                    pair.tgChatName = await resolveTgChatName(pair.instanceId, pair.tgChatId);
+                } catch (e: any) {
+                    log.debug(e, 'resolveTgChatName error');
+                }
+            }));
+        }
+
         return {
             success: true,
-            items: items.map(item => ({
-                ...item,
-                qqRoomId: item.qqRoomId.toString(),
-                tgChatId: item.tgChatId.toString(),
-                qqFromGroupId: item.qqFromGroupId?.toString() || null
-            })),
+            items: mapped,
             total,
             page,
             pageSize
@@ -113,7 +144,15 @@ export default async function (fastify: FastifyInstance) {
                 ...pair,
                 qqRoomId: pair.qqRoomId.toString(),
                 tgChatId: pair.tgChatId.toString(),
-                qqFromGroupId: pair.qqFromGroupId?.toString() || null
+                qqFromGroupId: pair.qqFromGroupId?.toString() || null,
+                instance: pair.instance ? {
+                    ...pair.instance,
+                    owner: pair.instance.owner.toString(),
+                    qqBot: pair.instance.qqBot ? {
+                        ...pair.instance.qqBot,
+                        uin: pair.instance.qqBot.uin?.toString() || null
+                    } : null
+                } : null
             }
         };
     });
@@ -339,4 +378,42 @@ export default async function (fastify: FastifyInstance) {
             }
         };
     });
+}
+
+async function resolveQqGroupName(instanceId: number, qqRoomId: string) {
+    const cacheKey = `qqname:${instanceId}:${qqRoomId}`;
+    const cached = groupInfoCache.get(cacheKey);
+    if (cached) return cached as string;
+
+    const instance = Instance.instances.find(it => it.id === instanceId);
+    if (!instance?.qqClient) return null;
+    try {
+        const groupId = qqRoomId.startsWith('-') ? qqRoomId.slice(1) : qqRoomId;
+        const info = await instance.qqClient.getGroupInfo(groupId);
+        const name = info?.name || null;
+        if (name) groupInfoCache.set(cacheKey, name);
+        return name;
+    } catch (e) {
+        log.debug(e, 'Failed to resolve QQ group name');
+        return null;
+    }
+}
+
+async function resolveTgChatName(instanceId: number, tgChatId: string) {
+    const cacheKey = `tgname:${instanceId}:${tgChatId}`;
+    const cached = groupInfoCache.get(cacheKey);
+    if (cached) return cached as string;
+
+    const instance = Instance.instances.find(it => it.id === instanceId);
+    const chatIdNum = Number(tgChatId);
+    if (!instance?.tgBot || Number.isNaN(chatIdNum)) return null;
+    try {
+        const chat = await instance.tgBot.getChat(chatIdNum);
+        const name = (chat.chat as any)?.title || null;
+        if (name) groupInfoCache.set(cacheKey, name);
+        return name;
+    } catch (e) {
+        log.debug(e, 'Failed to resolve TG chat name');
+        return null;
+    }
 }

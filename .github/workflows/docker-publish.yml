@@ -34,6 +34,25 @@ jobs:
             echo "has_push=false" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        if: github.event_name != 'schedule' || steps.check_push.outputs.has_push == 'true'
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'pnpm'
+
+      - name: Enable pnpm
+        if: github.event_name != 'schedule' || steps.check_push.outputs.has_push == 'true'
+        run: corepack enable
+
+      - name: Install dependencies
+        if: github.event_name != 'schedule' || steps.check_push.outputs.has_push == 'true'
+        run: pnpm install --frozen-lockfile
+
+      - name: Build web dist
+        if: github.event_name != 'schedule' || steps.check_push.outputs.has_push == 'true'
+        run: pnpm --filter web build
+
       - name: OCI meta
         id: meta
         uses: docker/metadata-action@v5
