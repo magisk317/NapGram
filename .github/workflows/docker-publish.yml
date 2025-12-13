@@ -41,9 +41,12 @@ jobs:
           node-version: ${{ matrix.node-version }}
           cache: 'pnpm'
 
-      - name: Enable pnpm
+      - name: Install pnpm
         if: github.event_name != 'schedule' || steps.check_push.outputs.has_push == 'true'
-        run: corepack enable
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+          run_install: false
 
       - name: Install dependencies
         if: github.event_name != 'schedule' || steps.check_push.outputs.has_push == 'true'
