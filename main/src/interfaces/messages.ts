@@ -13,7 +13,7 @@ export default async function (fastify: FastifyInstance) {
     preHandler: authMiddleware
   }, async (request) => {
     const { page = 1, limit = 20, search, from, to, sortBy = 'id', sortDir = 'desc' } = request.query as any;
-    const take = Math.min(100, Math.max(parseInt(String(limit)) || 20, 1));
+    const take = Math.min(1000, Math.max(parseInt(String(limit)) || 20, 1));
     const skip = (Math.max(parseInt(String(page)) || 1, 1) - 1) * take;
 
     const where: any = {};

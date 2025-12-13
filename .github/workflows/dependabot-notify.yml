@@ -24,11 +24,10 @@ jobs:
             
             Link: ${{ github.event.pull_request.html_url }}
         run: |
-          curl -s -X POST https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendMessage \
-          -d chat_id=${{ secrets.TELEGRAM_TO_GROUP }} \
-          -d message_thread_id=${{ secrets.TELEGRAM_DEPENDABOT_TOPIC_ID }} \
-          -d parse_mode=Markdown \
-          --data-urlencode "text=$MESSAGE"
+          curl -fSs -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendMessage" \
+            -d "chat_id=${{ secrets.TELEGRAM_TO_GROUP }}" \
+            -d "message_thread_id=${{ secrets.TELEGRAM_DEPENDABOT_TOPIC_ID }}" \
+            --data-urlencode "text=$MESSAGE"
 
       - name: Send Telegram Notification (Merged)
         if: github.event.action == 'closed' && github.event.pull_request.merged == true
@@ -39,8 +38,7 @@ jobs:
             Repo: ${{ github.repository }}
             PR: #${{ github.event.number }} ${{ github.event.pull_request.title }}
         run: |
-          curl -s -X POST https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendMessage \
-          -d chat_id=${{ secrets.TELEGRAM_TO_GROUP }} \
-          -d message_thread_id=${{ secrets.TELEGRAM_DEPENDABOT_TOPIC_ID }} \
-          -d parse_mode=Markdown \
-          --data-urlencode "text=$MESSAGE"
+          curl -fSs -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendMessage" \
+            -d "chat_id=${{ secrets.TELEGRAM_TO_GROUP }}" \
+            -d "message_thread_id=${{ secrets.TELEGRAM_DEPENDABOT_TOPIC_ID }}" \
+            --data-urlencode "text=$MESSAGE"

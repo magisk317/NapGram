@@ -14,21 +14,33 @@ jobs:
     permissions:
       contents: read
       packages: write
-    strategy:
-      matrix:
-        node-version: [24, 25]
-
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'schedule' && 'dev' || github.ref }}
+          fetch-depth: 0
+
+      - name: Checkout UI source (private)
+        uses: actions/checkout@v4
+        with:
+          repository: magisk317/napgram-ui-dist
+          ref: main
+          token: ${{ secrets.UI_SRC_TOKEN }}
+          path: web
 
       - name: Check pushes today (UTC+8)
         id: check_push
         run: |
+          # schedule 任务按每天构建 dev，无需检查 push
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            echo "has_push=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
           git fetch origin
           TZ=Asia/Shanghai
           since=$(date -d 'today 00:00' +"%Y-%m-%dT%H:%M:%S")
-          if git log --since="$since" --format=oneline origin/main origin/refactor | head -n 1; then
+          if git log --since="$since" --format=oneline origin/main | head -n 1; then
             echo "has_push=true" >> "$GITHUB_OUTPUT"
           else
             echo "has_push=false" >> "$GITHUB_OUTPUT"
@@ -36,39 +48,37 @@ jobs:
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
-        if: github.event_name != 'schedule' || steps.check_push.outputs.has_push == 'true'
         with:
-          node-version: ${{ matrix.node-version }}
+          node-version: 25
 
       - name: Install pnpm
-        if: (github.event_name != 'schedule' || steps.check_push.outputs.has_push == 'true') && hashFiles('web/src/**') != ''
         uses: pnpm/action-setup@v4
         with:
           version: 9
-          run_install: true
+          run_install: false
 
       - name: Install dependencies
-        if: (github.event_name != 'schedule' || steps.check_push.outputs.has_push == 'true') && hashFiles('web/src/**') != ''
-        run: pnpm install --frozen-lockfile
+        run: pnpm install
 
       - name: Build web dist
-        if: (github.event_name != 'schedule' || steps.check_push.outputs.has_push == 'true') && hashFiles('web/src/**') != ''
         run: pnpm --filter web build
+
+      - name: Prepare tag date
+        run: echo "DATE=$(date -u +%Y%m%d)" >> "$GITHUB_ENV"
 
       - name: OCI meta
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ghcr.io/${{ github.repository }}
-          flavor: |
-            latest=${{ matrix.node-version == 25 && 'true' || 'false' }}
-            suffix=${{ matrix.node-version == 24 && '-node-24' || '' }}
+          images: |
+            ghcr.io/${{ github.repository }}
+            docker.io/${{ secrets.DOCKERHUB_USERNAME }}/napgram
           tags: |
-            type=ref,event=branch
-            type=ref,event=pr
-            type=semver,pattern={{version}}
-            type=semver,pattern={{major}}.{{minor}}
-            type=sha
+            type=raw,value=main-latest,enable=${{ github.ref == 'refs/heads/main' }}
+            type=raw,value=dev-latest,enable=${{ github.ref == 'refs/heads/dev' || github.event_name == 'schedule' }}
+            type=raw,value=main-${{ env.DATE }},enable=${{ github.ref == 'refs/heads/main' }}
+            type=raw,value=dev-${{ env.DATE }},enable=${{ github.ref == 'refs/heads/dev' || github.event_name == 'schedule' }}
+            type=ref,event=tag
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3
@@ -83,9 +93,16 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Login to Docker Hub
+        if: github.event_name != 'pull_request' && github.actor != 'dependabot[bot]'
+        uses: docker/login-action@v3
+        with:
+          registry: docker.io
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
       - name: Build and push
         uses: docker/build-push-action@v5
-        if: github.event_name != 'schedule' || steps.check_push.outputs.has_push == 'true'
         with:
           context: .
           push: ${{ github.event_name != 'pull_request' && github.actor != 'dependabot[bot]' }}
@@ -99,12 +116,12 @@ jobs:
             REF=${{ github.ref }}
             COMMIT=${{ github.sha }}
             USE_MIRROR=false
-            NODE_VERSION=${{ matrix.node-version }}-slim
+            NODE_VERSION=25-slim
           secrets: |
             npmrc=//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}
 
       - name: Send Telegram Notification on Success
-        if: success() && (github.event_name != 'schedule' || steps.check_push.outputs.has_push == 'true') && matrix.node-version == 25
+        if: success() && (github.event_name != 'schedule' || steps.check_push.outputs.has_push == 'true')
         env:
           MESSAGE: |
             ✅ Docker Build Success
@@ -113,8 +130,7 @@ jobs:
             Tag/Branch: ${{ github.ref_name }}
             Image: ghcr.io/${{ github.repository }}:${{ github.ref_name }}
         run: |
-          curl -s -X POST https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendMessage \
-          -d chat_id=${{ secrets.TELEGRAM_TO_GROUP }} \
-          -d message_thread_id=${{ secrets.TELEGRAM_TOPIC_ID }} \
-          -d parse_mode=Markdown \
-          --data-urlencode "text=$MESSAGE"
+          curl -fSs -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendMessage" \
+            -d "chat_id=${{ secrets.TELEGRAM_TO_GROUP }}" \
+            -d "message_thread_id=${{ secrets.TELEGRAM_DOCKER_TOPIC_ID }}" \
+            --data-urlencode "text=$MESSAGE"

@@ -3,6 +3,17 @@ name: Release Notifications
 on:
   release:
     types: [published]
+  workflow_dispatch:
+    inputs:
+      tag_name:
+        description: Release tag (e.g. v1.2.3)
+        required: true
+      html_url:
+        description: Release URL (optional)
+        required: false
+      body:
+        description: Release body (optional)
+        required: false
 
 permissions:
   contents: read
@@ -12,33 +23,38 @@ jobs:
     name: Notify New Release
     runs-on: ubuntu-latest
     steps:
-      - name: Process Release Body
-        id: process_body
+      - name: Prepare Notification Context
         env:
-          RAW_BODY: ${{ github.event.release.body }}
+          TAG_NAME: ${{ github.event_name == 'release' && github.event.release.tag_name || github.event.inputs.tag_name }}
+          HTML_URL: ${{ github.event_name == 'release' && github.event.release.html_url || github.event.inputs.html_url }}
+          BODY: ${{ github.event_name == 'release' && github.event.release.body || github.event.inputs.body }}
         run: |
-          BODY="$RAW_BODY"
+          set -euo pipefail
+
+          tag="${TAG_NAME:-${GITHUB_REF_NAME:-manual}}"
+          url="${HTML_URL:-https://github.com/${GITHUB_REPOSITORY}/releases/tag/${tag}}"
+
+          echo "RELEASE_TAG=$tag" >> "$GITHUB_ENV"
+          echo "RELEASE_URL=$url" >> "$GITHUB_ENV"
+          echo "RAW_BODY<<EOF" >> "$GITHUB_ENV"
+          echo "${BODY:-}" >> "$GITHUB_ENV"
+          echo "EOF" >> "$GITHUB_ENV"
+
+      - name: Prepare Release Body
+        run: |
+          set -euo pipefail
           
-          # Convert GFM to Telegram HTML
-          # 1. Bold: **text** -> <b>text</b>
-          BODY=$(echo "$BODY" | sed -E 's/\*\*([^*]+)\*\*/<b>\1<\/b>/g')
-          # 2. Code: `text` -> <code>text</code>
-          BODY=$(echo "$BODY" | sed -E 's/`([^`]+)`/<code>\1<\/code>/g')
-          # 3. Headers: ### Text -> <b>Text</b>
-          BODY=$(echo "$BODY" | sed -E 's/^#{1,6} (.*)$/<b>\1<\/b>/')
-          
-          MAX_LENGTH=1500
+          # 直接使用原始body，截断过长内容
+          BODY="${RAW_BODY:-}"
+          MAX_LENGTH=800
           
           if [ ${#BODY} -gt $MAX_LENGTH ]; then
-            # Truncate to max length
             TRUNCATED="${BODY:0:$MAX_LENGTH}"
-            # Trim to last space to avoid cutting words
             FINAL_BODY="${TRUNCATED% *}..."
-            
             echo "RELEASE_BODY<<EOF" >> $GITHUB_ENV
             echo "$FINAL_BODY" >> $GITHUB_ENV
             echo "" >> $GITHUB_ENV
-            echo "<i>（内容过长，仅显示前部分）</i>" >> $GITHUB_ENV
+            echo "(内容过长，仅显示前部分)" >> $GITHUB_ENV
             echo "EOF" >> $GITHUB_ENV
           else
             echo "RELEASE_BODY<<EOF" >> $GITHUB_ENV
@@ -49,28 +65,26 @@ jobs:
       - name: Send Telegram Notification to Group Topic
         env:
           MESSAGE: |
-            🚀 New Release: ${{ github.event.release.tag_name }}
+            🚀 New Release: ${{ env.RELEASE_TAG }}
             
             ${{ env.RELEASE_BODY }}
             
-            Link: ${{ github.event.release.html_url }}
+            Link: ${{ env.RELEASE_URL }}
         run: |
-          curl -s -X POST https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendMessage \
-          -d chat_id=${{ secrets.TELEGRAM_TO_GROUP }} \
-          -d message_thread_id=${{ secrets.TELEGRAM_RELEASE_TOPIC_ID }} \
-          -d parse_mode=HTML \
-          --data-urlencode "text=$MESSAGE"
+          curl -fSs -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendMessage" \
+            -d "chat_id=${{ secrets.TELEGRAM_TO_GROUP }}" \
+            -d "message_thread_id=${{ secrets.TELEGRAM_RELEASE_TOPIC_ID }}" \
+            --data-urlencode "text=$MESSAGE"
 
       - name: Send Telegram Notification to Channel
         env:
           MESSAGE: |
-            🚀 New Release: ${{ github.event.release.tag_name }}
+            🚀 New Release: ${{ env.RELEASE_TAG }}
             
             ${{ env.RELEASE_BODY }}
             
-            Link: ${{ github.event.release.html_url }}
+            Link: ${{ env.RELEASE_URL }}
         run: |
-          curl -s -X POST https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendMessage \
-          -d chat_id=${{ secrets.TELEGRAM_TO_CHANNEL }} \
-          -d parse_mode=HTML \
-          --data-urlencode "text=$MESSAGE"
+          curl -fSs -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendMessage" \
+            -d "chat_id=${{ secrets.TELEGRAM_TO_CHANNEL }}" \
+            --data-urlencode "text=$MESSAGE"

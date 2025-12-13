@@ -1,7 +1,6 @@
 services:
   napgram:
-    build: .
-    image: napgram:latest
+    image: ghcr.io/naplink/napgram:latest
     container_name: napgram
     user: "1000" # 使用与 NapCat 相同的 UID，避免文件权限问题
     ports:
