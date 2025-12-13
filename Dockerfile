@@ -52,14 +52,13 @@ RUN pnpm install --filter=prisma --filter=@prisma/client --filter=@prisma/engine
     pnpm install --frozen-lockfile --shamefully-hoist --ignore-scripts && \
     pnpm -r rebuild better-sqlite3
 
-# 源码构建
+# 源码构建（后端）
 COPY main/ /app/main/
 RUN DATABASE_URL="postgresql://dummy" pnpm --filter=@napgram/core run prisma generate
 RUN pnpm --filter=@napgram/core run build
 
-# Frontend
-COPY web/ /app/web/
-RUN pnpm --filter=web run build
+# Frontend 使用预构建产物
+COPY web/dist/ /app/web/dist/
 
 FROM base AS release
 # Note: TGS to GIF conversion now handled by tgs-to npm package
