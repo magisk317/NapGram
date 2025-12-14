@@ -58,85 +58,81 @@ export class NapCatAdapter extends EventEmitter {
     }
 
     private setupEvents() {
+        // 连接事件
         this.client.on('connect', () => {
             this.emit('online');
             this.refreshSelfInfo();
-            // this.startHeartbeat(); // SDK handles heartbeat if configured
-
-            // 触发重连成功事件  
             this.emit('connection:restored', {
                 timestamp: Date.now()
             });
         });
 
-        // NapLink splits events, but we can listen to 'raw' to get everything and process it via existing handler
-        this.client.on('raw', (context: any) => {
-            this.handleWebSocketMessage(context).catch(err => logger.error('Failed to handle WebSocket message:', err));
-        });
-
         this.client.on('disconnect', () => {
             this.emit('offline');
-
-            // 触发掉线通知事件
             this.emit('connection:lost', {
                 timestamp: Date.now(),
                 reason: 'WebSocket closed'
             });
         });
-    }
 
-    private async handleWebSocketMessage(data: MessageEvent | NoticeEvent | RequestEvent | MetaEvent) {
-        // SDK handles Echo/API responses internally, we only get events here
-        // 处理事件
-        if (data.post_type === 'message') {
-            const msgEvent = data as MessageEvent;
-            // Use SDK's media hydration
-            await this.client.hydrateMessage(msgEvent.message);
-            const unifiedMsg = messageConverter.fromNapCat(data);
-            (this as any).emit('message', unifiedMsg);
-        } else if (data.post_type === 'notice') {
-            this.handleNotice(data as NoticeEvent);
-        } else if (data.post_type === 'request') {
-            // 处理请求事件
-        }
-    }
+        // 消息事件 - 使用SDK的细粒度事件
+        this.client.on('message', async (data: MessageEvent) => {
+            try {
+                await this.client.hydrateMessage(data.message);
+                const unifiedMsg = messageConverter.fromNapCat(data);
+                (this as any).emit('message', unifiedMsg);
+            } catch (err) {
+                logger.error('Failed to handle message event:', err);
+            }
+        });
 
-    private handleNotice(data: any) {
-        switch (data.notice_type) {
-            case 'group_recall':
-            case 'friend_recall':
-                (this as any).emit('recall', {
-                    messageId: String(data.message_id),
-                    chatId: String(data.group_id || data.user_id),
-                    operatorId: String(data.operator_id || data.user_id),
-                    timestamp: data.time * 1000,
-                } as RecallEvent);
-                break;
+        // 撤回事件
+        this.client.on('notice.group_recall', (data: any) => {
+            (this as any).emit('recall', {
+                messageId: String(data.message_id),
+                chatId: String(data.group_id),
+                operatorId: String(data.operator_id),
+                timestamp: data.time * 1000,
+            } as RecallEvent);
+        });
 
-            case 'group_increase':
-                (this as any).emit('group.increase', String(data.group_id), {
-                    id: String(data.user_id),
-                    name: '',
-                });
-                break;
+        this.client.on('notice.friend_recall', (data: any) => {
+            (this as any).emit('recall', {
+                messageId: String(data.message_id),
+                chatId: String(data.user_id),
+                operatorId: String(data.user_id),
+                timestamp: data.time * 1000,
+            } as RecallEvent);
+        });
 
-            case 'group_decrease':
-                (this as any).emit('group.decrease', String(data.group_id), String(data.user_id));
-                break;
+        // 群成员变动
+        this.client.on('notice.group_increase', (data: any) => {
+            (this as any).emit('group.increase', String(data.group_id), {
+                id: String(data.user_id),
+                name: '',
+            });
+        });
 
-            case 'friend_add':
-                (this as any).emit('friend.increase', {
-                    id: String(data.user_id),
-                    name: '',
-                });
-                break;
+        this.client.on('notice.group_decrease', (data: any) => {
+            (this as any).emit('group.decrease', String(data.group_id), String(data.user_id));
+        });
 
-            case 'notify':
-                if (data.sub_type === 'poke') {
-                    (this as any).emit('poke', String(data.group_id || data.user_id), String(data.user_id), String(data.target_id));
-                }
-                break;
-        }
+        // 好友添加
+        this.client.on('notice.friend_add', (data: any) => {
+            (this as any).emit('friend.increase', {
+                id: String(data.user_id),
+                name: '',
+            });
+        });
+
+        // 戳一戳 - 使用细粒度事件
+        this.client.on('notice.notify.poke', (data: any) => {
+            (this as any).emit('poke',
+                String(data.group_id || data.user_id),
+                String(data.user_id),
+                String(data.target_id)
+            );
+        });
     }
 
     private async refreshSelfInfo() {
