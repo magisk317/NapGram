@@ -1,8 +1,8 @@
 import { FastifyInstance } from 'fastify';
+import { ApiResponse } from '../shared/utils/api-response';
 import {
     performanceMonitor,
     userInfoCache,
-import { ApiResponse } from '../shared/utils/api-response';
     groupInfoCache,
     mediaCache,
     configCache,
