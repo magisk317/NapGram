@@ -11,10 +11,3 @@ updates:
     schedule:
       interval: "daily"
     target-branch: "main"
-
-  # web 服务
-  - package-ecosystem: "npm"
-    directory: "/web"
-    schedule:
-      interval: "daily"
-    target-branch: "main"
