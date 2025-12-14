@@ -5,6 +5,7 @@ import { z } from 'zod';
 import Instance from '../domain/models/Instance';
 import { groupInfoCache } from '../infrastructure/services/CacheManager';
 import { getLogger } from '../shared/logger';
+import { ApiResponse } from '../shared/utils/api-response';
 
 const log = getLogger('PairsApi');
 
@@ -102,13 +103,7 @@ export default async function (fastify: FastifyInstance) {
             }));
         }
 
-        return {
-            success: true,
-            items: mapped,
-            total,
-            page,
-            pageSize
-        };
+        return ApiResponse.paginated(mapped, total, page, pageSize);
     });
 
     /**
@@ -214,10 +209,9 @@ export default async function (fastify: FastifyInstance) {
                 });
             }
             if (error.code === 'P2002') {
-                return reply.code(409).send({
-                    success: false,
-                    error: 'Pair already exists for this QQ room or TG chat'
-                });
+                return reply.code(409).send(
+                    ApiResponse.error('Pair already exists for this QQ room or TG chat')
+                );
             }
             throw error;
         }
@@ -314,10 +308,7 @@ export default async function (fastify: FastifyInstance) {
                 request.headers['user-agent']
             );
 
-            return {
-                success: true,
-                message: 'Pair deleted successfully'
-            };
+            return ApiResponse.success(undefined, 'Pair deleted successfully');
         } catch (error: any) {
             if (error.code === 'P2025') {
                 return reply.code(404).send({
