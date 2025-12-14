@@ -12,6 +12,11 @@ export class BindCommandHandler {
     constructor(private readonly context: CommandContext) { }
 
     async execute(msg: UnifiedMessage, args: string[]): Promise<void> {
+        // 只在 Telegram 端处理
+        if (msg.platform !== 'telegram') {
+            return;
+        }
+
         const threadId = this.context.extractThreadId(msg, args);
 
         if (args.length < 1) {
@@ -46,6 +51,10 @@ export class BindCommandHandler {
 
         // add 会在已存在该 QQ 时更新 tgThreadId
         const rec = await forwardMap.add(qqGroupId, msg.chat.id, threadId);
+        if (!rec) {
+            await this.context.replyTG(msg.chat.id, '绑定失败：操作未生效，请重试', threadId);
+            return;
+        }
         if (rec && rec.qqRoomId.toString() !== qqGroupId) {
             await this.context.replyTG(msg.chat.id, '绑定失败：检测到冲突，请检查现有绑定', threadId);
             return;

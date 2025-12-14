@@ -109,12 +109,13 @@ export class GroupManagementCommandHandler {
             }
 
             // 4. 执行禁言
-            if (!this.context.qqClient.banUser) {
+            const banUser = this.context.qqClient.banUser;
+            if (!banUser) {
                 await this.context.replyTG(chatId, '❌ 当前QQ客户端不支持禁言功能', threadId);
                 return;
             }
 
-            await this.context.qqClient.banUser(qqGroupId, targetUin, duration);
+            await banUser.call(this.context.qqClient, qqGroupId, targetUin, duration);
 
             // 5. 获取用户信息并发送确认
             const memberInfo = await this.context.qqClient.getGroupMemberInfo(qqGroupId, targetUin);
@@ -171,12 +172,13 @@ export class GroupManagementCommandHandler {
             }
 
             // 3. 执行解禁
-            if (!this.context.qqClient.unbanUser) {
+            const unbanUser = this.context.qqClient.unbanUser;
+            if (!unbanUser) {
                 await this.context.replyTG(chatId, '❌ 当前QQ客户端不支持解禁功能', threadId);
                 return;
             }
 
-            await this.context.qqClient.unbanUser(qqGroupId, targetUin);
+            await unbanUser.call(this.context.qqClient, qqGroupId, targetUin);
 
             // 4. 发送确认
             const memberInfo = await this.context.qqClient.getGroupMemberInfo(qqGroupId, targetUin);
@@ -232,7 +234,8 @@ export class GroupManagementCommandHandler {
             }
 
             // 3. 执行踢出
-            if (!this.context.qqClient.kickUser) {
+            const kickUser = this.context.qqClient.kickUser;
+            if (!kickUser) {
                 await this.context.replyTG(chatId, '❌ 当前QQ客户端不支持踢人功能', threadId);
                 return;
             }
@@ -241,7 +244,7 @@ export class GroupManagementCommandHandler {
             const memberInfo = await this.context.qqClient.getGroupMemberInfo(qqGroupId, targetUin);
             const userName = memberInfo?.card || memberInfo?.nickname || targetUin;
 
-            await this.context.qqClient.kickUser(qqGroupId, targetUin, false);
+            await kickUser.call(this.context.qqClient, qqGroupId, targetUin, false);
 
             // 4. 发送确认
             await this.context.replyTG(
@@ -306,12 +309,13 @@ export class GroupManagementCommandHandler {
             }
 
             // 3. 执行设置
-            if (!this.context.qqClient.setGroupCard) {
+            const setGroupCard = this.context.qqClient.setGroupCard;
+            if (!setGroupCard) {
                 await this.context.replyTG(chatId, '❌ 当前QQ客户端不支持设置群名片功能', threadId);
                 return;
             }
 
-            await this.context.qqClient.setGroupCard(qqGroupId, targetUin, newCard);
+            await setGroupCard.call(this.context.qqClient, qqGroupId, targetUin, newCard);
 
             // 4. 发送确认
             await this.context.replyTG(

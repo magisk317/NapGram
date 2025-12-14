@@ -24,6 +24,8 @@ import { RefreshCommandHandler } from './handlers/RefreshCommandHandler';
 import { FlagsCommandHandler } from './handlers/FlagsCommandHandler';
 import { QuotLyCommandHandler } from './handlers/QuotLyCommandHandler';
 import { GroupManagementCommandHandler } from './handlers/GroupManagementCommandHandler';
+import { AdvancedGroupManagementCommandHandler } from './handlers/AdvancedGroupManagementCommandHandler';
+import { RequestManagementCommandHandler } from './handlers/RequestManagementCommandHandler';
 
 const logger = getLogger('CommandsFeature');
 
@@ -56,6 +58,8 @@ export class CommandsFeature {
     private readonly flagsHandler: FlagsCommandHandler;
     private readonly quotlyHandler: QuotLyCommandHandler;
     private readonly groupManagementHandler: GroupManagementCommandHandler;
+    private readonly advancedGroupManagementHandler: AdvancedGroupManagementCommandHandler;
+    private readonly requestManagementHandler: RequestManagementCommandHandler;
 
     constructor(
         private readonly instance: Instance,
@@ -91,6 +95,8 @@ export class CommandsFeature {
         this.flagsHandler = new FlagsCommandHandler(this.commandContext);
         this.quotlyHandler = new QuotLyCommandHandler(this.commandContext);
         this.groupManagementHandler = new GroupManagementCommandHandler(this.commandContext);
+        this.advancedGroupManagementHandler = new AdvancedGroupManagementCommandHandler(this.commandContext);
+        this.requestManagementHandler = new RequestManagementCommandHandler(this.commandContext);
 
         this.registerDefaultCommands();
         this.setupListeners();
@@ -290,6 +296,144 @@ export class CommandsFeature {
             description: '生成 QuotLy 引用图片（开发中）',
             usage: '/q (请回复要引用的消息)',
             handler: (msg, args) => this.quotlyHandler.execute(msg, args),
+        });
+
+        // ============ Phase 2: 高级群组管理命令 ============
+
+        // 全员禁言
+        this.registerCommand({
+            name: 'muteall',
+            description: '开启或关闭全员禁言（仅群主）',
+            usage: '/muteall [on|off|开|关]',
+            handler: (msg, args) => this.advancedGroupManagementHandler.execute(msg, args, 'muteall'),
+            adminOnly: true,
+        });
+
+        this.registerCommand({
+            name: '全员禁言',
+            description: '开启或关闭全员禁言（仅群主）',
+            usage: '/全员禁言 [开|关]',
+            handler: (msg, args) => this.advancedGroupManagementHandler.execute(msg, args, '全员禁言'),
+            adminOnly: true,
+        });
+
+        // 设置管理员
+        this.registerCommand({
+            name: 'admin',
+            description: '设置或取消群管理员（仅群主）',
+            usage: '/admin <QQ号> <on|off> 或回复消息 /admin <on|off>',
+            handler: (msg, args) => this.advancedGroupManagementHandler.execute(msg, args, 'admin'),
+            adminOnly: true,
+        });
+
+        // 修改群名
+        this.registerCommand({
+            name: 'groupname',
+            description: '修改群名称',
+            usage: '/groupname <新群名>',
+            handler: (msg, args) => this.advancedGroupManagementHandler.execute(msg, args, 'groupname'),
+            adminOnly: true,
+        });
+
+        this.registerCommand({
+            name: '改群名',
+            description: '修改群名称',
+            usage: '/改群名 <新群名>',
+            handler: (msg, args) => this.advancedGroupManagementHandler.execute(msg, args, '改群名'),
+            adminOnly: true,
+        });
+
+        // 设置专属头衔
+        this.registerCommand({
+            name: 'title',
+            description: '设置群成员专属头衔（仅群主）',
+            usage: '/title <QQ号> <头衔> 或回复消息 /title <头衔>',
+            handler: (msg, args) => this.advancedGroupManagementHandler.execute(msg, args, 'title'),
+            adminOnly: true,
+        });
+
+        this.registerCommand({
+            name: '头衔',
+            description: '设置群成员专属头衔（仅群主）',
+            usage: '/头衔 <QQ号> <头衔> 或回复消息 /头衔 <头衔>',
+            handler: (msg, args) => this.advancedGroupManagementHandler.execute(msg, args, '头衔'),
+            adminOnly: true,
+        });
+
+        // ============ Phase 3: 请求管理命令 ============
+
+        this.registerCommand({
+            name: 'pending',
+            aliases: ['待处理'],
+            description: '查看待处理的好友/加群申请',
+            usage: '/pending [friend|group]',
+            handler: (msg, args) => this.requestManagementHandler.execute(msg, args, 'pending'),
+            adminOnly: true,
+        });
+
+        this.registerCommand({
+            name: 'approve',
+            aliases: ['同意', '通过'],
+            description: '批准好友/加群申请',
+            usage: '/approve <flag>',
+            handler: (msg, args) => this.requestManagementHandler.execute(msg, args, 'approve'),
+            adminOnly: true,
+        });
+
+        this.registerCommand({
+            name: 'reject',
+            aliases: ['拒绝'],
+            description: '拒绝好友/加群申请',
+            usage: '/reject <flag> [理由]',
+            handler: (msg, args) => this.requestManagementHandler.execute(msg, args, 'reject'),
+            adminOnly: true,
+        });
+
+        // ============ Phase 3: QQ交互增强 ============
+
+        this.registerCommand({
+            name: 'like',
+            aliases: ['点赞'],
+            description: 'QQ点赞（1-10次）',
+            usage: '/like <QQ号/回复消息> [次数]',
+            handler: (msg, args) => this.qqInteractionHandler.execute(msg, args, 'like'),
+        });
+
+        this.registerCommand({
+            name: 'honor',
+            aliases: ['群荣誉'],
+            description: '查看群荣誉榜单',
+            usage: '/honor [talkative|performer|legend|strong_newbie|emotion|all]',
+            handler: (msg, args) => this.qqInteractionHandler.execute(msg, args, 'honor'),
+        });
+
+        // ============ Phase 4: 请求统计与批量操作 ============
+
+        this.registerCommand({
+            name: 'reqstats',
+            aliases: ['请求统计', '统计'],
+            description: '查看请求统计数据',
+            usage: '/reqstats [today|week|month|all]',
+            handler: (msg, args) => this.requestManagementHandler.execute(msg, args, 'reqstats'),
+            adminOnly: true,
+        });
+
+        this.registerCommand({
+            name: 'approveall',
+            aliases: ['批量批准'],
+            description: '批量批准待处理请求',
+            usage: '/approveall [friend|group]',
+            handler: (msg, args) => this.requestManagementHandler.execute(msg, args, 'approveall'),
+            adminOnly: true,
+        });
+
+        this.registerCommand({
+            name: 'rejectall',
+            aliases: ['批量拒绝'],
+            description: '批量拒绝待处理请求',
+            usage: '/rejectall [friend|group] [reason]',
+            handler: (msg, args) => this.requestManagementHandler.execute(msg, args, 'rejectall'),
+            adminOnly: true,
         });
 
         logger.debug(`Registered ${this.registry.getUniqueCommandCount()} commands (${this.registry.getAll().size} including aliases)`);
