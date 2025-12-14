@@ -89,7 +89,7 @@ export default async function (fastify: FastifyInstance) {
         }));
 
         if (needNames) {
-            await Promise.all(mapped.map(async (pair) => {
+            await Promise.all(mapped.map(async (pair: any) => {
                 try {
                     pair.qqRoomName = await resolveQqGroupName(pair.instanceId, pair.qqRoomId);
                 } catch (e: any) {
