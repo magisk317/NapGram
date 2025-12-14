@@ -38,7 +38,7 @@
     "@kitajs/html": "^4.2.11",
     "@mtcute/core": "^0.27.2",
     "@mtcute/dispatcher": "^0.27.2",
-    "@mtcute/markdown-parser": "^0.27.2",
+    "@mtcute/markdown-parser": "^0.27.3",
     "@mtcute/node": "^0.27.2",
     "@prisma/adapter-pg": "7.1.0",
     "@prisma/client": "7.1.0",
