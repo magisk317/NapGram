@@ -23,6 +23,7 @@ import { QQInteractionCommandHandler } from './handlers/QQInteractionCommandHand
 import { RefreshCommandHandler } from './handlers/RefreshCommandHandler';
 import { FlagsCommandHandler } from './handlers/FlagsCommandHandler';
 import { QuotLyCommandHandler } from './handlers/QuotLyCommandHandler';
+import { GroupManagementCommandHandler } from './handlers/GroupManagementCommandHandler';
 
 const logger = getLogger('CommandsFeature');
 
@@ -54,6 +55,7 @@ export class CommandsFeature {
     private readonly refreshHandler: RefreshCommandHandler;
     private readonly flagsHandler: FlagsCommandHandler;
     private readonly quotlyHandler: QuotLyCommandHandler;
+    private readonly groupManagementHandler: GroupManagementCommandHandler;
 
     constructor(
         private readonly instance: Instance,
@@ -88,6 +90,7 @@ export class CommandsFeature {
         this.refreshHandler = new RefreshCommandHandler(this.commandContext);
         this.flagsHandler = new FlagsCommandHandler(this.commandContext);
         this.quotlyHandler = new QuotLyCommandHandler(this.commandContext);
+        this.groupManagementHandler = new GroupManagementCommandHandler(this.commandContext);
 
         this.registerDefaultCommands();
         this.setupListeners();
@@ -220,6 +223,39 @@ export class CommandsFeature {
             description: '禁言 QQ 群成员',
             usage: '/mute <QQ号> <秒数>',
             handler: (msg, args) => this.qqInteractionHandler.execute(msg, args, 'mute'),
+            adminOnly: true,
+        });
+
+        // 群组管理命令（新实现）
+        this.registerCommand({
+            name: 'ban',
+            description: '禁言群成员',
+            usage: '/ban <QQ号/回复消息> [时长: 1m/30m/1h/1d]',
+            handler: (msg, args) => this.groupManagementHandler.execute(msg, args, 'ban'),
+            adminOnly: true,
+        });
+
+        this.registerCommand({
+            name: 'unban',
+            description: '解除群成员禁言',
+            usage: '/unban <QQ号/回复消息>',
+            handler: (msg, args) => this.groupManagementHandler.execute(msg, args, 'unban'),
+            adminOnly: true,
+        });
+
+        this.registerCommand({
+            name: 'kick',
+            description: '踢出群成员',
+            usage: '/kick <QQ号/回复消息>',
+            handler: (msg, args) => this.groupManagementHandler.execute(msg, args, 'kick'),
+            adminOnly: true,
+        });
+
+        this.registerCommand({
+            name: 'card',
+            description: '设置群成员名片',
+            usage: '/card <QQ号/回复消息> <新名片>',
+            handler: (msg, args) => this.groupManagementHandler.execute(msg, args, 'card'),
             adminOnly: true,
         });
 

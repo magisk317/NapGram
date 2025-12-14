@@ -115,6 +115,39 @@ export interface IQQClient extends EventEmitter {
      */
     getUserInfo(userId: string): Promise<any>;
 
+    // ============ 群组管理 ============
+
+    /**
+     * 禁言群成员
+     * @param groupId 群号
+     * @param userId 成员 QQ 号
+     * @param duration 禁言时长（秒），0 表示解除禁言
+     */
+    banUser?(groupId: string, userId: string, duration: number): Promise<void>;
+
+    /**
+     * 解除群成员禁言
+     * @param groupId 群号
+     * @param userId 成员 QQ 号
+     */
+    unbanUser?(groupId: string, userId: string): Promise<void>;
+
+    /**
+     * 踢出群成员
+     * @param groupId 群号
+     * @param userId 成员 QQ 号
+     * @param rejectAddRequest 是否拒绝再次加群请求
+     */
+    kickUser?(groupId: string, userId: string, rejectAddRequest?: boolean): Promise<void>;
+
+    /**
+     * 设置群成员名片
+     * @param groupId 群号
+     * @param userId 成员 QQ 号
+     * @param card 新的群名片
+     */
+    setGroupCard?(groupId: string, userId: string, card: string): Promise<void>;
+
     // ============ 事件监听 ============
 
     on(event: 'message', listener: (message: UnifiedMessage) => void): this;

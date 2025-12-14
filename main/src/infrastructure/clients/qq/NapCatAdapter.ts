@@ -346,4 +346,58 @@ export class NapCatAdapter extends EventEmitter {
     async callApi(method: string, params?: any): Promise<any> {
         return this.client.callApi(method, params);
     }
+
+    // ============ 群组管理 ============
+
+    /**
+     * 禁言群成员
+     */
+    async banUser(groupId: string, userId: string, duration: number): Promise<void> {
+        try {
+            await this.client.setGroupBan(groupId, userId, duration);
+            logger.info(`Banned user ${userId} in group ${groupId} for ${duration}s`);
+        } catch (error) {
+            logger.error(`Failed to ban user ${userId} in group ${groupId}:`, error);
+            throw error;
+        }
+    }
+
+    /**
+     * 解除群成员禁言
+     */
+    async unbanUser(groupId: string, userId: string): Promise<void> {
+        try {
+            await this.client.unsetGroupBan(groupId, userId);
+            logger.info(`Unbanned user ${userId} in group ${groupId}`);
+        } catch (error) {
+            logger.error(`Failed to unban user ${userId} in group ${groupId}:`, error);
+            throw error;
+        }
+    }
+
+    /**
+     * 踢出群成员
+     */
+    async kickUser(groupId: string, userId: string, rejectAddRequest: boolean = false): Promise<void> {
+        try {
+            await this.client.setGroupKick(groupId, userId, rejectAddRequest);
+            logger.info(`Kicked user ${userId} from group ${groupId}`);
+        } catch (error) {
+            logger.error(`Failed to kick user ${userId} from group ${groupId}:`, error);
+            throw error;
+        }
+    }
+
+    /**
+     * 设置群成员名片
+     */
+    async setGroupCard(groupId: string, userId: string, card: string): Promise<void> {
+        try {
+            await this.client.setGroupCard(groupId, userId, card);
+            logger.info(`Set group card for user ${userId} in group ${groupId} to: ${card}`);
+        } catch (error) {
+            logger.error(`Failed to set group card for user ${userId} in group ${groupId}:`, error);
+            throw error;
+        }
+    }
 }
