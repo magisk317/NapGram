@@ -158,6 +158,56 @@ export interface IQQClient extends EventEmitter {
     downloadFileRecordStreamToFile?(fileId: string, outFormat?: string, options?: { chunkSize?: number; filename?: string }): Promise<{ path: string; info?: any }>;
     cleanStreamTempFile?(): Promise<any>;
 
+    // ============ NapCat 扩展（可选）===========
+    // System
+    getOnlineClients?(noCache?: boolean): Promise<any>;
+    getRobotUinRange?(): Promise<any>;
+    canSendImage?(): Promise<any>;
+    canSendRecord?(): Promise<any>;
+    getCookies?(domain: string): Promise<any>;
+    getCsrfToken?(): Promise<any>;
+    getCredentials?(domain: string): Promise<any>;
+    setInputStatus?(userId: string, eventType: number): Promise<any>;
+    ocrImage?(image: string, dot?: boolean): Promise<any>;
+    translateEn2zh?(words: string[]): Promise<any>;
+    checkUrlSafely?(url: string): Promise<any>;
+    handleQuickOperation?(context: any, operation: any): Promise<any>;
+    getModelShow?(model: string): Promise<any>;
+    setModelShow?(model: string, modelShow: string): Promise<any>;
+    getPacketStatus?(): Promise<any>;
+
+    // Extensions
+    getRkeyEx?(): Promise<any>;
+    getRkeyServer?(): Promise<any>;
+    getRkey?(): Promise<any>;
+    setFriendRemark?(userId: string, remark: string): Promise<any>;
+    deleteFriend?(userId: string): Promise<any>;
+    getUnidirectionalFriendList?(): Promise<any>;
+    setGroupRemark?(groupId: string, remark: string): Promise<any>;
+    getGroupInfoEx?(groupId: string): Promise<any>;
+    getGroupDetailInfo?(groupId: string): Promise<any>;
+    getGroupIgnoredNotifies?(): Promise<any>;
+    getGroupShutList?(groupId: string): Promise<any>;
+    sendPrivateForwardMessage?(params: any): Promise<any>;
+    forwardFriendSingleMsg?(userId: string, messageId: string): Promise<any>;
+    forwardGroupSingleMsg?(groupId: string, messageId: string): Promise<any>;
+    sendForwardMsg?(params: any): Promise<any>;
+    sendGroupNotice?(params: any): Promise<any>;
+    getGroupNotice?(groupId: string): Promise<any>;
+    delGroupNotice?(groupId: string, noticeId: string): Promise<any>;
+    setOnlineStatus?(status: number | string, extStatus: number | string, batteryStatus: number | string): Promise<any>;
+    setDiyOnlineStatus?(faceId: number | string, wording?: string, faceType?: number | string): Promise<any>;
+    sendArkShare?(params: any): Promise<any>;
+    sendGroupArkShare?(groupId: string): Promise<any>;
+    getMiniAppArk?(payload: any): Promise<any>;
+    getAiCharacters?(groupId: string, chatType?: number | string): Promise<any>;
+    getAiRecord?(groupId: string, character: string, text: string): Promise<any>;
+    sendGroupAiRecord?(groupId: string, character: string, text: string): Promise<any>;
+    setGroupSign?(groupId: string): Promise<any>;
+    sendGroupSign?(groupId: string): Promise<any>;
+    getClientkey?(): Promise<any>;
+    clickInlineKeyboardButton?(params: any): Promise<any>;
+
     // ============ 联系人操作 ============
 
     /**

@@ -574,6 +574,278 @@ export class NapCatAdapter extends EventEmitter {
         return api.cleanStreamTempFile();
     }
 
+    // ============ NapCat 扩展（可选）===========
+
+    async getOnlineClients(noCache: boolean = false): Promise<any> {
+        const api: any = this.client.api as any;
+        if (typeof api.getOnlineClients === 'function') return api.getOnlineClients(noCache);
+        return this.client.callApi('get_online_clients', { no_cache: noCache });
+    }
+
+    async getRobotUinRange(): Promise<any> {
+        const api: any = this.client.api as any;
+        if (typeof api.getRobotUinRange === 'function') return api.getRobotUinRange();
+        return this.client.callApi('get_robot_uin_range');
+    }
+
+    async canSendImage(): Promise<any> {
+        const api: any = this.client.api as any;
+        if (typeof api.canSendImage === 'function') return api.canSendImage();
+        return this.client.callApi('can_send_image');
+    }
+
+    async canSendRecord(): Promise<any> {
+        const api: any = this.client.api as any;
+        if (typeof api.canSendRecord === 'function') return api.canSendRecord();
+        return this.client.callApi('can_send_record');
+    }
+
+    async getCookies(domain: string): Promise<any> {
+        const api: any = this.client.api as any;
+        if (typeof api.getCookies === 'function') return api.getCookies(domain);
+        return this.client.callApi('get_cookies', { domain });
+    }
+
+    async getCsrfToken(): Promise<any> {
+        const api: any = this.client.api as any;
+        if (typeof api.getCsrfToken === 'function') return api.getCsrfToken();
+        return this.client.callApi('get_csrf_token');
+    }
+
+    async getCredentials(domain: string): Promise<any> {
+        const api: any = this.client.api as any;
+        if (typeof api.getCredentials === 'function') return api.getCredentials(domain);
+        return this.client.callApi('get_credentials', { domain });
+    }
+
+    async setInputStatus(userId: string, eventType: number): Promise<any> {
+        const api: any = this.client.api as any;
+        if (typeof api.setInputStatus === 'function') return api.setInputStatus(userId, eventType);
+        return this.client.callApi('set_input_status', { user_id: userId, event_type: eventType, eventType });
+    }
+
+    async ocrImage(image: string, dot: boolean = false): Promise<any> {
+        const api: any = this.client.api as any;
+        if (typeof api.ocrImage === 'function') return api.ocrImage(image, dot);
+        return this.client.callApi(dot ? '.ocr_image' : 'ocr_image', { image });
+    }
+
+    async translateEn2zh(words: string[]): Promise<any> {
+        const api: any = this.client.api as any;
+        if (typeof api.translateEn2zh === 'function') return api.translateEn2zh(words);
+        return this.client.callApi('translate_en2zh', { words });
+    }
+
+    async checkUrlSafely(url: string): Promise<any> {
+        const api: any = this.client.api as any;
+        if (typeof api.checkUrlSafely === 'function') return api.checkUrlSafely(url);
+        return this.client.callApi('check_url_safely', { url });
+    }
+
+    async handleQuickOperation(context: any, operation: any): Promise<any> {
+        const api: any = this.client.api as any;
+        if (typeof api.handleQuickOperation === 'function') return api.handleQuickOperation(context, operation);
+        return this.client.callApi('.handle_quick_operation', { context, operation });
+    }
+
+    async getModelShow(model: string): Promise<any> {
+        const api: any = this.client.api as any;
+        if (typeof api.getModelShow === 'function') return api.getModelShow(model);
+        return this.client.callApi('_get_model_show', { model });
+    }
+
+    async setModelShow(model: string, modelShow: string): Promise<any> {
+        const api: any = this.client.api as any;
+        if (typeof api.setModelShow === 'function') return api.setModelShow(model, modelShow);
+        return this.client.callApi('_set_model_show', { model, model_show: modelShow });
+    }
+
+    async getPacketStatus(): Promise<any> {
+        const api: any = this.client.api as any;
+        if (typeof api.getPacketStatus === 'function') return api.getPacketStatus();
+        return this.client.callApi('nc_get_packet_status');
+    }
+
+    async getRkeyEx(): Promise<any> {
+        const api: any = this.client.api as any;
+        if (typeof api.getRkeyEx === 'function') return api.getRkeyEx();
+        return this.client.callApi('get_rkey');
+    }
+
+    async getRkeyServer(): Promise<any> {
+        const api: any = this.client.api as any;
+        if (typeof api.getRkeyServer === 'function') return api.getRkeyServer();
+        return this.client.callApi('get_rkey_server');
+    }
+
+    async getRkey(): Promise<any> {
+        const api: any = this.client.api as any;
+        if (typeof api.getRkey === 'function') return api.getRkey();
+        return this.client.callApi('nc_get_rkey');
+    }
+
+    async setFriendRemark(userId: string, remark: string): Promise<any> {
+        const api: any = this.client.api as any;
+        if (typeof api.setFriendRemark === 'function') return api.setFriendRemark(userId, remark);
+        return this.client.callApi('set_friend_remark', { user_id: userId, remark });
+    }
+
+    async deleteFriend(userId: string): Promise<any> {
+        const api: any = this.client.api as any;
+        if (typeof api.deleteFriend === 'function') return api.deleteFriend(userId);
+        return this.client.callApi('delete_friend', { user_id: userId });
+    }
+
+    async getUnidirectionalFriendList(): Promise<any> {
+        const api: any = this.client.api as any;
+        if (typeof api.getUnidirectionalFriendList === 'function') return api.getUnidirectionalFriendList();
+        return this.client.callApi('get_unidirectional_friend_list');
+    }
+
+    async setGroupRemark(groupId: string, remark: string): Promise<any> {
+        const api: any = this.client.api as any;
+        if (typeof api.setGroupRemark === 'function') return api.setGroupRemark(groupId, remark);
+        return this.client.callApi('set_group_remark', { group_id: groupId, remark });
+    }
+
+    async getGroupInfoEx(groupId: string): Promise<any> {
+        const api: any = this.client.api as any;
+        if (typeof api.getGroupInfoEx === 'function') return api.getGroupInfoEx(groupId);
+        return this.client.callApi('get_group_info_ex', { group_id: groupId });
+    }
+
+    async getGroupDetailInfo(groupId: string): Promise<any> {
+        const api: any = this.client.api as any;
+        if (typeof api.getGroupDetailInfo === 'function') return api.getGroupDetailInfo(groupId);
+        return this.client.callApi('get_group_detail_info', { group_id: groupId });
+    }
+
+    async getGroupIgnoredNotifies(): Promise<any> {
+        const api: any = this.client.api as any;
+        if (typeof api.getGroupIgnoredNotifies === 'function') return api.getGroupIgnoredNotifies();
+        return this.client.callApi('get_group_ignored_notifies');
+    }
+
+    async getGroupShutList(groupId: string): Promise<any> {
+        const api: any = this.client.api as any;
+        if (typeof api.getGroupShutList === 'function') return api.getGroupShutList(groupId);
+        return this.client.callApi('get_group_shut_list', { group_id: groupId });
+    }
+
+    async sendPrivateForwardMessage(params: any): Promise<any> {
+        const api: any = this.client.api as any;
+        if (typeof api.sendPrivateForwardMessage === 'function') return api.sendPrivateForwardMessage(params);
+        return this.client.callApi('send_private_forward_msg', params);
+    }
+
+    async forwardFriendSingleMsg(userId: string, messageId: string): Promise<any> {
+        const api: any = this.client.api as any;
+        if (typeof api.forwardFriendSingleMsg === 'function') return api.forwardFriendSingleMsg(userId, messageId);
+        return this.client.callApi('forward_friend_single_msg', { user_id: userId, message_id: messageId });
+    }
+
+    async forwardGroupSingleMsg(groupId: string, messageId: string): Promise<any> {
+        const api: any = this.client.api as any;
+        if (typeof api.forwardGroupSingleMsg === 'function') return api.forwardGroupSingleMsg(groupId, messageId);
+        return this.client.callApi('forward_group_single_msg', { group_id: groupId, message_id: messageId });
+    }
+
+    async sendForwardMsg(params: any): Promise<any> {
+        const api: any = this.client.api as any;
+        if (typeof api.sendForwardMsg === 'function') return api.sendForwardMsg(params);
+        return this.client.callApi('send_forward_msg', params);
+    }
+
+    async sendGroupNotice(params: any): Promise<any> {
+        const api: any = this.client.api as any;
+        if (typeof api.sendGroupNotice === 'function') return api.sendGroupNotice(params);
+        return this.client.callApi('_send_group_notice', params);
+    }
+
+    async getGroupNotice(groupId: string): Promise<any> {
+        const api: any = this.client.api as any;
+        if (typeof api.getGroupNotice === 'function') return api.getGroupNotice(groupId);
+        return this.client.callApi('_get_group_notice', { group_id: groupId });
+    }
+
+    async delGroupNotice(groupId: string, noticeId: string): Promise<any> {
+        const api: any = this.client.api as any;
+        if (typeof api.delGroupNotice === 'function') return api.delGroupNotice(groupId, noticeId);
+        return this.client.callApi('_del_group_notice', { group_id: groupId, notice_id: +noticeId });
+    }
+
+    async setOnlineStatus(status: number | string, extStatus: number | string, batteryStatus: number | string): Promise<any> {
+        const api: any = this.client.api as any;
+        if (typeof api.setOnlineStatus === 'function') return api.setOnlineStatus(status, extStatus, batteryStatus);
+        return this.client.callApi('set_online_status', { status, ext_status: extStatus, battery_status: batteryStatus });
+    }
+
+    async setDiyOnlineStatus(faceId: number | string, wording?: string, faceType?: number | string): Promise<any> {
+        const api: any = this.client.api as any;
+        if (typeof api.setDiyOnlineStatus === 'function') return api.setDiyOnlineStatus(faceId, wording, faceType);
+        return this.client.callApi('set_diy_online_status', { face_id: faceId, wording, face_type: faceType });
+    }
+
+    async sendArkShare(params: any): Promise<any> {
+        const api: any = this.client.api as any;
+        if (typeof api.sendArkShare === 'function') return api.sendArkShare(params);
+        return this.client.callApi('send_ark_share', params);
+    }
+
+    async sendGroupArkShare(groupId: string): Promise<any> {
+        const api: any = this.client.api as any;
+        if (typeof api.sendGroupArkShare === 'function') return api.sendGroupArkShare(groupId);
+        return this.client.callApi('send_group_ark_share', { group_id: groupId });
+    }
+
+    async getMiniAppArk(payload: any): Promise<any> {
+        const api: any = this.client.api as any;
+        if (typeof api.getMiniAppArk === 'function') return api.getMiniAppArk(payload);
+        return this.client.callApi('get_mini_app_ark', payload);
+    }
+
+    async getAiCharacters(groupId: string, chatType?: number | string): Promise<any> {
+        const api: any = this.client.api as any;
+        if (typeof api.getAiCharacters === 'function') return api.getAiCharacters(groupId, chatType);
+        return this.client.callApi('get_ai_characters', { group_id: groupId, chat_type: chatType ?? 1 });
+    }
+
+    async getAiRecord(groupId: string, character: string, text: string): Promise<any> {
+        const api: any = this.client.api as any;
+        if (typeof api.getAiRecord === 'function') return api.getAiRecord(groupId, character, text);
+        return this.client.callApi('get_ai_record', { group_id: groupId, character, text });
+    }
+
+    async sendGroupAiRecord(groupId: string, character: string, text: string): Promise<any> {
+        const api: any = this.client.api as any;
+        if (typeof api.sendGroupAiRecord === 'function') return api.sendGroupAiRecord(groupId, character, text);
+        return this.client.callApi('send_group_ai_record', { group_id: groupId, character, text });
+    }
+
+    async setGroupSign(groupId: string): Promise<any> {
+        const api: any = this.client.api as any;
+        if (typeof api.setGroupSign === 'function') return api.setGroupSign(groupId);
+        return this.client.callApi('set_group_sign', { group_id: groupId });
+    }
+
+    async sendGroupSign(groupId: string): Promise<any> {
+        const api: any = this.client.api as any;
+        if (typeof api.sendGroupSign === 'function') return api.sendGroupSign(groupId);
+        return this.client.callApi('send_group_sign', { group_id: groupId });
+    }
+
+    async getClientkey(): Promise<any> {
+        const api: any = this.client.api as any;
+        if (typeof api.getClientkey === 'function') return api.getClientkey();
+        return this.client.callApi('get_clientkey');
+    }
+
+    async clickInlineKeyboardButton(params: any): Promise<any> {
+        const api: any = this.client.api as any;
+        if (typeof api.clickInlineKeyboardButton === 'function') return api.clickInlineKeyboardButton(params);
+        return this.client.callApi('click_inline_keyboard_button', params);
+    }
+
     // ============ 群组管理 ============
 
     /**
