@@ -488,6 +488,92 @@ export class NapCatAdapter extends EventEmitter {
         return this.client.api.getUploadStreamStatus(streamId);
     }
 
+    async sendGroupPoke(groupId: string, userId: string): Promise<any> {
+        const api: any = this.client.api as any;
+        if (typeof api.sendGroupPoke === 'function') return api.sendGroupPoke(groupId, userId);
+        return this.client.callApi('group_poke', { group_id: groupId, user_id: userId });
+    }
+
+    async sendFriendPoke(userId: string): Promise<any> {
+        const api: any = this.client.api as any;
+        if (typeof api.sendFriendPoke === 'function') return api.sendFriendPoke(userId);
+        return this.client.callApi('friend_poke', { user_id: userId });
+    }
+
+    async sendPoke(targetId: string, groupId?: string): Promise<any> {
+        const api: any = this.client.api as any;
+        if (typeof api.sendPoke === 'function') return api.sendPoke(targetId, groupId);
+        return this.client.callApi('send_poke', groupId ? { group_id: groupId, target_id: targetId } : { user_id: targetId });
+    }
+
+    async markGroupMsgAsRead(groupId: string): Promise<any> {
+        const api: any = this.client.api as any;
+        if (typeof api.markGroupMsgAsRead === 'function') return api.markGroupMsgAsRead(groupId);
+        return this.client.callApi('mark_group_msg_as_read', { group_id: groupId });
+    }
+
+    async markPrivateMsgAsRead(userId: string): Promise<any> {
+        const api: any = this.client.api as any;
+        if (typeof api.markPrivateMsgAsRead === 'function') return api.markPrivateMsgAsRead(userId);
+        return this.client.callApi('mark_private_msg_as_read', { user_id: userId });
+    }
+
+    async markAllMsgAsRead(): Promise<any> {
+        const api: any = this.client.api as any;
+        if (typeof api.markAllMsgAsRead === 'function') return api.markAllMsgAsRead();
+        return this.client.callApi('_mark_all_as_read');
+    }
+
+    async getGroupMsgHistory(params: { group_id: string; message_seq: number | string; count: number; reverse_order?: boolean }): Promise<any> {
+        const api: any = this.client.api as any;
+        if (typeof api.getGroupMsgHistory === 'function') return api.getGroupMsgHistory(params);
+        return this.client.callApi('get_group_msg_history', params);
+    }
+
+    async getFriendMsgHistory(params: { user_id: string; message_seq: number | string; count: number; reverse_order?: boolean }): Promise<any> {
+        const api: any = this.client.api as any;
+        if (typeof api.getFriendMsgHistory === 'function') return api.getFriendMsgHistory(params);
+        return this.client.callApi('get_friend_msg_history', params);
+    }
+
+    async getRecentContact(count: number): Promise<any> {
+        const api: any = this.client.api as any;
+        if (typeof api.getRecentContact === 'function') return api.getRecentContact(count);
+        return this.client.callApi('get_recent_contact', { count });
+    }
+
+    async downloadFileStreamToFile(fileId: string, options?: { chunkSize?: number; filename?: string }): Promise<{ path: string; info?: any }> {
+        const api: any = this.client.api as any;
+        if (typeof api.downloadFileStreamToFile !== 'function') {
+            throw new Error('downloadFileStreamToFile is not available (requires newer NapLink)');
+        }
+        return api.downloadFileStreamToFile(fileId, options);
+    }
+
+    async downloadFileImageStreamToFile(fileId: string, options?: { chunkSize?: number; filename?: string }): Promise<{ path: string; info?: any }> {
+        const api: any = this.client.api as any;
+        if (typeof api.downloadFileImageStreamToFile !== 'function') {
+            throw new Error('downloadFileImageStreamToFile is not available (requires newer NapLink)');
+        }
+        return api.downloadFileImageStreamToFile(fileId, options);
+    }
+
+    async downloadFileRecordStreamToFile(fileId: string, outFormat?: string, options?: { chunkSize?: number; filename?: string }): Promise<{ path: string; info?: any }> {
+        const api: any = this.client.api as any;
+        if (typeof api.downloadFileRecordStreamToFile !== 'function') {
+            throw new Error('downloadFileRecordStreamToFile is not available (requires newer NapLink)');
+        }
+        return api.downloadFileRecordStreamToFile(fileId, outFormat, options);
+    }
+
+    async cleanStreamTempFile(): Promise<any> {
+        const api: any = this.client.api as any;
+        if (typeof api.cleanStreamTempFile !== 'function') {
+            throw new Error('cleanStreamTempFile is not available (requires newer NapLink)');
+        }
+        return api.cleanStreamTempFile();
+    }
+
     // ============ 群组管理 ============
 
     /**

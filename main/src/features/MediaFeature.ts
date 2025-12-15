@@ -133,6 +133,21 @@ export class MediaFeature {
                     return { buffer: res.data };
                 }
             }
+
+            // 最后兜底：NapCat 流式下载（不依赖外部 URL 可达）
+            if (typeof qq.downloadFileStreamToFile === 'function') {
+                const streamed = await qq
+                    .downloadFileStreamToFile(normalizedId, { chunkSize: 64 * 1024 })
+                    .catch(() => null);
+                const local = streamed?.path;
+                if (local && typeof local === 'string') {
+                    try {
+                        return { buffer: await fsP.readFile(local), path: local };
+                    } catch {
+                        // ignore
+                    }
+                }
+            }
         } catch (err) {
             logger.warn(err, `Failed to fetch file by id=${fileId}`);
         }
