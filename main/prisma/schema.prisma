@@ -39,6 +39,9 @@ model Instance {
   isSetup       Boolean       @default(false)
   Message       Message[]
   ForwardPair   ForwardPair[]
+  QQRequest     QQRequest[]   // Phase 3: 请求处理
+  AutomationRule      AutomationRule[]        // Phase 4: 自动化规则
+  RequestStatistics   RequestStatistics?      // Phase 4: 请求统计
   botSessionId  Int?
   userSessionId Int?
   qqBotId       Int?
@@ -226,4 +229,95 @@ model GlobalConfig {
   updatedBy   Int?
 
   @@index([key])
+}
+
+// ============================================
+// Phase 3: QQ请求处理模型
+// ============================================
+
+model QQRequest {
+  id          Int      @id @default(autoincrement())
+  instanceId  Int
+  instance    Instance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  
+  // 请求基本信息
+  flag        String   @unique  // OneBot标识符
+  type        String   // 'friend' | 'group'
+  subType     String?  // 'add' | 'invite' (仅群请求)
+  
+  // 用户信息
+  userId      BigInt   @db.BigInt
+  groupId     BigInt?  @db.BigInt  // 仅群请求
+  comment     String?  // 验证消息
+  
+  // 状态信息
+  status      String   @default("pending")  // 'pending' | 'approved' | 'rejected'
+  handledBy   BigInt?  @db.BigInt  // Telegram操作者ID
+  handledAt   DateTime?
+  rejectReason String?  // 拒绝理由
+  
+  // 时间戳
+  createdAt   DateTime @default(now())
+  
+  @@index([instanceId, status])
+  @@index([flag])
+  @@index([createdAt])
+}
+
+// ============================================
+// Phase 4: 自动化规则与统计
+// ============================================
+
+// 自动化规则配置
+model AutomationRule {
+  id          Int      @id @default(autoincrement())
+  instanceId  Int
+  instance    Instance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  
+  // 规则类型
+  type        String   // 'blacklist' | 'whitelist' | 'keyword'
+  target      String   // 'friend' | 'group' | 'all'
+  
+  // 条件配置 (JSON)
+  conditions  Json     // { userIds: [], keywords: [] }
+  
+  // 动作
+  action      String   // 'approve' | 'reject'
+  reason      String?  // 自动拒绝理由
+  
+  // 状态
+  enabled     Boolean  @default(true)
+  priority    Int      @default(0)  // 优先级，数字越大优先级越高
+  
+  // 统计
+  matchCount  Int      @default(0)
+  
+  // 时间戳
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  @@index([instanceId, enabled])
+  @@index([type, target])
+}
+
+// 请求统计汇总
+model RequestStatistics {
+  id              Int      @id @default(autoincrement())
+  instanceId      Int      @unique
+  instance        Instance @relation(fields: [instanceId], references: [id], onDelete: Cascade)
+  
+  // 好友申请统计
+  friendTotal     Int      @default(0)
+  friendPending   Int      @default(0)
+  friendApproved  Int      @default(0)
+  friendRejected  Int      @default(0)
+  
+  // 加群申请统计
+  groupTotal      Int      @default(0)
+  groupPending    Int      @default(0)
+  groupApproved   Int      @default(0)
+  groupRejected   Int      @default(0)
+  
+  // 最后更新
+  updatedAt       DateTime @updatedAt
 }

@@ -136,13 +136,14 @@ export class NapCatConverter extends BaseConverter {
 
             case 'forward':
                 // 转发消息需要特殊处理
+                // QQ 只发送 ResID, 实际内容需要调用 getForwardMsg API
+                // 这里只保存元数据，内容由下游处理器获取
                 return {
                     type: 'forward',
                     data: {
-                        id: data.id, // Preserve ResID
-                        messages: data.content
-                            ? data.content.map((msg: any) => this.fromNapCat(msg))
-                            : [],
+                        id: data.id, // ResID for fetching actual content later
+                        // Note: messages will be populated by calling getForwardMsg with this id
+                        messages: [], // Empty until fetched
                     },
                 };
 

@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { authMiddleware } from '../infrastructure/auth/authMiddleware';
 import db from '../domain/models/db';
 
+import { ApiResponse } from '../shared/utils/api-response';
 /**
  * 统计分析 API
  */

@@ -2,12 +2,13 @@ import type { UnifiedMessage } from '../../../domain/message';
 import { CommandContext } from './CommandContext';
 import ForwardMap from '../../../domain/models/ForwardMap';
 import { getLogger } from '../../../shared/logger';
+import { CommandArgsParser } from '../utils/CommandArgsParser';
 
 const logger = getLogger('QQInteractionCommandHandler');
 
 /**
  * QQ 交互命令处理器
- * 处理: poke, nick, mute
+ * 处理: poke, nick, like, honor
  */
 export class QQInteractionCommandHandler {
     constructor(private readonly context: CommandContext) { }
@@ -19,7 +20,8 @@ export class QQInteractionCommandHandler {
         }
 
         const chatId = msg.chat.id;
-        const threadId = this.context.extractThreadId(msg, args);
+        // 不传args给extractThreadId,避免把QQ号/次数当成thread ID  
+        const threadId = this.context.extractThreadId(msg, []);
 
         // 查找绑定关系
         const forwardMap = this.context.instance.forwardPairs as ForwardMap;
@@ -34,34 +36,74 @@ export class QQInteractionCommandHandler {
 
         switch (commandName) {
             case 'poke':
-                await this.handlePoke(chatId, threadId, qqGroupId, args);
+                await this.handlePoke(chatId, threadId, qqGroupId, msg, args);
                 break;
             case 'nick':
                 await this.handleNick(chatId, threadId, qqGroupId, args);
                 break;
-            case 'mute':
-                await this.handleMute(chatId, threadId, qqGroupId, args);
+            case 'like':
+            case '点赞':
+                await this.handleLike(chatId, threadId, qqGroupId, msg, args);
+                break;
+            case 'honor':
+            case '群荣誉':
+                await this.handleGroupHonor(chatId, threadId, qqGroupId, args);
                 break;
         }
     }
 
     /**
      * 处理戳一戳命令
-     * TODO: NapCat 需要实现发送 poke 的 API
      */
-    private async handlePoke(chatId: string, threadId: number | undefined, qqGroupId: string, args: string[]) {
-        // 目标 QQ 号（可选参数）
-        const targetUin = args[0];
-
+    private async handlePoke(
+        chatId: string,
+        threadId: number | undefined,
+        qqGroupId: string,
+        msg: UnifiedMessage,
+        args: string[]
+    ) {
         try {
-            // NapCat 可能需要使用 send_group_poke 或类似 API
-            // 当前版本暂不支持，标记为 TODO
-            await this.context.replyTG(
-                chatId,
-                `⚠️ 戳一戳功能暂未实现\n\n需要等待 NapCat 支持发送戳一戳的 API`,
-                threadId
-            );
-            logger.warn('Poke command not implemented: NapCat API not available');
+            const targetUin = await this.resolveTargetUser(msg, args, 0);
+            if (!targetUin) {
+                await this.context.replyTG(
+                    chatId,
+                    `❌ 无法识别目标用户\n\n使用方式：\n• 回复目标用户消息：/poke\n• 直接指定：/poke 123456789`,
+                    threadId
+                );
+                return;
+            }
+
+            const sendGroupPoke = (this.context.qqClient as any).sendGroupPoke as
+                | ((groupId: string, userId: string) => Promise<void>)
+                | undefined;
+
+            if (sendGroupPoke) {
+                await sendGroupPoke.call(this.context.qqClient, qqGroupId, targetUin);
+            } else if (this.context.qqClient.callApi) {
+                const groupId = Number(qqGroupId);
+                const userId = Number(targetUin);
+
+                let lastError: unknown;
+                for (const method of ['send_group_poke', 'group_poke']) {
+                    try {
+                        await this.context.qqClient.callApi(method, { group_id: groupId, user_id: userId });
+                        lastError = undefined;
+                        break;
+                    } catch (error) {
+                        lastError = error;
+                    }
+                }
+
+                if (lastError) {
+                    throw lastError;
+                }
+            } else {
+                await this.context.replyTG(chatId, '❌ 当前QQ客户端不支持戳一戳功能', threadId);
+                return;
+            }
+
+            await this.context.replyTG(chatId, `👉 已戳一戳 ${targetUin}`, threadId);
+            logger.info(`Sent poke to ${targetUin} in group ${qqGroupId}`);
         } catch (error) {
             logger.error('Failed to send poke:', error);
             await this.context.replyTG(chatId, '❌ 发送戳一戳失败', threadId);
@@ -88,13 +130,20 @@ export class QQInteractionCommandHandler {
                 // 设置新昵称
                 const newCard = args.join(' ');
 
-                // TODO: NapCat 需要实现 set_group_card API
+                const setGroupCard = this.context.qqClient.setGroupCard;
+                if (!setGroupCard) {
+                    await this.context.replyTG(chatId, '❌ 当前QQ客户端不支持修改群名片', threadId);
+                    return;
+                }
+
+                await setGroupCard.call(this.context.qqClient, qqGroupId, botUin, newCard);
+
                 await this.context.replyTG(
                     chatId,
-                    `⚠️ 修改群名片功能暂未实现\n\n需要等待 NapCat 支持 set_group_card API`,
+                    `✅ 已修改群名片为: \`${newCard}\``,
                     threadId
                 );
-                logger.warn('Set nick command not implemented: NapCat API not available');
+                logger.info(`Set group card for bot ${botUin} in group ${qqGroupId}`);
             }
         } catch (error) {
             logger.error('Failed to handle nick command:', error);
@@ -103,37 +152,152 @@ export class QQInteractionCommandHandler {
     }
 
     /**
-     * 处理禁言命令
+     * 处理点赞命令
+     * Phase 3: /like <QQ号/回复消息> [次数]
      */
-    private async handleMute(chatId: string, threadId: number | undefined, qqGroupId: string, args: string[]) {
-        if (args.length < 2) {
-            await this.context.replyTG(
-                chatId,
-                `用法: /mute <QQ号> <时长(秒)>\n\n示例: /mute 123456789 600 (禁言10分钟)`,
-                threadId
-            );
-            return;
-        }
-
-        const targetUin = args[0];
-        const duration = parseInt(args[1]);
-
-        if (isNaN(duration) || duration < 0) {
-            await this.context.replyTG(chatId, '❌ 时长必须是非负整数', threadId);
-            return;
-        }
-
+    private async handleLike(
+        chatId: string,
+        threadId: number | undefined,
+        qqGroupId: string,
+        msg: UnifiedMessage,
+        args: string[]
+    ) {
         try {
-            // TODO: NapCat 需要实现 set_group_ban API
+            // 使用 CommandArgsParser 解析参数
+            const hasReply = CommandArgsParser.hasReplyMessage(msg);
+            const { uin: targetUin, times } = CommandArgsParser.parseLikeArgs(args, msg, hasReply);
+
+            if (!targetUin) {
+                await this.context.replyTG(
+                    chatId,
+                    `❌ 无法识别目标用户\n\n使用方式：\n• 回复目标用户的消息：/like [次数]\n• 直接指定：/like 123456789 [次数]\n• 参数顺序可互换：/like 10 123456789`,
+                    threadId
+                );
+                return;
+            }
+
+            // 执行点赞
+            const sendLike = this.context.qqClient.sendLike;
+            if (!sendLike) {
+                await this.context.replyTG(chatId, '❌ 当前QQ客户端不支持点赞功能', threadId);
+                return;
+            }
+
+            await sendLike.call(this.context.qqClient, targetUin, times);
+
             await this.context.replyTG(
                 chatId,
-                `⚠️ 禁言功能暂未实现\n\n需要等待 NapCat 支持 set_group_ban API`,
+                `✅ 已给 ${targetUin} 点赞 x${times}`,
                 threadId
             );
-            logger.warn('Mute command not implemented: NapCat API not available');
-        } catch (error) {
-            logger.error('Failed to mute user:', error);
-            await this.context.replyTG(chatId, '❌ 禁言操作失败', threadId);
+
+            logger.info(`Sent like to ${targetUin} x${times}`);
+        } catch (error: any) {
+            logger.error('Failed to send like:', error);
+            await this.context.replyTG(chatId, `❌ 点赞失败：${error.message || error}`, threadId);
         }
+    }
+
+    /**
+     * 处理群荣誉命令
+     * Phase 3: /honor [类型]
+     */
+    private async handleGroupHonor(
+        chatId: string,
+        threadId: number | undefined,
+        qqGroupId: string,
+        args: string[]
+    ) {
+        try {
+            const type = args[0] || 'all';
+            const validTypes = ['talkative', 'performer', 'legend', 'strong_newbie', 'emotion', 'all'];
+
+            if (!validTypes.includes(type)) {
+                await this.context.replyTG(
+                    chatId,
+                    `❌ 无效的类型\n\n有效类型：talkative(龙王), performer(群聊之火), legend(快乐源泉), strong_newbie(冲高之星), emotion(一笔当先), all(全部)`,
+                    threadId
+                );
+                return;
+            }
+
+            const getGroupHonorInfo = this.context.qqClient.getGroupHonorInfo;
+            if (!getGroupHonorInfo) {
+                await this.context.replyTG(chatId, '❌ 当前QQ客户端不支持群荣誉功能', threadId);
+                return;
+            }
+
+            const result = await getGroupHonorInfo.call(this.context.qqClient, qqGroupId, type as any);
+
+            // 格式化结果
+            let message = `🏆 群荣誉榜单\n\n`;
+
+            if (type === 'all' && result) {
+                const types = ['talkative', 'performer', 'legend', 'strong_newbie', 'emotion'];
+                const typeNames: any = {
+                    talkative: '🐉 龙王',
+                    performer: '🔥 群聊之火',
+                    legend: '😄 快乐源泉',
+                    strong_newbie: '⭐ 冲高之星',
+                    emotion: '✍️ 一笔当先',
+                };
+
+                for (const t of types) {
+                    const list = result[`${t}_list`];
+                    if (list && list.length > 0) {
+                        message += `${typeNames[t]}\n`;
+                        list.slice(0, 3).forEach((item: any, i: number) => {
+                            // honor API 返回的字段是 desc/name，不是 nickname
+                            // QQ号字段是 user_id，不是 uin
+                            const displayName = item.desc || item.name || item.nickname || item.user_id || 'Unknown';
+                            const userId = item.user_id || item.uin || 'Unknown';
+                            message += `  ${i + 1}. ${displayName} (${userId})\n`;
+                        });
+                        message += '\n';
+                    }
+                }
+            } else {
+                message += JSON.stringify(result, null, 2);
+            }
+
+            await this.context.replyTG(chatId, message, threadId);
+            logger.info(`Retrieved group honor info for ${qqGroupId}: ${type}`);
+        } catch (error: any) {
+            logger.error('Failed to get group honor:', error);
+            await this.context.replyTG(chatId, `❌ 获取群荣誉失败：${error.message || error}`, threadId);
+        }
+    }
+
+    /**
+     * 解析目标用户ID
+     */
+    private async resolveTargetUser(
+        msg: UnifiedMessage,
+        args: string[],
+        argIndex: number
+    ): Promise<string | null> {
+        const raw = (msg.metadata as any)?.raw as any;
+
+        if (raw?.replyToMessage || raw?.replyTo) {
+            const replyMsg = raw.replyToMessage || raw.replyTo;
+            if (replyMsg?.senderId) {
+                return String(replyMsg.senderId);
+            }
+        }
+
+        const replyContent = msg.content.find(c => c.type === 'reply');
+        if (replyContent) {
+            const replyData = replyContent.data as any;
+            if (replyData.senderId) {
+                return String(replyData.senderId);
+            }
+        }
+
+        const arg = args[argIndex];
+        if (arg && /^\d{5,11}$/.test(arg)) {
+            return arg;
+        }
+
+        return null;
     }
 }

@@ -7,6 +7,67 @@
 
 ---
 
+## [v0.1.0] - 2025-12-15
+
+### 🎯 命令系统重构与修复
+
+- ****命令参数灵活性**: 所有命令支持参数顺序互换、回复消息提取目标用户
+- **Forum Topic 修复**: 修复 Telegram Forum/Topic 环境下命令解析错误的关键Bug
+- **命令整合**: 合并 `/mute` 和 `/ban` 为统一接口，支持人性化时间格式 (1m/1h/1d)
+- **新增/改进命令**:
+  - `/nick` - 修改机器人群名片（已实现setGroupCard API）
+  - `/poke` - 戳一戳功能（支持NapCat API调用）
+  - `/like` - 点赞命令，修复参数解析
+  - `/card` - 修改群名片，修复QQ号识别
+  - `/title` - 专属头衔，修复参数顺序
+  - `/admin` - 管理员设置，修复绑定检查
+  - `/honor` - 群荣誉榜，修复用户ID显示
+  - `/muteall` & `/unmuteall` - 全员禁言/解除
+
+### 🔧 技术债务清理
+
+- **移除冗余代码**: 删除handleMute等未实现的冗余方法
+- **清理TODO注释**: 移除已实现功能的过时TODO标记
+- **调试日志清理**: 移除所有开发调试用的console.log和临时logger
+- **工具类重构**: 新增CommandArgsParser统一参数解析逻辑
+
+### 🐛 核心Bug修复
+
+- **转发消息显示**: 修复合并消息查看器白字问题，添加text-gray-900样式
+- **NapCat适配**: 修复napcatConvert使用错误字段导致的内容为空
+- **绑定检查失败**: 修复async import导致的命令绑定检查异常
+- **Thread ID混淆**: 修复extractThreadId误把命令参数当作threadId
+
+### 📚 文档与质量
+
+- **代码可维护性**: 参数解析逻辑统一化，减少重复代码
+- **错误提示优化**: 所有命令提供清晰的使用说明和错误提示
+- **构建优化**: 确保所有代码变更通过TypeScript编译检查
+
+[查看 Release 说明](https://github.com/NapLink/NapGram/releases/tag/v0.1.0)
+
+---
+
+## [v0.0.9] - 2025-12-13
+
+- **WebUI 管理面板**: 全新 Web 可视化管理界面，支持实例管理、配对管理、消息浏览、实时日志查看
+- **现代化技术栈**: React 19 + Vite + Tailwind CSS 4 + shadcn/ui，响应式设计支持移动端
+- **路由优化**: 修复 Web 资源路径配置，移除 `/ui` 前缀
+- **代码精简**: 架构优化减少约 2900 行代码，提升可维护性
+- **Docker优化**: 改进容器入口脚本，确保 Web 资源正确打包
+
+[查看 Release 说明](https://github.com/NapLink/NapGram/releases/tag/v0.0.9)
+
+## [v0.0.8] - 2025-12-10
+
+- **NapLink SDK 迁移**: 从 node-napcat-ts 迁移到自研 NapLink SDK，提供更现代化的通信基础
+- **TGS 贴纸优化**: 重构动态贴纸转换逻辑，改用 sharp 处理图片转换
+- **媒体转发提示**: 新增视频、语音消息转发时的友好提示信息
+- **CI/CD 增强**: Telegram 通知支持多个接收者、构建状态实时推送、依赖自动更新
+- **依赖升级**: NapLink v0.1.1、sharp v0.33.5 等核心依赖更新
+
+[查看 Release 说明](https://github.com/NapLink/NapGram/releases/tag/v0.0.8)
+
 ## [v0.0.7] - 2025-12-09
 
 - **Node.js 25 升级**: 运行时升级至 `node:25-slim` 基础镜像，保持高性能。

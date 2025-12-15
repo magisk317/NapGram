@@ -12,7 +12,12 @@ export class UnbindCommandHandler {
     constructor(private readonly context: CommandContext) { }
 
     async execute(msg: UnifiedMessage, args: string[]): Promise<void> {
-        const qqGroupId = args[0];
+        // 只在 Telegram 端处理
+        if (msg.platform !== 'telegram') {
+            return;
+        }
+
+        const qqGroupId = args.length === 1 ? args[0] : undefined;
         const chatId = msg.chat.id;
         const forwardMap = this.context.instance.forwardPairs as ForwardMap;
         const threadId = this.context.extractThreadId(msg, args);

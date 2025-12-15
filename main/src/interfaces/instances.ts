@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { authMiddleware } from '../infrastructure/auth/authMiddleware';
 import db from '../domain/models/db';
 import { z } from 'zod';
+import { ApiResponse } from '../shared/utils/api-response';
 
 /**
  * 实例管理 API
@@ -56,9 +57,8 @@ export default async function (fastify: FastifyInstance) {
             db.instance.count()
         ]);
 
-        return {
-            success: true,
-            items: items.map(item => ({
+        return ApiResponse.paginated(
+            items.map(item => ({
                 ...item,
                 owner: item.owner.toString(),
                 qqBot: item.qqBot ? {
@@ -76,7 +76,7 @@ export default async function (fastify: FastifyInstance) {
             total,
             page,
             pageSize
-        };
+        );
     });
 
     /**
@@ -97,10 +97,9 @@ export default async function (fastify: FastifyInstance) {
         });
 
         if (!instance) {
-            return reply.code(404).send({
-                success: false,
-                error: 'Instance not found'
-            });
+            return reply.code(404).send(
+                ApiResponse.error('Instance not found')
+            );
         }
 
         return {
@@ -161,9 +160,8 @@ export default async function (fastify: FastifyInstance) {
         } catch (error: any) {
             if (error instanceof z.ZodError) {
                 return reply.code(400).send({
-                    success: false,
-                    error: 'Invalid request',
-                    details: error.errors
+                    ...ApiResponse.error('Invalid request'),
+                    details: error.issues
                 });
             }
             throw error;
@@ -214,16 +212,14 @@ export default async function (fastify: FastifyInstance) {
         } catch (error: any) {
             if (error instanceof z.ZodError) {
                 return reply.code(400).send({
-                    success: false,
-                    error: 'Invalid request',
-                    details: error.errors
+                    ...ApiResponse.error('Invalid request'),
+                    details: error.issues
                 });
             }
             if (error.code === 'P2025') {
-                return reply.code(404).send({
-                    success: false,
-                    error: 'Instance not found'
-                });
+                return reply.code(404).send(
+                    ApiResponse.error('Instance not found')
+                );
             }
             throw error;
         }
@@ -259,16 +255,12 @@ export default async function (fastify: FastifyInstance) {
                 request.headers['user-agent']
             );
 
-            return {
-                success: true,
-                message: 'Instance deleted successfully'
-            };
+            return ApiResponse.success(undefined, 'Instance deleted successfully');
         } catch (error: any) {
             if (error.code === 'P2025') {
-                return reply.code(404).send({
-                    success: false,
-                    error: 'Instance not found'
-                });
+                return reply.code(404).send(
+                    ApiResponse.error('Instance not found')
+                );
             }
             throw error;
         }
@@ -335,9 +327,8 @@ export default async function (fastify: FastifyInstance) {
         } catch (error: any) {
             if (error instanceof z.ZodError) {
                 return reply.code(400).send({
-                    success: false,
-                    error: 'Invalid request',
-                    details: error.errors
+                    ...ApiResponse.error('Invalid request'),
+                    details: error.issues
                 });
             }
             throw error;

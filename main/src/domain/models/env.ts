@@ -32,13 +32,13 @@ const configParsed = z.object({
   TG_BOT_TOKEN: z.string(),
   TG_CONNECTION: z.enum(['websocket', 'tcp']).default('tcp'),
   TG_INITIAL_DCID: z.string().regex(/^\d+$/).transform(Number).optional(),
-  TG_INITIAL_SERVER: z.string().ip().optional(),
-  TG_USE_TEST_DC: z.string().transform((v) => ['true', '1', 'yes'].includes(v.toLowerCase())).default('false'),
-  IPV6: z.string().transform((v) => ['true', '1', 'yes'].includes(v.toLowerCase())).default('false'),
+  TG_INITIAL_SERVER: z.union([z.ipv4(), z.ipv6()]).optional(),
+  TG_USE_TEST_DC: z.string().default('false').transform((v) => ['true', '1', 'yes'].includes(v.toLowerCase())),
+  IPV6: z.string().default('false').transform((v) => ['true', '1', 'yes'].includes(v.toLowerCase())),
   ADMIN_QQ: z.string().regex(/^\d+$/).transform(Number).optional(),
   ADMIN_TG: z.string().regex(/^-?\d+$/).transform(Number).optional(),
 
-  PROXY_IP: z.string().ip().optional(),
+  PROXY_IP: z.union([z.ipv4(), z.ipv6()]).optional(),
   PROXY_PORT: z.string().regex(/^\d+$/).transform(Number).optional(),
   PROXY_USERNAME: z.string().optional(),
   PROXY_PASSWORD: z.string().optional(),
@@ -49,11 +49,11 @@ const configParsed = z.object({
   CRV_VIEWER_APP: z.string().url().startsWith('https://t.me/').optional(),
   CRV_KEY: z.string().optional(),
 
-  DISABLE_FILE_UPLOAD_TIP: z.string().transform((v) => ['true', '1', 'yes'].includes(v.toLowerCase())).default('false'),
+  DISABLE_FILE_UPLOAD_TIP: z.string().default('false').transform((v) => ['true', '1', 'yes'].includes(v.toLowerCase())),
   IMAGE_SUMMARY: z.string().optional(),
-  ENABLE_FEATURE_MANAGER: z.string().transform((v) => ['true', '1', 'yes'].includes(v.toLowerCase())).default('false'),
+  ENABLE_FEATURE_MANAGER: z.string().default('false').transform((v) => ['true', '1', 'yes'].includes(v.toLowerCase())),
 
-  LISTEN_PORT: z.string().regex(/^\d+$/).transform(Number).default('8080'),
+  LISTEN_PORT: z.string().regex(/^\d+$/).default('8080').transform(Number),
 
   ADMIN_TOKEN: z.string().optional(),
   UI_PATH: z.string().optional(),
@@ -61,12 +61,12 @@ const configParsed = z.object({
   WEB_ENDPOINT: z.string().url().optional(),
   INTERNAL_WEB_ENDPOINT: z.string().url().optional(),
 
-  POSTHOG_OPTOUT: z.string().transform((v) => ['true', '1', 'yes'].includes(v.toLowerCase())).default('false'),
+  POSTHOG_OPTOUT: z.string().default('false').transform((v) => ['true', '1', 'yes'].includes(v.toLowerCase())),
   SHOW_NICKNAME_MODE: z.string().regex(/^[01]{2}$/).default('11'),
   FORWARD_MODE: z.string().regex(/^[01]{2}$/).default('11'),
-  ENABLE_AUTO_RECALL: z.string().transform((v) => ['true', '1', 'yes'].includes(v.toLowerCase())).default('true'),
-  ENABLE_OFFLINE_NOTIFICATION: z.string().transform((v) => ['true', '1', 'yes'].includes(v.toLowerCase())).default('true'),
-  OFFLINE_NOTIFICATION_COOLDOWN: z.string().regex(/^\d+$/).transform(Number).default('3600000'), // 默认1小时
+  ENABLE_AUTO_RECALL: z.string().default('true').transform((v) => ['true', '1', 'yes'].includes(v.toLowerCase())),
+  ENABLE_OFFLINE_NOTIFICATION: z.string().default('true').transform((v) => ['true', '1', 'yes'].includes(v.toLowerCase())),
+  OFFLINE_NOTIFICATION_COOLDOWN: z.string().regex(/^\d+$/).default('3600000').transform(Number), // 默认1小时
 
   REPO: z.string().default('Local Build'),
   REF: z.string().default('Local Build'),

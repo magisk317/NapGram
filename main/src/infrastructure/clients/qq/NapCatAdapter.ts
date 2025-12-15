@@ -58,85 +58,102 @@ export class NapCatAdapter extends EventEmitter {
     }
 
     private setupEvents() {
+        // 连接事件
         this.client.on('connect', () => {
             this.emit('online');
             this.refreshSelfInfo();
-            // this.startHeartbeat(); // SDK handles heartbeat if configured
-
-            // 触发重连成功事件  
             this.emit('connection:restored', {
                 timestamp: Date.now()
             });
         });
 
-        // NapLink splits events, but we can listen to 'raw' to get everything and process it via existing handler
-        this.client.on('raw', (context: any) => {
-            this.handleWebSocketMessage(context).catch(err => logger.error('Failed to handle WebSocket message:', err));
-        });
-
         this.client.on('disconnect', () => {
             this.emit('offline');
-
-            // 触发掉线通知事件
             this.emit('connection:lost', {
                 timestamp: Date.now(),
                 reason: 'WebSocket closed'
             });
         });
-    }
 
-    private async handleWebSocketMessage(data: MessageEvent | NoticeEvent | RequestEvent | MetaEvent) {
-        // SDK handles Echo/API responses internally, we only get events here
-        // 处理事件
-        if (data.post_type === 'message') {
-            const msgEvent = data as MessageEvent;
-            // Use SDK's media hydration
-            await this.client.hydrateMessage(msgEvent.message);
-            const unifiedMsg = messageConverter.fromNapCat(data);
-            (this as any).emit('message', unifiedMsg);
-        } else if (data.post_type === 'notice') {
-            this.handleNotice(data as NoticeEvent);
-        } else if (data.post_type === 'request') {
-            // 处理请求事件
-        }
-    }
+        // 消息事件 - 使用SDK的细粒度事件
+        this.client.on('message', async (data: MessageEvent) => {
+            try {
+                await this.client.hydrateMessage(data.message);
+                const unifiedMsg = messageConverter.fromNapCat(data);
+                (this as any).emit('message', unifiedMsg);
+            } catch (err) {
+                logger.error('Failed to handle message event:', err);
+            }
+        });
 
-    private handleNotice(data: any) {
-        switch (data.notice_type) {
-            case 'group_recall':
-            case 'friend_recall':
-                (this as any).emit('recall', {
-                    messageId: String(data.message_id),
-                    chatId: String(data.group_id || data.user_id),
-                    operatorId: String(data.operator_id || data.user_id),
-                    timestamp: data.time * 1000,
-                } as RecallEvent);
-                break;
+        // 撤回事件
+        this.client.on('notice.group_recall', (data: any) => {
+            (this as any).emit('recall', {
+                messageId: String(data.message_id),
+                chatId: String(data.group_id),
+                operatorId: String(data.operator_id),
+                timestamp: data.time * 1000,
+            } as RecallEvent);
+        });
 
-            case 'group_increase':
-                (this as any).emit('group.increase', String(data.group_id), {
-                    id: String(data.user_id),
-                    name: '',
-                });
-                break;
+        this.client.on('notice.friend_recall', (data: any) => {
+            (this as any).emit('recall', {
+                messageId: String(data.message_id),
+                chatId: String(data.user_id),
+                operatorId: String(data.user_id),
+                timestamp: data.time * 1000,
+            } as RecallEvent);
+        });
 
-            case 'group_decrease':
-                (this as any).emit('group.decrease', String(data.group_id), String(data.user_id));
-                break;
+        // 群成员变动
+        this.client.on('notice.group_increase', (data: any) => {
+            (this as any).emit('group.increase', String(data.group_id), {
+                id: String(data.user_id),
+                name: '',
+            });
+        });
 
-            case 'friend_add':
-                (this as any).emit('friend.increase', {
-                    id: String(data.user_id),
-                    name: '',
-                });
-                break;
+        this.client.on('notice.group_decrease', (data: any) => {
+            (this as any).emit('group.decrease', String(data.group_id), String(data.user_id));
+        });
 
-            case 'notify':
-                if (data.sub_type === 'poke') {
-                    (this as any).emit('poke', String(data.group_id || data.user_id), String(data.user_id), String(data.target_id));
-                }
-                break;
-        }
+        // 好友添加
+        this.client.on('notice.friend_add', (data: any) => {
+            (this as any).emit('friend.increase', {
+                id: String(data.user_id),
+                name: '',
+            });
+        });
+
+        // 戳一戳 - 使用细粒度事件
+        this.client.on('notice.notify.poke', (data: any) => {
+            (this as any).emit('poke',
+                String(data.group_id || data.user_id),
+                String(data.user_id),
+                String(data.target_id)
+            );
+        });
+
+        // Phase 3: 请求事件
+        this.client.on('request.friend', (data: any) => {
+            (this as any).emit('request.friend', {
+                flag: data.flag,
+                userId: String(data.user_id),
+                comment: data.comment || '',
+                timestamp: data.time * 1000,
+            });
+        });
+
+        this.client.on('request.group', (data: any) => {
+            (this as any).emit('request.group', {
+                flag: data.flag,
+                groupId: String(data.group_id),
+                userId: String(data.user_id),
+                subType: data.sub_type,
+                comment: data.comment || '',
+                timestamp: data.time * 1000,
+            });
+        });
     }
 
     private async refreshSelfInfo() {
@@ -229,7 +246,13 @@ export class NapCatAdapter extends EventEmitter {
 
         // 补齐媒体直链，避免 video/file 只有 file_id
         await Promise.all(messages.map(async (msg) => {
+            // Skip if msg or msg.message is invalid
+            if (!msg || !Array.isArray(msg.message)) return;
+
             for (const elem of msg.message) {
+                // Skip if elem is null/undefined or doesn't have expected structure
+                if (!elem || typeof elem !== 'object' || !elem.type) continue;
+
                 if ((elem.type === 'video' || elem.type === 'file' || elem.type === 'image' || elem.type === 'record')
                     && typeof (elem as any).file === 'string'
                     && !(elem as any).file.startsWith('http')) {
@@ -255,10 +278,7 @@ export class NapCatAdapter extends EventEmitter {
     async getFile(fileId: string): Promise<any> {
         try {
             const normalizedId = fileId.replace(/^\//, '');
-            if (typeof (this.client as any).getFile === 'function') {
-                return await (this.client as any).getFile(normalizedId);
-            }
-            return await this.client.callApi('get_file', { file_id: normalizedId });
+            return await this.client.getFile(normalizedId);
         } catch (e) {
             logger.warn(e, 'get_file failed');
             return null;
@@ -353,4 +373,173 @@ export class NapCatAdapter extends EventEmitter {
     async callApi(method: string, params?: any): Promise<any> {
         return this.client.callApi(method, params);
     }
+
+    // ============ 群组管理 ============
+
+    /**
+     * 禁言群成员
+     */
+    async banUser(groupId: string, userId: string, duration: number): Promise<void> {
+        try {
+            await this.client.setGroupBan(groupId, userId, duration);
+            logger.info(`Banned user ${userId} in group ${groupId} for ${duration}s`);
+        } catch (error) {
+            logger.error(`Failed to ban user ${userId} in group ${groupId}:`, error);
+            throw error;
+        }
+    }
+
+    /**
+     * 解除群成员禁言
+     */
+    async unbanUser(groupId: string, userId: string): Promise<void> {
+        try {
+            await this.client.unsetGroupBan(groupId, userId);
+            logger.info(`Unbanned user ${userId} in group ${groupId}`);
+        } catch (error) {
+            logger.error(`Failed to unban user ${userId} in group ${groupId}:`, error);
+            throw error;
+        }
+    }
+
+    /**
+     * 踢出群成员
+     */
+    async kickUser(groupId: string, userId: string, rejectAddRequest: boolean = false): Promise<void> {
+        try {
+            await this.client.setGroupKick(groupId, userId, rejectAddRequest);
+            logger.info(`Kicked user ${userId} from group ${groupId}`);
+        } catch (error) {
+            logger.error(`Failed to kick user ${userId} from group ${groupId}:`, error);
+            throw error;
+        }
+    }
+
+    /**
+     * 设置群成员名片
+     */
+    async setGroupCard(groupId: string, userId: string, card: string): Promise<void> {
+        try {
+            await this.client.setGroupCard(groupId, userId, card);
+            logger.info(`Set group card for user ${userId} in group ${groupId} to: ${card}`);
+        } catch (error) {
+            logger.error(`Failed to set group card for user ${userId} in group ${groupId}:`, error);
+            throw error;
+        }
+    }
+
+    // ============ Phase 2: 高级群组管理 ============
+
+    /**
+     * 全员禁言
+     */
+    async setGroupWholeBan(groupId: string, enable: boolean): Promise<void> {
+        try {
+            await this.client.setGroupWholeBan(groupId, enable);
+            logger.info(`[NapCat] ${enable ? '开启' : '关闭'}全员禁言: ${groupId}`);
+        } catch (error: any) {
+            logger.error(`[NapCat] 设置全员禁言失败: ${groupId}`, error);
+            throw new Error(`设置全员禁言失败: ${error.message || 'Unknown error'}`);
+        }
+    }
+
+    /**
+     * 设置管理员
+     */
+    async setGroupAdmin(groupId: string, userId: string, enable: boolean): Promise<void> {
+        try {
+            await this.client.setGroupAdmin(groupId, userId, enable);
+            logger.info(`[NapCat] ${enable ? '设置' : '取消'}管理员: 群${groupId} 用户${userId}`);
+        } catch (error: any) {
+            logger.error(`[NapCat] 设置管理员失败: 群${groupId} 用户${userId}`, error);
+            throw new Error(`设置管理员失败: ${error.message || 'Unknown error'}`);
+        }
+    }
+
+    /**
+     * 修改群名
+     */
+    async setGroupName(groupId: string, groupName: string): Promise<void> {
+        try {
+            await this.client.setGroupName(groupId, groupName);
+            logger.info(`[NapCat] 修改群名: 群${groupId} -> ${groupName}`);
+        } catch (error: any) {
+            logger.error(`[NapCat] 修改群名失败: 群${groupId}`, error);
+            throw new Error(`修改群名失败: ${error.message || 'Unknown error'}`);
+        }
+    }
+
+    /**
+     * 设置专属头衔
+     */
+    async setGroupSpecialTitle(groupId: string, userId: string, title: string, duration: number = -1): Promise<void> {
+        try {
+            await this.client.setGroupSpecialTitle(groupId, userId, title, duration);
+            logger.info(`[NapCat] 设置专属头衔: 群${groupId} 用户${userId} -> ${title}`);
+        } catch (error: any) {
+            logger.error(`[NapCat] 设置专属头衔失败: 群${groupId} 用户${userId}`, error);
+            throw new Error(`设置专属头衔失败: ${error.message || 'Unknown error'}`);
+        }
+    }
+
+    // ============ Phase 2: 请求处理 ============
+
+    /**
+     * 处理好友申请
+     */
+    async handleFriendRequest(flag: string, approve: boolean, remark?: string): Promise<void> {
+        try {
+            await this.client.handleFriendRequest(flag, approve, remark);
+            logger.info(`[NapCat] ${approve ? '同意' : '拒绝'}好友申请: ${flag}`);
+        } catch (error: any) {
+            logger.error(`[NapCat] 处理好友申请失败: ${flag}`, error);
+            throw new Error(`处理好友申请失败: ${error.message || 'Unknown error'}`);
+        }
+    }
+
+    /**
+     * 处理加群申请
+     */
+    async handleGroupRequest(flag: string, subType: 'add' | 'invite', approve: boolean, reason?: string): Promise<void> {
+        try {
+            await this.client.handleGroupRequest(flag, subType, approve, reason);
+            logger.info(`[NapCat] ${approve ? '同意' : '拒绝'}加群申请: ${flag} (${subType})`);
+        } catch (error: any) {
+            logger.error(`[NapCat] 处理加群申请失败: ${flag}`, error);
+            throw new Error(`处理加群申请失败: ${error.message || 'Unknown error'}`);
+        }
+    }
+
+    // ============ Phase 3: QQ交互增强 ============
+
+    /**
+     * 点赞
+     */
+    async sendLike(userId: string, times: number = 1): Promise<void> {
+        try {
+            if (times < 1 || times > 10) {
+                throw new Error('点赞次数必须在1-10之间');
+            }
+            await this.client.sendLike(userId, times);
+            logger.info(`[NapCat] 点赞用户 ${userId} x${times}`);
+        } catch (error: any) {
+            logger.error(`[NapCat] 点赞失败: ${userId}`, error);
+            throw new Error(`点赞失败: ${error.message || 'Unknown error'}`);
+        }
+    }
+
+    /**
+     * 获取群荣誉信息
+     */
+    async getGroupHonorInfo(groupId: string, type: string = 'all'): Promise<any> {
+        try {
+            const result = await this.client.getGroupHonorInfo(groupId, type as any);
+            logger.info(`[NapCat] 获取群荣誉信息: ${groupId} (${type})`);
+            return result;
+        } catch (error: any) {
+            logger.error(`[NapCat] 获取群荣誉信息失败: ${groupId}`, error);
+            throw new Error(`获取群荣誉信息失败: ${error.message || 'Unknown error'}`);
+        }
+    }
 }
+

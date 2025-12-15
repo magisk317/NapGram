@@ -8,6 +8,24 @@ import type {
 } from '../../../domain/message/types';
 import type { ForwardMessage } from './types';
 
+// ============ Phase 3: 请求事件类型 ============
+
+export interface FriendRequestEvent {
+    flag: string;
+    userId: string;
+    comment: string;
+    timestamp: number;
+}
+
+export interface GroupRequestEvent {
+    flag: string;
+    groupId: string;
+    userId: string;
+    subType: 'add' | 'invite';
+    comment: string;
+    timestamp: number;
+}
+
 /**
  * QQ 客户端统一接口
  * Phase 1: 所有 QQ 客户端实现都必须遵循这个接口
@@ -115,6 +133,101 @@ export interface IQQClient extends EventEmitter {
      */
     getUserInfo(userId: string): Promise<any>;
 
+    // ============ 群组管理 ============
+
+    /**
+     * 禁言群成员
+     * @param groupId 群号
+     * @param userId 成员 QQ 号
+     * @param duration 禁言时长（秒），0 表示解除禁言
+     */
+    banUser?(groupId: string, userId: string, duration: number): Promise<void>;
+
+    /**
+     * 解除群成员禁言
+     * @param groupId 群号
+     * @param userId 成员 QQ 号
+     */
+    unbanUser?(groupId: string, userId: string): Promise<void>;
+
+    /**
+     * 踢出群成员
+     * @param groupId 群号
+     * @param userId 成员 QQ 号
+     * @param rejectAddRequest 是否拒绝再次加群请求
+     */
+    kickUser?(groupId: string, userId: string, rejectAddRequest?: boolean): Promise<void>;
+
+    /**
+     * 设置群成员名片
+     * @param groupId 群号
+     * @param userId 成员 QQ 号
+     * @param card 新的群名片
+     */
+    setGroupCard?(groupId: string, userId: string, card: string): Promise<void>;
+
+    /**
+     * 全员禁言
+     * @param groupId 群号
+     * @param enable 是否开启全员禁言
+     */
+    setGroupWholeBan?(groupId: string, enable: boolean): Promise<void>;
+
+    /**
+     * 设置群管理员
+     * @param groupId 群号
+     * @param userId 成员 QQ 号
+     * @param enable 是否设置为管理员
+     */
+    setGroupAdmin?(groupId: string, userId: string, enable: boolean): Promise<void>;
+
+    /**
+     * 修改群名称
+     * @param groupId 群号
+     * @param groupName 新群名
+     */
+    setGroupName?(groupId: string, groupName: string): Promise<void>;
+
+    /**
+     * 设置群成员专属头衔
+     * @param groupId 群号
+     * @param userId 成员 QQ 号
+     * @param title 专属头衔
+     * @param duration 有效期（秒），-1表示永久
+     */
+    setGroupSpecialTitle?(groupId: string, userId: string, title: string, duration?: number): Promise<void>;
+
+    /**
+     * 处理好友申请
+     * @param flag 请求 flag
+     * @param approve 是否同意
+     * @param remark 好友备注
+     */
+    handleFriendRequest?(flag: string, approve: boolean, remark?: string): Promise<void>;
+
+    /**
+     * 处理加群申请
+     * @param flag 请求 flag
+     * @param subType 请求类型：'add'（主动加群）| 'invite'（邀请入群）
+     * @param approve 是否同意
+     * @param reason 拒绝理由
+     */
+    handleGroupRequest?(flag: string, subType: 'add' | 'invite', approve: boolean, reason?: string): Promise<void>;
+
+    /**
+     * 点赞
+     * @param userId 用户 QQ 号
+     * @param times 点赞次数（1-10，默认1）
+     */
+    sendLike?(userId: string, times?: number): Promise<void>;
+
+    /**
+     * 获取群荣誉信息
+     * @param groupId 群号
+     * @param type 荣誉类型
+     */
+    getGroupHonorInfo?(groupId: string, type?: 'talkative' | 'performer' | 'legend' | 'strong_newbie' | 'emotion' | 'all'): Promise<any>;
+
     // ============ 事件监听 ============
 
     on(event: 'message', listener: (message: UnifiedMessage) => void): this;
@@ -129,6 +242,10 @@ export interface IQQClient extends EventEmitter {
     on(event: 'online', listener: () => void): this;
     on(event: 'connection:lost', listener: (data: { timestamp: number; reason: string }) => void): this;
     on(event: 'connection:restored', listener: (data: { timestamp: number }) => void): this;
+
+    // Phase 3: 请求事件
+    on(event: 'request.friend', listener: (data: FriendRequestEvent) => void): this;
+    on(event: 'request.group', listener: (data: GroupRequestEvent) => void): this;
 
 
     // ============ 生命周期 ============

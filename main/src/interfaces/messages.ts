@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify';
 import db from '../domain/models/db';
 import processNestedForward from '../shared/utils/processNestedForward';
 import { TTLCache } from '../shared/utils/cache';
+import { ApiResponse } from '../shared/utils/api-response';
 import { ErrorResponses } from '../shared/utils/fastify';
 import { authMiddleware } from '../infrastructure/auth/authMiddleware';
 
@@ -87,7 +88,31 @@ export default async function (fastify: FastifyInstance) {
     return result;
   });
 
+  // Legacy/compat: UI expects /api/messages/merged/:uuid
+  fastify.get('/api/messages/merged/:uuid', {
+    schema: getMessageSchema
+  }, async (request: any, reply: any) => {
+    const { uuid } = request.params;
+    const result = await tryGetForwardMultiple(uuid);
+    if (!result) {
+      return ErrorResponses.notFound(reply);
+    }
+    return result;
+  });
+
   fastify.get('/messages/:uuid', {
+    schema: getMessageSchema
+  }, async (request: any, reply: any) => {
+    const { uuid } = request.params;
+    const result = await tryGetForwardMultiple(uuid);
+    if (!result) {
+      return ErrorResponses.notFound(reply);
+    }
+    return result;
+  });
+
+  // Legacy/compat: UI expects /messages/merged/:uuid
+  fastify.get('/messages/merged/:uuid', {
     schema: getMessageSchema
   }, async (request: any, reply: any) => {
     const { uuid } = request.params;
@@ -134,8 +159,13 @@ export default async function (fastify: FastifyInstance) {
       throw new Error('No QQ client available');
     }
 
+    console.log(`[tryGetForwardMultiple] Fetching forward messages for resId: ${data.resId}`);
     const messages = await client.getForwardMsg(data.resId, data.fileName);
+    console.log(`[tryGetForwardMultiple] Received ${messages?.length || 0} messages from getForwardMsg`);
+    console.log(`[tryGetForwardMultiple] First message sample:`, JSON.stringify(messages?.[0], null, 2).substring(0, 500));
+
     await processNestedForward(messages, data.fromPairId);
+    console.log(`[tryGetForwardMultiple] After processNestedForward, messages count: ${messages?.length || 0}`);
 
     forwardCache.set(uuid, messages);
 

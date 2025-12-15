@@ -14,12 +14,18 @@ jobs:
     permissions:
       contents: read
       packages: write
+    env:
+      BUILD_REF: ${{ github.event_name == 'schedule' && 'refs/heads/dev' || github.ref }}
+      BUILD_REF_NAME: ${{ github.event_name == 'schedule' && 'dev' || github.ref_name }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event_name == 'schedule' && 'dev' || github.ref }}
+          ref: ${{ env.BUILD_REF }}
           fetch-depth: 0
+
+      - name: Derive build info
+        run: echo "BUILD_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
 
       - name: Checkout UI source (private)
         uses: actions/checkout@v4
@@ -74,10 +80,10 @@ jobs:
             ghcr.io/${{ github.repository }}
             docker.io/${{ secrets.DOCKERHUB_USERNAME }}/napgram
           tags: |
-            type=raw,value=main-latest,enable=${{ github.ref == 'refs/heads/main' }}
-            type=raw,value=dev-latest,enable=${{ github.ref == 'refs/heads/dev' || github.event_name == 'schedule' }}
-            type=raw,value=main-${{ env.DATE }},enable=${{ github.ref == 'refs/heads/main' }}
-            type=raw,value=dev-${{ env.DATE }},enable=${{ github.ref == 'refs/heads/dev' || github.event_name == 'schedule' }}
+            type=raw,value=main-latest,enable=${{ env.BUILD_REF == 'refs/heads/main' }}
+            type=raw,value=dev-latest,enable=${{ env.BUILD_REF == 'refs/heads/dev' }}
+            type=raw,value=main-${{ env.DATE }},enable=${{ env.BUILD_REF == 'refs/heads/main' }}
+            type=raw,value=dev-${{ env.DATE }},enable=${{ env.BUILD_REF == 'refs/heads/dev' }}
             type=ref,event=tag
 
       - name: Set up QEMU
@@ -113,8 +119,8 @@ jobs:
           cache-to: type=gha,mode=max
           build-args: |
             REPO=${{ github.repository }}
-            REF=${{ github.ref }}
-            COMMIT=${{ github.sha }}
+            REF=${{ env.BUILD_REF }}
+            COMMIT=${{ env.BUILD_SHA }}
             USE_MIRROR=false
             NODE_VERSION=25-slim
           secrets: |
@@ -127,8 +133,8 @@ jobs:
             ✅ Docker Build Success
             
             Repo: ${{ github.repository }}
-            Tag/Branch: ${{ github.ref_name }}
-            Image: ghcr.io/${{ github.repository }}:${{ github.ref_name }}
+            Tag/Branch: ${{ env.BUILD_REF_NAME }}
+            Image: ghcr.io/${{ github.repository }}:${{ startsWith(env.BUILD_REF, 'refs/tags/') && env.BUILD_REF_NAME || format('{0}-latest', env.BUILD_REF_NAME) }}
         run: |
           curl -fSs -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendMessage" \
             -d "chat_id=${{ secrets.TELEGRAM_TO_GROUP }}" \

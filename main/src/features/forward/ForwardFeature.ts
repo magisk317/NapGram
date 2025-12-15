@@ -94,6 +94,7 @@ export class ForwardFeature {
 
     private setupListeners() {
         this.qqClient.on('message', this.handleQQMessage);
+        this.qqClient.on('poke', this.handlePokeEvent);
         this.tgBot.addNewMessageEventHandler(async (tgMsg: Message) => {
             const threadId = new ThreadIdExtractor().extractFromRaw((tgMsg as any).raw || tgMsg);
 
@@ -312,9 +313,46 @@ export class ForwardFeature {
     }
 
 
+    private handlePokeEvent = async (groupId: string, operatorId: string, targetId: string) => {
+        try {
+            // Find mapping for this group
+            const pair = this.forwardMap.findByQQ(groupId);
+            if (!pair) return;
+
+            // Check if forwarding is enabled (QQ->TG)
+            const forwardMode = this.getForwardMode(pair);
+            if (forwardMode[0] === '0') return;
+
+            const tgChatId = Number(pair.tgChatId);
+
+            let msgText = '';
+            if (operatorId === targetId) {
+                msgText = `User ${operatorId} poked themselves`;
+            } else {
+                msgText = `👉 User ${operatorId} poked ${targetId}`;
+
+                // Try to get names/cards for better display
+                try {
+                    const opInfo = await this.qqClient.getGroupMemberInfo(groupId, operatorId);
+                    const targetInfo = await this.qqClient.getGroupMemberInfo(groupId, targetId);
+                    const opName = opInfo?.card || opInfo?.nickname || operatorId;
+                    const targetName = targetInfo?.card || targetInfo?.nickname || targetId;
+                    msgText = `👉 ${opName} 戳了戳 ${targetName}`;
+                } catch (e) {
+                    // ignore errors fetching names
+                }
+            }
+
+            await MessageUtils.replyTG(this.tgBot, tgChatId, msgText, pair.tgThreadId);
+        } catch (error) {
+            logger.error('Failed to handle poke event:', error);
+        }
+    };
+
     destroy() {
         this.mediaGroupHandler.destroy();
         this.qqClient.removeListener('message', this.handleQQMessage);
+        this.qqClient.removeListener('poke', this.handlePokeEvent);
         // Note: TG bot event handler cleanup is handled by bot client
         logger.info('ForwardFeature destroyed');
     }

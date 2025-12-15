@@ -1,6 +1,7 @@
 import { FastifyInstance } from 'fastify';
 import { AuthService } from '../infrastructure/auth';
 import { z } from 'zod';
+import { ApiResponse } from '../shared/utils/api-response';
 
 /**
  * 认证 API 路由
@@ -43,10 +44,9 @@ export default async function (fastify: FastifyInstance) {
             );
 
             if (!result) {
-                return reply.code(401).send({
-                    success: false,
-                    error: 'Invalid username or password'
-                });
+                return reply.code(401).send(
+                    ApiResponse.error('Invalid username or password')
+                );
             }
 
             // 设置 cookie
@@ -67,7 +67,7 @@ export default async function (fastify: FastifyInstance) {
                 return reply.code(400).send({
                     success: false,
                     error: 'Invalid request',
-                    details: error.errors
+                    details: error.issues
                 });
             }
             throw error;
@@ -85,10 +85,9 @@ export default async function (fastify: FastifyInstance) {
             const result = await AuthService.loginWithToken(body.token);
 
             if (!result) {
-                return reply.code(401).send({
-                    success: false,
-                    error: 'Invalid token'
-                });
+                return reply.code(401).send(
+                    ApiResponse.error('Invalid token')
+                );
             }
 
             // 设置 cookie
@@ -109,7 +108,7 @@ export default async function (fastify: FastifyInstance) {
                 return reply.code(400).send({
                     success: false,
                     error: 'Invalid request',
-                    details: error.errors
+                    details: error.issues
                 });
             }
             throw error;
@@ -130,10 +129,7 @@ export default async function (fastify: FastifyInstance) {
 
         reply.clearCookie('admin_token');
 
-        return {
-            success: true,
-            message: 'Logged out successfully'
-        };
+        return ApiResponse.success(undefined, 'Logged out successfully');
     });
 
     /**
@@ -208,14 +204,13 @@ export default async function (fastify: FastifyInstance) {
                 return reply.code(400).send({
                     success: false,
                     error: 'Invalid request',
-                    details: error.errors
+                    details: error.issues
                 });
             }
             if (error.code === 'P2002') {
-                return reply.code(409).send({
-                    success: false,
-                    error: 'Username already exists'
-                });
+                return reply.code(409).send(
+                    ApiResponse.error('Username already exists')
+                );
             }
             throw error;
         }
@@ -236,10 +231,9 @@ export default async function (fastify: FastifyInstance) {
             const auth = (request as any).auth;
 
             if (!auth.userId) {
-                return reply.code(403).send({
-                    success: false,
-                    error: 'Cannot change password for token-based auth'
-                });
+                return reply.code(403).send(
+                    ApiResponse.error('Cannot change password for token-based auth')
+                );
             }
 
             const success = await AuthService.changePassword(
@@ -249,22 +243,17 @@ export default async function (fastify: FastifyInstance) {
             );
 
             if (!success) {
-                return reply.code(400).send({
-                    success: false,
-                    error: 'Invalid old password'
-                });
+                return reply.code(400).send(
+                    ApiResponse.error('Invalid old password')
+                );
             }
 
-            return {
-                success: true,
-                message: 'Password changed successfully'
-            };
+            return ApiResponse.success(undefined, 'Password changed successfully');
         } catch (error) {
             if (error instanceof z.ZodError) {
                 return reply.code(400).send({
-                    success: false,
-                    error: 'Invalid request',
-                    details: error.errors
+                    ...ApiResponse.error('Invalid request'),
+                    details: error.issues
                 });
             }
             throw error;

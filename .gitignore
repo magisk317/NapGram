@@ -7,6 +7,10 @@ docs/_book
 
 test/
 
+# Local helper script / recovery
+build.sh
+.recovery/
+
 ### ArchLinuxPackages template
 *.tar
 *.tar.*
@@ -803,3 +807,4 @@ docs/PHASE1_README.md
 docs/PHASE2_README.md
 docs/PHASE3_README.md
 docs/PHASE4_README.md
+build.sh

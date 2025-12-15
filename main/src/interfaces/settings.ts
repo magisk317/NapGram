@@ -2,6 +2,7 @@ import { FastifyInstance } from 'fastify';
 import { authMiddleware } from '../infrastructure/auth/authMiddleware';
 import fs from 'fs/promises';
 import path from 'path';
+import { ApiResponse } from '../shared/utils/api-response';
 import env from '../domain/models/env';
 import { z } from 'zod';
 
@@ -116,7 +117,7 @@ export default async function (fastify: FastifyInstance) {
                 return reply.code(400).send({
                     success: false,
                     error: 'Invalid request',
-                    details: error.errors
+                    details: error.issues
                 });
             }
             throw error;

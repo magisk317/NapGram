@@ -6,6 +6,11 @@ import type { ForwardMessage } from './types';
  */
 export const napCatForwardMultiple = (messages: WSSendReturn['get_forward_msg']['messages']): ForwardMessage[] => messages.map(it => {
     const anyIt = it as any;
+    // NapCat API uses 'message' field, not 'content'
+    // Filter out null/undefined elements before mapping
+    const contentArray = Array.isArray(anyIt.message) ? anyIt.message : [anyIt.message];
+    const validContent = contentArray.filter((elem: any) => elem != null);
+
     return {
         group_id: it.message_type === 'group' ? it.group_id : undefined,
         nickname: it.sender.card || it.sender.nickname,
@@ -13,7 +18,8 @@ export const napCatForwardMultiple = (messages: WSSendReturn['get_forward_msg'][
         user_id: it.sender.user_id,
         seq: it.message_id,
         raw_message: it.raw_message,
-        message: (Array.isArray(anyIt.content) ? anyIt.content : [anyIt.content]).map(napCatReceiveToMessageElem),
+        // Also filter out null results from conversion
+        message: validContent.map(napCatReceiveToMessageElem).filter((elem: any) => elem != null),
     };
 });
 
@@ -21,8 +27,18 @@ export const napCatForwardMultiple = (messages: WSSendReturn['get_forward_msg'][
  * 将 NapCat 接收的消息元素转换为统一格式
  */
 function napCatReceiveToMessageElem(data: Receive[keyof Receive]): any {
+    // Handle null/undefined data
+    if (!data) return null;
+
     const anyData = data as any;
     const type = anyData.type as string;
+
+    // Debug logging to see what we're receiving
+    if (!type) {
+        console.log('[napCatConvert] Element missing type:', JSON.stringify(anyData).substring(0, 200));
+        return null;
+    }
+
     switch (type) {
         case 'text':
             return {
@@ -102,6 +118,11 @@ function napCatReceiveToMessageElem(data: Receive[keyof Receive]): any {
                 id: Number(anyData.data.id),
             };
         default:
-            return anyData;
+            console.log(`[napCatConvert] Unknown message type: ${type}, data:`, JSON.stringify(anyData).substring(0, 300));
+            // Return data with type preserved for unknown types
+            return {
+                type,
+                ...(anyData.data || anyData)
+            };
     }
 }
