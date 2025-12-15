@@ -110,6 +110,16 @@ export interface IQQClient extends EventEmitter {
     markMessageAsRead?(messageId: string): Promise<any>;
     getGroupAtAllRemain?(groupId: string): Promise<number>;
     getGroupSystemMsg?(): Promise<any>;
+    // NapCat 扩展：戳一戳 / 已读 / 历史
+    sendGroupPoke?(groupId: string, userId: string): Promise<any>;
+    sendFriendPoke?(userId: string): Promise<any>;
+    sendPoke?(targetId: string, groupId?: string): Promise<any>;
+    markGroupMsgAsRead?(groupId: string): Promise<any>;
+    markPrivateMsgAsRead?(userId: string): Promise<any>;
+    markAllMsgAsRead?(): Promise<any>;
+    getGroupMsgHistory?(params: { group_id: string; message_seq: number | string; count: number; reverse_order?: boolean }): Promise<any>;
+    getFriendMsgHistory?(params: { user_id: string; message_seq: number | string; count: number; reverse_order?: boolean }): Promise<any>;
+    getRecentContact?(count: number): Promise<any>;
 
     // GroupApi（补齐 NapLink 暴露能力）
     setGroupLeave?(groupId: string, isDismiss?: boolean): Promise<any>;
@@ -142,6 +152,11 @@ export interface IQQClient extends EventEmitter {
         }
     ): Promise<any>;
     getUploadStreamStatus?(streamId: string): Promise<any>;
+    // StreamApi（NapCat 流式下载）
+    downloadFileStreamToFile?(fileId: string, options?: { chunkSize?: number; filename?: string }): Promise<{ path: string; info?: any }>;
+    downloadFileImageStreamToFile?(fileId: string, options?: { chunkSize?: number; filename?: string }): Promise<{ path: string; info?: any }>;
+    downloadFileRecordStreamToFile?(fileId: string, outFormat?: string, options?: { chunkSize?: number; filename?: string }): Promise<{ path: string; info?: any }>;
+    cleanStreamTempFile?(): Promise<any>;
 
     // ============ 联系人操作 ============
 

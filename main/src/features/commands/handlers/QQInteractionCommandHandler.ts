@@ -73,12 +73,8 @@ export class QQInteractionCommandHandler {
                 return;
             }
 
-            const sendGroupPoke = (this.context.qqClient as any).sendGroupPoke as
-                | ((groupId: string, userId: string) => Promise<void>)
-                | undefined;
-
-            if (sendGroupPoke) {
-                await sendGroupPoke.call(this.context.qqClient, qqGroupId, targetUin);
+            if (this.context.qqClient.sendGroupPoke) {
+                await this.context.qqClient.sendGroupPoke(qqGroupId, targetUin);
             } else if (this.context.qqClient.callApi) {
                 const groupId = Number(qqGroupId);
                 const userId = Number(targetUin);
