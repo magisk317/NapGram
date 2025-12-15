@@ -86,40 +86,48 @@ export class MediaFeature {
         const normalizedId = fileId.replace(/^\//, '');
         const qq: any = this.qqClient as any;
         try {
+            let res: any = null;
             if (typeof qq.getFile === 'function') {
-                const res = await qq.getFile(normalizedId);
-                if (res) {
-                    const fileUrl = res.url || res.file;
-                    if (fileUrl) {
-                        // http 直链
-                        if (/^https?:\/\//.test(fileUrl)) {
-                            return { buffer: await this.downloadMedia(fileUrl), url: fileUrl };
-                        }
-                        // 本地路径
-                        if (fileUrl.startsWith('/')) {
-                            try {
-                                return { buffer: await fsP.readFile(fileUrl), path: fileUrl };
-                            } catch {
-                                // fallthrough
-                            }
-                        }
-                    }
-                    if (res.data && Buffer.isBuffer(res.data)) {
-                        return { buffer: res.data };
-                    }
-                }
+                res = await qq.getFile(normalizedId);
+            } else if (typeof qq.callApi === 'function') {
+                res = await qq.callApi('get_file', { file: normalizedId }).catch(() => null);
             }
 
-            // NapLink download_file 兜底（若暴露）
-            if (typeof qq.callApi === 'function') {
-                const downloaded = await qq.callApi('download_file', { url: normalizedId, thread_count: 3 }).catch(() => null);
-                const local = downloaded?.file || downloaded?.path;
-                if (local && typeof local === 'string') {
-                    try {
-                        return { buffer: await fsP.readFile(local), path: local };
-                    } catch {
-                        // ignore
+            if (res) {
+                const fileUrl = res.url || res.file;
+                if (fileUrl) {
+                    // http 直链：优先直接下载；失败再尝试 download_file（要求传入 url，而不是 file_id）
+                    if (/^https?:\/\//.test(fileUrl)) {
+                        try {
+                            return { buffer: await this.downloadMedia(fileUrl), url: fileUrl };
+                        } catch (error) {
+                            if (typeof qq.callApi === 'function') {
+                                const downloaded = await qq.callApi('download_file', { url: fileUrl, thread_count: 3 }).catch(() => null);
+                                const local = downloaded?.file || downloaded?.path;
+                                if (local && typeof local === 'string') {
+                                    try {
+                                        return { buffer: await fsP.readFile(local), path: local };
+                                    } catch {
+                                        // ignore
+                                    }
+                                }
+                            }
+                            throw error;
+                        }
                     }
+
+                    // 本地路径
+                    if (typeof fileUrl === 'string' && fileUrl.startsWith('/')) {
+                        try {
+                            return { buffer: await fsP.readFile(fileUrl), path: fileUrl };
+                        } catch {
+                            // fallthrough
+                        }
+                    }
+                }
+
+                if (res.data && Buffer.isBuffer(res.data)) {
+                    return { buffer: res.data };
                 }
             }
         } catch (err) {

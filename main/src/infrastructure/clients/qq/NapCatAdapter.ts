@@ -241,35 +241,28 @@ export class NapCatAdapter extends EventEmitter {
 
     async getForwardMsg(messageId: string, fileName?: string): Promise<ForwardMessage[]> {
         const data = await this.client.getForwardMessage(messageId); // file_name not supported in SDK types yet or not common
+        const rawMessages = (data as any)?.messages || [];
 
-        const messages = napCatForwardMultiple((data as any)?.messages || []);
+        // 在转换前补齐媒体直链，避免 video/file 只有 file_id
+        // 使用 NapLink 内置 hydrateMessage（get_file / get_image / get_record 等）
+        await Promise.all(rawMessages.map(async (node: any) => {
+            const content = node?.message;
+            const segments = Array.isArray(content) ? content : (content ? [content] : []);
+            if (segments.length === 0) return;
 
-        // 补齐媒体直链，避免 video/file 只有 file_id
-        await Promise.all(messages.map(async (msg) => {
-            // Skip if msg or msg.message is invalid
-            if (!msg || !Array.isArray(msg.message)) return;
-
-            for (const elem of msg.message) {
-                // Skip if elem is null/undefined or doesn't have expected structure
-                if (!elem || typeof elem !== 'object' || !elem.type) continue;
-
-                if ((elem.type === 'video' || elem.type === 'file' || elem.type === 'image' || elem.type === 'record')
-                    && typeof (elem as any).file === 'string'
-                    && !(elem as any).file.startsWith('http')) {
-                    try {
-                        const res = await this.client.getFile((elem as any).file);
-                        if (res?.file) {
-                            (elem as any).url = res.file;
-                            (elem as any).file = res.file;
-                        }
-                    } catch (e) {
-                        logger.warn('get_file failed for forward media', e);
-                    }
+            // 兼容 NapCat 某些段使用 file_id 而不是 file
+            for (const segment of segments) {
+                const data = segment?.data;
+                if (!data || typeof data !== 'object') continue;
+                if (data.file == null && typeof (data as any).file_id === 'string') {
+                    (data as any).file = (data as any).file_id;
                 }
             }
+
+            await this.client.hydrateMessage(segments);
         }));
 
-        return messages;
+        return napCatForwardMultiple(rawMessages);
     }
 
     /**
@@ -312,9 +305,7 @@ export class NapCatAdapter extends EventEmitter {
 
     async getFriendInfo(uin: string): Promise<Sender | null> {
         try {
-            const info = await this.client.callApi<any>('get_stranger_info', {
-                user_id: Number(uin),
-            });
+            const info = await this.client.getStrangerInfo(uin);
             return {
                 id: String(info.user_id),
                 name: info.nickname,
@@ -347,9 +338,7 @@ export class NapCatAdapter extends EventEmitter {
 
     async getUserInfo(userId: string): Promise<any> {
         try {
-            return await this.client.callApi('get_stranger_info', {
-                user_id: Number(userId),
-            });
+            return await this.client.getStrangerInfo(userId);
         } catch {
             return null;
         }
@@ -542,4 +531,3 @@ export class NapCatAdapter extends EventEmitter {
         }
     }
 }
-
