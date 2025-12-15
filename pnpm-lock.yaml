@@ -23,17 +23,17 @@ importers:
         specifier: ^4.2.11
         version: 4.2.11
       '@mtcute/core':
-        specifier: ^0.27.3
-        version: 0.27.3
+        specifier: ^0.27.4
+        version: 0.27.4
       '@mtcute/dispatcher':
-        specifier: ^0.27.3
-        version: 0.27.3
+        specifier: ^0.27.4
+        version: 0.27.4
       '@mtcute/markdown-parser':
         specifier: ^0.27.4
         version: 0.27.4
       '@mtcute/node':
-        specifier: ^0.27.3
-        version: 0.27.3(ws@8.18.3)
+        specifier: ^0.27.4
+        version: 0.27.4(ws@8.18.3)
       '@naplink/naplink':
         specifier: ^0.0.2
         version: 0.0.2
@@ -983,26 +983,23 @@ packages:
     resolution: {integrity: sha512-JwqeCQ1U3fvccttHZq7Tk0m/TMC6WcFAQZdukypW3AzlJYKYTGNVd1ANU2GuhKnv4UQuOFj3oAl0LLG/gxFN1w==}
     engines: {node: '>=16'}
 
-  '@mtcute/core@0.27.3':
-    resolution: {integrity: sha512-/eQsD7iSe73W1ZBUJztoGeqaNR9GvHVJJkb/EmZgZAa8wRiWQCIqwnthY2NH/LKGeglROiXfYwrMOOnufYck6w==}
-
   '@mtcute/core@0.27.4':
     resolution: {integrity: sha512-TGKMoLQJjX2ds6xop45z6GQU/ybH2JAZVf6zAPpWjNdK8CxdY0l3G7UlUVSdmMDhlOGkhMRZM6QGnEjidjHQ9g==}
 
-  '@mtcute/dispatcher@0.27.3':
-    resolution: {integrity: sha512-ZAK5uQJatMJYAhdG90AkfNT99PzGPMm9BkMu/7xNFx4+2zzhKX0TL/Do07xIVXnIu7jgYE7eq2/uwHusBkkd3A==}
+  '@mtcute/dispatcher@0.27.4':
+    resolution: {integrity: sha512-lwwLvdVtQMpydrCKzscgyTYzf+w1B4nkxREzwYrWmA4c5sysunFRPQ9XR7+a6mP3X/d7fZzhActwoyjYUhQB5w==}
 
   '@mtcute/file-id@0.27.0':
     resolution: {integrity: sha512-a8+8TSot62zM7rmuNzf7aTk3dws3wuHPjWRFeybhFg11Gr1/1f8R3MRGoHYzDGRcuXobcU9mUQxEKYYE+ogdEg==}
 
-  '@mtcute/html-parser@0.27.3':
-    resolution: {integrity: sha512-e0/EDiT30AUx5YPtqFLLPs7z1Jdi8SX7DBfw/wvg/+7hMG38dlVpdE711tt5ZO9xjzH1Xh+4LouwBD5Hp1UmrA==}
+  '@mtcute/html-parser@0.27.4':
+    resolution: {integrity: sha512-7ZjNt5sHsPzmEdOOdlTpcv5OJKBrO9txKT9YiNVlYKlGVtL9YUCQ8Rcx1ID5PCCpJvfMKZnUx3X/zWrpMpNaug==}
 
   '@mtcute/markdown-parser@0.27.4':
     resolution: {integrity: sha512-gon96be6qWBT2gIoY8zNOD9clKWK32xNpKxrDjk+dHQ19hinVbzmoGTjLZZGKh8ixouw5f0LhmbP3YFjBTZviQ==}
 
-  '@mtcute/node@0.27.3':
-    resolution: {integrity: sha512-5Qtb3hIgiXEf1HGSKATlPGZw1JS82oHPfPVosCGYkFM9fNL5RAXK19t9YtV/53MKnukOxWZeyVFHqPLT2rlscA==}
+  '@mtcute/node@0.27.4':
+    resolution: {integrity: sha512-EmQpv32FX1zCxS7ByuOOwnTRTA1GQxJOrSHbgPBp7Mtei4lkViWw13Dr1MtFBVpblTo8FHU/wzYVTXt89HH2UA==}
 
   '@mtcute/tl-runtime@0.24.3':
     resolution: {integrity: sha512-61J3cgYgNOQT532GdIiuezRrSC7v6cc9MfvWv9GO27bRGf7JUKWVbFt4U0KzQ9Tp0J1uMOUfi1EbQKkYKacIKQ==}
@@ -5098,17 +5095,6 @@ snapshots:
       chevrotain: 10.5.0
       lilconfig: 2.1.0
 
-  '@mtcute/core@0.27.3':
-    dependencies:
-      '@fuman/io': 0.0.17
-      '@fuman/net': 0.0.17
-      '@fuman/utils': 0.0.17
-      '@mtcute/file-id': 0.27.0
-      '@mtcute/tl': 220.0.0
-      '@mtcute/tl-runtime': 0.24.3
-      '@types/events': 3.0.0
-      long: 5.2.3
-
   '@mtcute/core@0.27.4':
     dependencies:
       '@fuman/io': 0.0.17
@@ -5120,10 +5106,10 @@ snapshots:
       '@types/events': 3.0.0
       long: 5.2.3
 
-  '@mtcute/dispatcher@0.27.3':
+  '@mtcute/dispatcher@0.27.4':
     dependencies:
       '@fuman/utils': 0.0.17
-      '@mtcute/core': 0.27.3
+      '@mtcute/core': 0.27.4
 
   '@mtcute/file-id@0.27.0':
     dependencies:
@@ -5131,9 +5117,9 @@ snapshots:
       '@mtcute/tl-runtime': 0.24.3
       long: 5.2.3
 
-  '@mtcute/html-parser@0.27.3':
+  '@mtcute/html-parser@0.27.4':
     dependencies:
-      '@mtcute/core': 0.27.3
+      '@mtcute/core': 0.27.4
       htmlparser2: 10.0.0
       long: 5.2.3
 
@@ -5142,13 +5128,13 @@ snapshots:
       '@mtcute/core': 0.27.4
       long: 5.2.3
 
-  '@mtcute/node@0.27.3(ws@8.18.3)':
+  '@mtcute/node@0.27.4(ws@8.18.3)':
     dependencies:
       '@fuman/net': 0.0.17
       '@fuman/node': 0.0.17(ws@8.18.3)
       '@fuman/utils': 0.0.17
-      '@mtcute/core': 0.27.3
-      '@mtcute/html-parser': 0.27.3
+      '@mtcute/core': 0.27.4
+      '@mtcute/html-parser': 0.27.4
       '@mtcute/markdown-parser': 0.27.4
       '@mtcute/wasm': 0.27.0
       better-sqlite3: 12.5.0
