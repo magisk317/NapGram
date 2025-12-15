@@ -45,7 +45,10 @@ jobs:
           run_install: false
 
       - name: Install dependencies
-        run: pnpm install
+        # CI 默认会启用 frozen-lockfile；但这里会用私有 UI 仓库覆盖 ./web，
+        # 可能导致根目录 pnpm-lock.yaml 与 ./web/package.json 不一致，从而安装失败。
+        # 允许在 CI 内自动更新 lockfile，供后续 web build + docker build 使用。
+        run: pnpm install --no-frozen-lockfile
 
       - name: Build web dist
         run: pnpm --filter web build
@@ -120,4 +123,3 @@ jobs:
             -d "chat_id=${{ secrets.TELEGRAM_TO_GROUP }}" \
             -d "message_thread_id=${{ secrets.TELEGRAM_TOPIC_ID }}" \
             --data-urlencode "text=$MESSAGE"
-
