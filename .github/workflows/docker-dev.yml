@@ -1,0 +1,123 @@
+name: Build and publish (dev)
+
+on:
+  schedule:
+    - cron: '30 15 * * *' # 每天 UTC 15:30(=北京 23:30)
+  workflow_dispatch:
+
+jobs:
+  publish:
+    name: Publish dev container image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    env:
+      BUILD_REF: refs/heads/dev
+      BUILD_REF_NAME: dev
+    steps:
+      - name: Checkout (dev)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.BUILD_REF }}
+          fetch-depth: 0
+
+      - name: Derive build info
+        run: echo "BUILD_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+
+      - name: Checkout UI source (private)
+        uses: actions/checkout@v4
+        with:
+          repository: magisk317/napgram-ui-dist
+          ref: main
+          token: ${{ secrets.UI_SRC_TOKEN }}
+          path: web
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 25
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+          run_install: false
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build web dist
+        run: pnpm --filter web build
+
+      - name: Prepare tag date
+        run: echo "DATE=$(date -u +%Y%m%d)" >> "$GITHUB_ENV"
+
+      - name: OCI meta
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: |
+            ghcr.io/${{ github.repository }}
+            docker.io/${{ secrets.DOCKERHUB_USERNAME }}/napgram
+          tags: |
+            type=raw,value=dev-latest
+            type=raw,value=dev-${{ env.DATE }}
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Login to Docker Hub
+        if: github.actor != 'dependabot[bot]'
+        uses: docker/login-action@v3
+        with:
+          registry: docker.io
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: ${{ github.actor != 'dependabot[bot]' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          platforms: linux/amd64
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            REPO=${{ github.repository }}
+            REF=${{ env.BUILD_REF }}
+            COMMIT=${{ env.BUILD_SHA }}
+            USE_MIRROR=false
+            NODE_VERSION=25-slim
+          secrets: |
+            npmrc=//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}
+
+      - name: Send Telegram Notification on Success
+        if: success()
+        env:
+          MESSAGE: |
+            ✅ Docker Build Success (dev)
+
+            Repo: ${{ github.repository }}
+            Ref: ${{ env.BUILD_REF_NAME }} @ ${{ env.BUILD_SHA }}
+            Images:
+              - ghcr.io/${{ github.repository }}:dev-latest
+              - ghcr.io/${{ github.repository }}:dev-${{ env.DATE }}
+        run: |
+          curl -fSs -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendMessage" \
+            -d "chat_id=${{ secrets.TELEGRAM_TO_GROUP }}" \
+            -d "message_thread_id=${{ secrets.TELEGRAM_TOPIC_ID }}" \
+            --data-urlencode "text=$MESSAGE"
+
