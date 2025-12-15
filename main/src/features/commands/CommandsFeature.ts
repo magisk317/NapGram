@@ -223,18 +223,10 @@ export class CommandsFeature {
             handler: (msg, args) => this.qqInteractionHandler.execute(msg, args, 'nick'),
         });
 
-        this.registerCommand({
-            name: 'mute',
-            aliases: ['禁言'],
-            description: '禁言 QQ 群成员',
-            usage: '/mute <QQ号> <秒数>',
-            handler: (msg, args) => this.qqInteractionHandler.execute(msg, args, 'mute'),
-            adminOnly: true,
-        });
-
         // 群组管理命令（新实现）
         this.registerCommand({
             name: 'ban',
+            aliases: ['mute', '禁言'],
             description: '禁言群成员',
             usage: '/ban <QQ号/回复消息> [时长: 1m/30m/1h/1d]',
             handler: (msg, args) => this.groupManagementHandler.execute(msg, args, 'ban'),
@@ -303,17 +295,19 @@ export class CommandsFeature {
         // 全员禁言
         this.registerCommand({
             name: 'muteall',
+            aliases: ['全员禁言'],
             description: '开启或关闭全员禁言（仅群主）',
             usage: '/muteall [on|off|开|关]',
             handler: (msg, args) => this.advancedGroupManagementHandler.execute(msg, args, 'muteall'),
             adminOnly: true,
         });
 
+        // 解除全员禁言（独立命令）
         this.registerCommand({
-            name: '全员禁言',
-            description: '开启或关闭全员禁言（仅群主）',
-            usage: '/全员禁言 [开|关]',
-            handler: (msg, args) => this.advancedGroupManagementHandler.execute(msg, args, '全员禁言'),
+            name: 'unmuteall',
+            description: '关闭全员禁言（仅群主）',
+            usage: '/unmuteall',
+            handler: (msg, args) => this.advancedGroupManagementHandler.execute(msg, args, 'unmuteall'),
             adminOnly: true,
         });
 
@@ -613,15 +607,20 @@ export class CommandsFeature {
             }
 
             logger.info(`Executing command: ${commandName} by ${senderName}`);
-            await command.handler({
-                id: String(tgMsg.id),
-                platform: 'telegram',
-                sender: { id: String(senderId), name: senderName },
-                chat: { id: String(chatId), type: 'group' },
-                content: [{ type: 'text', data: { text } }],
-                timestamp: tgMsg.date.getTime(),
-                metadata: { raw: tgMsg },
-            } as UnifiedMessage, args);
+
+            try {
+                await command.handler({
+                    id: String(tgMsg.id),
+                    platform: 'telegram',
+                    sender: { id: String(senderId), name: senderName },
+                    chat: { id: String(chatId), type: 'group' },
+                    content: [{ type: 'text', data: { text } }],
+                    timestamp: tgMsg.date.getTime(),
+                    metadata: { raw: tgMsg },
+                } as UnifiedMessage, args);
+            } catch (handlerError) {
+                throw handlerError;
+            }
             return true;
 
         } catch (error) {

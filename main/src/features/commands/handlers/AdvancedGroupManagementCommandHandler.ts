@@ -3,6 +3,7 @@ import { CommandContext } from './CommandContext';
 import ForwardMap from '../../../domain/models/ForwardMap';
 import { getLogger } from '../../../shared/logger';
 import { PermissionChecker } from '../../../shared//utils/permission-checker';
+import { CommandArgsParser } from '../utils/CommandArgsParser';
 
 const logger = getLogger('AdvancedGroupManagementCommandHandler');
 
@@ -20,7 +21,8 @@ export class AdvancedGroupManagementCommandHandler {
         }
 
         const chatId = msg.chat.id;
-        const threadId = this.context.extractThreadId(msg, args);
+        // 不传args给extractThreadId,避免把参数当成thread ID
+        const threadId = this.context.extractThreadId(msg, []);
 
         // 查找绑定关系
         const forwardMap = this.context.instance.forwardPairs as ForwardMap;
@@ -35,8 +37,9 @@ export class AdvancedGroupManagementCommandHandler {
 
         switch (commandName) {
             case 'muteall':
+            case 'unmuteall':
             case '全员禁言':
-                await this.handleMuteAll(chatId, threadId, qqGroupId, msg, args);
+                await this.handleMuteAll(chatId, threadId, qqGroupId, msg, args, commandName);
                 break;
             case 'admin':
                 await this.handleSetAdmin(chatId, threadId, qqGroupId, msg, args);
@@ -60,7 +63,8 @@ export class AdvancedGroupManagementCommandHandler {
         threadId: number | undefined,
         qqGroupId: string,
         msg: UnifiedMessage,
-        args: string[]
+        args: string[],
+        commandName: string
     ) {
         try {
             // 1. 权限验证 - 仅群主
@@ -89,8 +93,9 @@ export class AdvancedGroupManagementCommandHandler {
                 );
                 return;
             } else {
-                // 默认开启
-                enable = true;
+                // 如果是 unmuteall 命令，默认关闭禁言
+                // 否则默认开启禁言
+                enable = commandName !== 'unmuteall';
             }
 
             // 3. 执行操作
@@ -144,34 +149,31 @@ export class AdvancedGroupManagementCommandHandler {
                 return;
             }
 
-            // 2. 解析目标用户
-            const targetUin = await this.resolveTargetUser(msg, args, 0);
+            // 2. 使用 CommandArgsParser 解析参数
+            const hasReply = CommandArgsParser.hasReplyMessage(msg);
+            const { uin: targetUin, action } = CommandArgsParser.parseUserAction(args, msg, hasReply);
+
             if (!targetUin) {
                 await this.context.replyTG(
                     chatId,
-                    `❌ 无法识别目标用户\n\n使用方式：\n• 回复目标用户的消息：/admin on|off\n• 直接指定：/admin 123456789 on|off`,
+                    `❌ 无法识别目标用户\n\n使用方式：\n• 回复目标用户的消息：/admin [on|off]\n• 直接指定：/admin 123456789 [on|off]\n•参数可互换：/admin on 123456789\n• 无参数切换状态`,
                     threadId
                 );
                 return;
             }
 
-            // 3. 解析操作类型
-            const hasReply = this.hasReplyMessage(msg);
-            const actionArg = hasReply ? args[0] : args[1];
-
+            // 3. 处理操作类型
             let enable: boolean;
-            if (actionArg === 'on') {
-                enable = true;
-            } else if (actionArg === 'off') {
-                enable = false;
-            } else {
+            if (action === 'toggle') {
+                // TODO: 查询当前状态并切换
                 await this.context.replyTG(
                     chatId,
-                    '❌ 请指定操作：on（设置管理员）或 off（取消管理员）',
+                    '❌ 暂不支持状态切换，请明确指定 on 或 off',
                     threadId
                 );
                 return;
             }
+            enable = action === 'on';
 
             // 4. 执行操作
             const setGroupAdmin = this.context.qqClient.setGroupAdmin;
@@ -281,20 +283,18 @@ export class AdvancedGroupManagementCommandHandler {
                 return;
             }
 
-            // 2. 解析目标用户
-            const targetUin = await this.resolveTargetUser(msg, args, 0);
+            // 2. 使用 CommandArgsParser 解析参数
+            const hasReply = CommandArgsParser.hasReplyMessage(msg);
+            const { uin: targetUin, content: title } = CommandArgsParser.parseUserContent(args, msg, hasReply);
+
             if (!targetUin) {
                 await this.context.replyTG(
                     chatId,
-                    `❌ 无法识别目标用户\n\n使用方式：\n• 回复目标用户的消息：/title 头衔内容\n• 直接指定：/title 123456789 头衔内容`,
+                    `❌ 无法识别目标用户\n\n使用方式：\n• 回复目标用户的消息：/title 头衔内容\n• 直接指定：/title 123456789 头衔内容\n• 参数可互换：/title 头衔 123456789`,
                     threadId
                 );
                 return;
             }
-
-            // 3. 解析头衔内容
-            const hasReply = this.hasReplyMessage(msg);
-            const title = hasReply ? args.join(' ') : args.slice(1).join(' ');
 
             if (!title || title.trim() === '') {
                 await this.context.replyTG(

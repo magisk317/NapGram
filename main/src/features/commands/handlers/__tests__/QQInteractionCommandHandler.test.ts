@@ -10,6 +10,7 @@ const createMockQQClient = (): IQQClient => ({
     nickname: 'TestBot',
     clientType: 'napcat',
     isOnline: vi.fn().mockResolvedValue(true),
+    callApi: vi.fn().mockResolvedValue({}),
     sendMessage: vi.fn(),
     recallMessage: vi.fn(),
     getMessage: vi.fn(),
@@ -21,6 +22,7 @@ const createMockQQClient = (): IQQClient => ({
         nickname: 'TestBot',
         card: 'BotCard',
     }),
+    setGroupCard: vi.fn().mockResolvedValue(undefined),
     getFriendInfo: vi.fn(),
     getGroupInfo: vi.fn(),
     on: vi.fn(),
@@ -129,33 +131,30 @@ describe('QQInteractionCommandHandler', () => {
     });
 
     describe('/poke command', () => {
-        it('should show not implemented message', async () => {
+        it('should show usage when target cannot be resolved', async () => {
             const msg = createMessage('/poke', '999999', '777777');
             await handler.execute(msg, [], 'poke');
 
             expect(mockContext.replyTG).toHaveBeenCalledWith(
                 '777777',
-                expect.stringContaining('暂未实现'),
+                expect.stringContaining('无法识别目标用户'),
                 undefined
             );
         });
 
-        it('should mention NapCat API requirement', async () => {
-            const msg = createMessage('/poke', '999999', '777777');
-            await handler.execute(msg, [], 'poke');
-
-            expect(mockContext.replyTG).toHaveBeenCalledWith(
-                '777777',
-                expect.stringContaining('NapCat'),
-                undefined
-            );
-        });
-
-        it('should accept optional target UIN parameter', async () => {
+        it('should send group poke when target UIN provided', async () => {
             const msg = createMessage('/poke 123456', '999999', '777777');
             await handler.execute(msg, ['123456'], 'poke');
 
-            expect(mockContext.replyTG).toHaveBeenCalled();
+            expect(mockQQClient.callApi).toHaveBeenCalledWith('send_group_poke', {
+                group_id: 888888,
+                user_id: 123456,
+            });
+            expect(mockContext.replyTG).toHaveBeenCalledWith(
+                '777777',
+                expect.stringContaining('已戳一戳 123456'),
+                undefined
+            );
         });
     });
 
@@ -217,13 +216,14 @@ describe('QQInteractionCommandHandler', () => {
             );
         });
 
-        it('should show not implemented when trying to set nickname', async () => {
+        it('should set group card when arguments provided', async () => {
             const msg = createMessage('/nick NewNick', '999999', '777777');
             await handler.execute(msg, ['NewNick'], 'nick');
 
+            expect(mockQQClient.setGroupCard).toHaveBeenCalledWith('888888', '123456', 'NewNick');
             expect(mockContext.replyTG).toHaveBeenCalledWith(
                 '777777',
-                expect.stringContaining('暂未实现'),
+                expect.stringContaining('已修改群名片'),
                 undefined
             );
         });
@@ -232,9 +232,10 @@ describe('QQInteractionCommandHandler', () => {
             const msg = createMessage('/nick New Bot Nick', '999999', '777777');
             await handler.execute(msg, ['New', 'Bot', 'Nick'], 'nick');
 
+            expect(mockQQClient.setGroupCard).toHaveBeenCalledWith('888888', '123456', 'New Bot Nick');
             expect(mockContext.replyTG).toHaveBeenCalledWith(
                 '777777',
-                expect.stringContaining('暂未实现'),
+                expect.stringContaining('已修改群名片'),
                 undefined
             );
         });
@@ -250,74 +251,6 @@ describe('QQInteractionCommandHandler', () => {
             expect(mockContext.replyTG).toHaveBeenCalledWith(
                 '777777',
                 expect.stringContaining('失败'),
-                undefined
-            );
-        });
-    });
-
-    describe('/mute command', () => {
-        it('should show usage when no arguments provided', async () => {
-            const msg = createMessage('/mute', '999999', '777777');
-            await handler.execute(msg, [], 'mute');
-
-            expect(mockContext.replyTG).toHaveBeenCalledWith(
-                '777777',
-                expect.stringContaining('用法'),
-                undefined
-            );
-        });
-
-        it('should show usage when only one argument provided', async () => {
-            const msg = createMessage('/mute 123456', '999999', '777777');
-            await handler.execute(msg, ['123456'], 'mute');
-
-            expect(mockContext.replyTG).toHaveBeenCalledWith(
-                '777777',
-                expect.stringContaining('用法'),
-                undefined
-            );
-        });
-
-        it('should reject non-numeric duration', async () => {
-            const msg = createMessage('/mute 123456 abc', '999999', '777777');
-            await handler.execute(msg, ['123456', 'abc'], 'mute');
-
-            expect(mockContext.replyTG).toHaveBeenCalledWith(
-                '777777',
-                expect.stringContaining('必须是非负整数'),
-                undefined
-            );
-        });
-
-        it('should reject negative duration', async () => {
-            const msg = createMessage('/mute 123456 -60', '999999', '777777');
-            await handler.execute(msg, ['123456', '-60'], 'mute');
-
-            expect(mockContext.replyTG).toHaveBeenCalledWith(
-                '777777',
-                expect.stringContaining('必须是非负整数'),
-                undefined
-            );
-        });
-
-        it('should show not implemented for valid inputs', async () => {
-            const msg = createMessage('/mute 123456 600', '999999', '777777');
-            await handler.execute(msg, ['123456', '600'], 'mute');
-
-            expect(mockContext.replyTG).toHaveBeenCalledWith(
-                '777777',
-                expect.stringContaining('暂未实现'),
-                undefined
-            );
-        });
-
-        it('should accept zero duration', async () => {
-            const msg = createMessage('/mute 123456 0', '999999', '777777');
-            await handler.execute(msg, ['123456', '0'], 'mute');
-
-            expect(mockContext.replyTG).toHaveBeenCalledWith(
-                '777777',
-                expect.stringContaining('暂未实现'),
                 undefined
             );
         });

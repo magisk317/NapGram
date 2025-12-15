@@ -246,7 +246,13 @@ export class NapCatAdapter extends EventEmitter {
 
         // 补齐媒体直链，避免 video/file 只有 file_id
         await Promise.all(messages.map(async (msg) => {
+            // Skip if msg or msg.message is invalid
+            if (!msg || !Array.isArray(msg.message)) return;
+
             for (const elem of msg.message) {
+                // Skip if elem is null/undefined or doesn't have expected structure
+                if (!elem || typeof elem !== 'object' || !elem.type) continue;
+
                 if ((elem.type === 'video' || elem.type === 'file' || elem.type === 'image' || elem.type === 'record')
                     && typeof (elem as any).file === 'string'
                     && !(elem as any).file.startsWith('http')) {

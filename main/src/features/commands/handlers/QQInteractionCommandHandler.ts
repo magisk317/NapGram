@@ -2,12 +2,13 @@ import type { UnifiedMessage } from '../../../domain/message';
 import { CommandContext } from './CommandContext';
 import ForwardMap from '../../../domain/models/ForwardMap';
 import { getLogger } from '../../../shared/logger';
+import { CommandArgsParser } from '../utils/CommandArgsParser';
 
 const logger = getLogger('QQInteractionCommandHandler');
 
 /**
  * QQ 交互命令处理器
- * 处理: poke, nick, mute, like, honor
+ * 处理: poke, nick, like, honor
  */
 export class QQInteractionCommandHandler {
     constructor(private readonly context: CommandContext) { }
@@ -19,7 +20,8 @@ export class QQInteractionCommandHandler {
         }
 
         const chatId = msg.chat.id;
-        const threadId = this.context.extractThreadId(msg, args);
+        // 不传args给extractThreadId,避免把QQ号/次数当成thread ID  
+        const threadId = this.context.extractThreadId(msg, []);
 
         // 查找绑定关系
         const forwardMap = this.context.instance.forwardPairs as ForwardMap;
@@ -34,13 +36,10 @@ export class QQInteractionCommandHandler {
 
         switch (commandName) {
             case 'poke':
-                await this.handlePoke(chatId, threadId, qqGroupId, args);
+                await this.handlePoke(chatId, threadId, qqGroupId, msg, args);
                 break;
             case 'nick':
                 await this.handleNick(chatId, threadId, qqGroupId, args);
-                break;
-            case 'mute':
-                await this.handleMute(chatId, threadId, qqGroupId, args);
                 break;
             case 'like':
             case '点赞':
@@ -55,21 +54,56 @@ export class QQInteractionCommandHandler {
 
     /**
      * 处理戳一戳命令
-     * TODO: NapCat 需要实现发送 poke 的 API
      */
-    private async handlePoke(chatId: string, threadId: number | undefined, qqGroupId: string, args: string[]) {
-        // 目标 QQ 号（可选参数）
-        const targetUin = args[0];
-
+    private async handlePoke(
+        chatId: string,
+        threadId: number | undefined,
+        qqGroupId: string,
+        msg: UnifiedMessage,
+        args: string[]
+    ) {
         try {
-            // NapCat 可能需要使用 send_group_poke 或类似 API
-            // 当前版本暂不支持，标记为 TODO
-            await this.context.replyTG(
-                chatId,
-                `⚠️ 戳一戳功能暂未实现\n\n需要等待 NapCat 支持发送戳一戳的 API`,
-                threadId
-            );
-            logger.warn('Poke command not implemented: NapCat API not available');
+            const targetUin = await this.resolveTargetUser(msg, args, 0);
+            if (!targetUin) {
+                await this.context.replyTG(
+                    chatId,
+                    `❌ 无法识别目标用户\n\n使用方式：\n• 回复目标用户消息：/poke\n• 直接指定：/poke 123456789`,
+                    threadId
+                );
+                return;
+            }
+
+            const sendGroupPoke = (this.context.qqClient as any).sendGroupPoke as
+                | ((groupId: string, userId: string) => Promise<void>)
+                | undefined;
+
+            if (sendGroupPoke) {
+                await sendGroupPoke.call(this.context.qqClient, qqGroupId, targetUin);
+            } else if (this.context.qqClient.callApi) {
+                const groupId = Number(qqGroupId);
+                const userId = Number(targetUin);
+
+                let lastError: unknown;
+                for (const method of ['send_group_poke', 'group_poke']) {
+                    try {
+                        await this.context.qqClient.callApi(method, { group_id: groupId, user_id: userId });
+                        lastError = undefined;
+                        break;
+                    } catch (error) {
+                        lastError = error;
+                    }
+                }
+
+                if (lastError) {
+                    throw lastError;
+                }
+            } else {
+                await this.context.replyTG(chatId, '❌ 当前QQ客户端不支持戳一戳功能', threadId);
+                return;
+            }
+
+            await this.context.replyTG(chatId, `👉 已戳一戳 ${targetUin}`, threadId);
+            logger.info(`Sent poke to ${targetUin} in group ${qqGroupId}`);
         } catch (error) {
             logger.error('Failed to send poke:', error);
             await this.context.replyTG(chatId, '❌ 发送戳一戳失败', threadId);
@@ -96,52 +130,24 @@ export class QQInteractionCommandHandler {
                 // 设置新昵称
                 const newCard = args.join(' ');
 
-                // TODO: NapCat 需要实现 set_group_card API
+                const setGroupCard = this.context.qqClient.setGroupCard;
+                if (!setGroupCard) {
+                    await this.context.replyTG(chatId, '❌ 当前QQ客户端不支持修改群名片', threadId);
+                    return;
+                }
+
+                await setGroupCard.call(this.context.qqClient, qqGroupId, botUin, newCard);
+
                 await this.context.replyTG(
                     chatId,
-                    `⚠️ 修改群名片功能暂未实现\n\n需要等待 NapCat 支持 set_group_card API`,
+                    `✅ 已修改群名片为: \`${newCard}\``,
                     threadId
                 );
-                logger.warn('Set nick command not implemented: NapCat API not available');
+                logger.info(`Set group card for bot ${botUin} in group ${qqGroupId}`);
             }
         } catch (error) {
             logger.error('Failed to handle nick command:', error);
             await this.context.replyTG(chatId, '❌ 获取/设置群名片失败', threadId);
-        }
-    }
-
-    /**
-     * 处理禁言命令
-     */
-    private async handleMute(chatId: string, threadId: number | undefined, qqGroupId: string, args: string[]) {
-        if (args.length < 2) {
-            await this.context.replyTG(
-                chatId,
-                `用法: /mute <QQ号> <时长(秒)>\n\n示例: /mute 123456789 600 (禁言10分钟)`,
-                threadId
-            );
-            return;
-        }
-
-        const targetUin = args[0];
-        const duration = parseInt(args[1]);
-
-        if (isNaN(duration) || duration < 0) {
-            await this.context.replyTG(chatId, '❌ 时长必须是非负整数', threadId);
-            return;
-        }
-
-        try {
-            // TODO: NapCat 需要实现 set_group_ban API
-            await this.context.replyTG(
-                chatId,
-                `⚠️ 禁言功能暂未实现\n\n需要等待 NapCat 支持 set_group_ban API`,
-                threadId
-            );
-            logger.warn('Mute command not implemented: NapCat API not available');
-        } catch (error) {
-            logger.error('Failed to mute user:', error);
-            await this.context.replyTG(chatId, '❌ 禁言操作失败', threadId);
         }
     }
 
@@ -157,28 +163,17 @@ export class QQInteractionCommandHandler {
         args: string[]
     ) {
         try {
-            // 解析目标用户
-            const targetUin = await this.resolveTargetUser(msg, args, 0);
+            // 使用 CommandArgsParser 解析参数
+            const hasReply = CommandArgsParser.hasReplyMessage(msg);
+            const { uin: targetUin, times } = CommandArgsParser.parseLikeArgs(args, msg, hasReply);
+
             if (!targetUin) {
                 await this.context.replyTG(
                     chatId,
-                    `❌ 无法识别目标用户\n\n使用方式：\n• 回复目标用户的消息：/like [次数]\n• 直接指定：/like 123456789 [次数]`,
+                    `❌ 无法识别目标用户\n\n使用方式：\n• 回复目标用户的消息：/like [次数]\n• 直接指定：/like 123456789 [次数]\n• 参数顺序可互换：/like 10 123456789`,
                     threadId
                 );
                 return;
-            }
-
-            // 解析点赞次数
-            const hasReply = this.hasReplyMessage(msg);
-            const timesArg = hasReply ? args[0] : args[1];
-            let times = 1;
-
-            if (timesArg) {
-                times = parseInt(timesArg);
-                if (isNaN(times) || times < 1 || times > 10) {
-                    await this.context.replyTG(chatId, '❌ 点赞次数必须在1-10之间', threadId);
-                    return;
-                }
             }
 
             // 执行点赞
@@ -252,7 +247,11 @@ export class QQInteractionCommandHandler {
                     if (list && list.length > 0) {
                         message += `${typeNames[t]}\n`;
                         list.slice(0, 3).forEach((item: any, i: number) => {
-                            message += `  ${i + 1}. ${item.nickname || item.uin} (${item.uin})\n`;
+                            // honor API 返回的字段是 desc/name，不是 nickname
+                            // QQ号字段是 user_id，不是 uin
+                            const displayName = item.desc || item.name || item.nickname || item.user_id || 'Unknown';
+                            const userId = item.user_id || item.uin || 'Unknown';
+                            message += `  ${i + 1}. ${displayName} (${userId})\n`;
                         });
                         message += '\n';
                     }
@@ -295,21 +294,10 @@ export class QQInteractionCommandHandler {
         }
 
         const arg = args[argIndex];
-        if (arg && /^\d+$/.test(arg)) {
+        if (arg && /^\d{5,11}$/.test(arg)) {
             return arg;
         }
 
         return null;
-    }
-
-    /**
-     * 检查消息是否为回复消息
-     */
-    private hasReplyMessage(msg: UnifiedMessage): boolean {
-        const raw = (msg.metadata as any)?.raw as any;
-        if (raw?.replyToMessage || raw?.replyTo) {
-            return true;
-        }
-        return msg.content.some(c => c.type === 'reply');
     }
 }

@@ -4,6 +4,7 @@ import ForwardMap from '../../../domain/models/ForwardMap';
 import { getLogger } from '../../../shared/logger';
 import { PermissionChecker } from '../../../shared/utils/permission-checker';
 import { DurationParser } from '../../../shared/utils/duration-parser';
+import { CommandArgsParser } from '../utils/CommandArgsParser';
 
 const logger = getLogger('GroupManagementCommandHandler');
 
@@ -21,7 +22,8 @@ export class GroupManagementCommandHandler {
         }
 
         const chatId = msg.chat.id;
-        const threadId = this.context.extractThreadId(msg, args);
+        // 不传args给extractThreadId,避免把QQ号当成thread ID
+        const threadId = this.context.extractThreadId(msg, []);
 
         // 查找绑定关系
         const forwardMap = this.context.instance.forwardPairs as ForwardMap;
@@ -271,27 +273,17 @@ export class GroupManagementCommandHandler {
         args: string[]
     ) {
         try {
-            // 1. 解析目标用户和新名片
-            const targetUin = await this.resolveTargetUser(msg, args, 0);
+            // 使用 CommandArgsParser 解析参数
+            const hasReply = CommandArgsParser.hasReplyMessage(msg);
+            const { uin: targetUin, content: newCard } = CommandArgsParser.parseUserContent(args, msg, hasReply);
+
             if (!targetUin) {
                 await this.context.replyTG(
                     chatId,
-                    `❌ 无法识别目标用户\n\n使用方式：\n• 回复目标用户的消息，然后：/card 新名片\n• 直接指定：/card 123456789 新名片`,
+                    `❌ 无法识别目标用户\n\n使用方式：\n• 回复目标用户的消息：/card 新名片\n• 直接指定：/card 123456789 新名片\n• 参数可互换：/card 新名片 123456789`,
                     threadId
                 );
                 return;
-            }
-
-            // 新名片从参数中提取
-            let newCard: string;
-            // 检查是否有reply（从content或raw中）
-            const hasReply = this.hasReplyMessage(msg);
-            if (hasReply) {
-                // 如果是回复消息，所有args都是新名片
-                newCard = args.join(' ');
-            } else {
-                // 如果不是回复，第一个参数是QQ号，其余是新名片
-                newCard = args.slice(1).join(' ');
             }
 
             if (!newCard || newCard.trim() === '') {

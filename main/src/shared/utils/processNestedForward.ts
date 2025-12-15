@@ -3,8 +3,13 @@ import db from '../../domain/models/db';
 
 export default async (messages: ForwardMessage[], fromPairId: number) => {
   for (const message of messages) {
+    // Skip if message or message.message is invalid
+    if (!message || !Array.isArray(message.message)) continue;
+
     for (const elem of message.message) {
-      if (elem.type !== 'json') continue;
+      // Skip if elem is null/undefined or doesn't have expected structure
+      if (!elem || typeof elem !== 'object' || elem.type !== 'json') continue;
+
       // Inline JSON processing (forwardHelper was removed)
       let parsed: any;
       try {
