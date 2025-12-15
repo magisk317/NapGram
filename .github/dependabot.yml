@@ -10,4 +10,5 @@ updates:
     directory: "/main"
     schedule:
       interval: "daily"
+    open-pull-requests-limit: 1
     target-branch: "dev"
