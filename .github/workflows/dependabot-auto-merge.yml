@@ -9,7 +9,7 @@ permissions:
 jobs:
   dependabot:
     runs-on: ubuntu-latest
-    if: github.actor == 'dependabot[bot]' && github.event.pull_request.base.ref == 'main'
+    if: github.actor == 'dependabot[bot]' && github.event.pull_request.base.ref == 'dev'
     steps:
       - name: Dependabot metadata
         id: metadata
