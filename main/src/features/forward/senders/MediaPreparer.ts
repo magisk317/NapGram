@@ -37,11 +37,22 @@ export class ForwardMediaPreparer {
                         // Keep the buffer/object as-is for toNapCat to process
                         return;
                     }
-                    content.data.file = await this.ensureFilePath(await this.ensureBufferOrPath(content as ImageContent), '.jpg');
+                    content.data.file = await this.ensureFilePath(
+                        await this.ensureBufferOrPath(content as ImageContent, { prefer: 'url', ext: '.jpg', prefix: 'tg-image' }),
+                        '.jpg',
+                    );
                 } else if (content.type === 'video') {
-                    content.data.file = await this.ensureFilePath(await this.ensureBufferOrPath(content as VideoContent), '.mp4', false);
+                    content.data.file = await this.ensureFilePath(
+                        await this.ensureBufferOrPath(content as VideoContent, { prefer: 'url', ext: '.mp4', prefix: 'tg-video' }),
+                        '.mp4',
+                        false,
+                    );
                 } else if (content.type === 'audio') {
-                    const oggPath = await this.ensureFilePath(await this.ensureBufferOrPath(content as AudioContent, true), '.ogg', true);
+                    const oggPath = await this.ensureFilePath(
+                        await this.ensureBufferOrPath(content as AudioContent, { forceDownload: true, prefer: 'path', ext: '.ogg', prefix: 'tg-audio' }),
+                        '.ogg',
+                        true,
+                    );
                     if (oggPath) {
                         try {
                             const silkBuffer = await silk.encode(oggPath);
@@ -74,7 +85,10 @@ export class ForwardMediaPreparer {
                     }
                 } else if (content.type === 'file') {
                     const file = content as FileContent;
-                    content.data.file = await this.ensureFilePath(await this.ensureBufferOrPath(file), undefined);
+                    content.data.file = await this.ensureFilePath(
+                        await this.ensureBufferOrPath(file, { prefer: 'url', filename: file.data.filename, prefix: 'tg-file' }),
+                        undefined,
+                    );
                 }
             } catch (err) {
                 this.logger.warn(err, 'Prepare media for QQ failed, skip media content:');
@@ -84,8 +98,13 @@ export class ForwardMediaPreparer {
         }));
     }
 
-    async ensureBufferOrPath(content: ImageContent | VideoContent | AudioContent | FileContent, forceDownload?: boolean): Promise<Buffer | string | undefined> {
-        this.logger.debug(`[ensureBufferOrPath] Start - content.type: ${content.type}, forceDownload: ${forceDownload}`);
+    async ensureBufferOrPath(
+        content: ImageContent | VideoContent | AudioContent | FileContent,
+        options?: { forceDownload?: boolean; prefer?: 'buffer' | 'path' | 'url'; ext?: string; filename?: string; prefix?: string },
+    ): Promise<Buffer | string | undefined> {
+        const forceDownload = options?.forceDownload;
+        const prefer = options?.prefer || 'buffer';
+        this.logger.debug(`[ensureBufferOrPath] Start - content.type: ${content.type}, forceDownload: ${forceDownload}, prefer: ${prefer}`);
         this.logger.debug(`[ensureBufferOrPath] content.data keys: ${Object.keys(content.data).join(', ')}`);
 
         if (content.data.file) {
@@ -117,14 +136,25 @@ export class ForwardMediaPreparer {
                 const mediaObj = content.data.file as any;
                 this.logger.debug(`[ensureBufferOrPath] TG Media object structure: ${JSON.stringify(mediaObj, null, 2).substring(0, 500)}`);
 
-                const buffer = await this.instance.tgBot.downloadMedia(mediaObj);
-                this.logger.debug(`Downloaded media buffer size: ${buffer?.length}`);
+                if (prefer === 'buffer') {
+                    const buffer = await this.instance.tgBot.downloadMedia(mediaObj);
+                    this.logger.debug(`Downloaded media buffer size: ${buffer?.length}`);
 
-                if (!buffer || buffer.length === 0) {
-                    this.logger.warn('Downloaded buffer is empty, treating as failure');
-                    return undefined;
+                    if (!buffer || buffer.length === 0) {
+                        this.logger.warn('Downloaded buffer is empty, treating as failure');
+                        return undefined;
+                    }
+                    return buffer as Buffer;
                 }
-                return buffer as Buffer;
+
+                const urlOrPath = await this.instance.tgBot.downloadMediaToTempFile(mediaObj, {
+                    prefix: options?.prefix,
+                    filename: options?.filename,
+                    ext: options?.ext,
+                    returnType: prefer === 'path' ? 'path' : 'url',
+                });
+                this.logger.debug(`[ensureBufferOrPath] TG download to temp success: ${urlOrPath}`);
+                return urlOrPath;
             } catch (e) {
                 this.logger.error(e, 'Failed to download media from TG object:');
                 this.logger.error(`[ensureBufferOrPath] TG download error details: ${e instanceof Error ? e.message : String(e)}`);
@@ -215,7 +245,7 @@ export class ForwardMediaPreparer {
         }
 
         if (!source) {
-            source = await this.ensureBufferOrPath(audioContent, true);
+            source = await this.ensureBufferOrPath(audioContent, { forceDownload: true, prefer: 'path', prefix: 'tg-audio' });
         }
         return source;
     }

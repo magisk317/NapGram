@@ -7,6 +7,7 @@ import { getLogger } from '../../../shared/logger';
 import os from 'os';
 import fs from 'fs';
 import path from 'path';
+import { TEMP_PATH } from '../../../shared/utils/temp';
 
 // Define types for handlers
 type MessageHandler = (message: Message) => Promise<boolean | void>;
@@ -219,6 +220,54 @@ export default class Telegram {
     }
     // 将 Uint8Array 转换为 Buffer
     return Buffer.from(result);
+  }
+
+  private getTempUrl(filename: string) {
+    const baseUrl = env.INTERNAL_WEB_ENDPOINT || env.WEB_ENDPOINT || 'http://napgram-dev:8080';
+    return `${baseUrl}/temp/${filename}`;
+  }
+
+  private sanitizeFilename(name: string) {
+    return path
+      .basename(name)
+      .replace(/[\\/]/g, '_')
+      .replace(/[^\w.\-+@() ]/g, '_')
+      .trim()
+      .slice(0, 200) || `file-${Date.now()}`;
+  }
+
+  /**
+   * 下载媒体文件到本地 temp 目录（避免将整个文件一次性读入内存）。
+   * @returns 返回 temp 文件的 URL（默认）或本地路径
+   */
+  public async downloadMediaToTempFile(
+    media: any | Message,
+    options?: { prefix?: string; filename?: string; ext?: string; returnType?: 'url' | 'path' },
+  ): Promise<string> {
+    const prefix = options?.prefix || 'tg';
+    const rawName =
+      options?.filename ||
+      (typeof (media as any)?.fileName === 'string' ? (media as any).fileName : undefined) ||
+      `${prefix}-${Date.now()}-${Math.random().toString(16).slice(2)}`;
+
+    const sanitized = this.sanitizeFilename(rawName);
+    const ext = options?.ext ? (options.ext.startsWith('.') ? options.ext : `.${options.ext}`) : '';
+    const filename = ext && !sanitized.toLowerCase().endsWith(ext.toLowerCase()) ? `${sanitized}${ext}` : sanitized;
+
+    await fs.promises.mkdir(TEMP_PATH, { recursive: true });
+    const filePath = path.join(TEMP_PATH, filename);
+
+    try {
+      const location = media instanceof Message && (media as any).media ? (media as any).media : media;
+      await this.client.downloadToFile(filePath, location as any);
+    } catch (error) {
+      try {
+        await fs.promises.rm(filePath, { force: true });
+      } catch { }
+      throw error;
+    }
+
+    return options?.returnType === 'path' ? filePath : this.getTempUrl(filename);
   }
 
   /**
