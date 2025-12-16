@@ -18,6 +18,9 @@ services:
       
       # Web 访问端点（用于媒体/文件访问）
       WEB_ENDPOINT: http://localhost:8080
+
+      # Telegram 媒体自毁（view-once/TTL），单位秒；不设置/0 表示关闭
+      # TG_MEDIA_TTL_SECONDS: 10
       
       # 数据库连接（需与下方 postgres 服务凭据一致）
       DATABASE_URL: postgres://napgram_user:secure_password_here@postgres:5432/napgram
