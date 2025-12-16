@@ -69,6 +69,17 @@ export default async function (fastify: FastifyInstance) {
         instanceId: intWithDefault(0).default(0),
         forwardMode: optionalMode.optional(),
         nicknameMode: optionalMode.optional(),
+        commandReplyMode: z.preprocess((v) => {
+            if (v === '' || v === undefined || v === null) return null;
+            if (typeof v === 'string' && (v === '0' || v === '1')) return v;
+            return null;
+        }, z.enum(['0', '1']).nullable()).optional(),
+        commandReplyFilter: z.preprocess((v) => {
+            if (v === '' || v === undefined || v === null) return null;
+            if (typeof v === 'string' && (v === 'whitelist' || v === 'blacklist')) return v;
+            return null;
+        }, z.enum(['whitelist', 'blacklist']).nullable()).optional(),
+        commandReplyList: optionalText.optional(),
         ignoreRegex: optionalText.optional(),
         ignoreSenders: optionalText.optional(),
     });
@@ -89,6 +100,17 @@ export default async function (fastify: FastifyInstance) {
         }, z.number().int()).optional(),
         forwardMode: optionalMode.optional(),
         nicknameMode: optionalMode.optional(),
+        commandReplyMode: z.preprocess((v) => {
+            if (v === '' || v === undefined || v === null) return null;
+            if (typeof v === 'string' && (v === '0' || v === '1')) return v;
+            return null;
+        }, z.enum(['0', '1']).nullable()).optional(),
+        commandReplyFilter: z.preprocess((v) => {
+            if (v === '' || v === undefined || v === null) return null;
+            if (typeof v === 'string' && (v === 'whitelist' || v === 'blacklist')) return v;
+            return null;
+        }, z.enum(['whitelist', 'blacklist']).nullable()).optional(),
+        commandReplyList: optionalText.optional(),
         ignoreRegex: optionalText.optional(),
         ignoreSenders: optionalText.optional(),
     });
@@ -248,6 +270,9 @@ export default async function (fastify: FastifyInstance) {
                     instanceId: body.instanceId,
                     forwardMode: body.forwardMode || null,
                     nicknameMode: body.nicknameMode || null,
+                    commandReplyMode: body.commandReplyMode || null,
+                    commandReplyFilter: body.commandReplyFilter || null,
+                    commandReplyList: body.commandReplyList || null,
                     ignoreRegex: body.ignoreRegex || null,
                     ignoreSenders: body.ignoreSenders || null
                 }
@@ -333,6 +358,9 @@ export default async function (fastify: FastifyInstance) {
                     ...(body.instanceId !== undefined ? { instanceId: body.instanceId } : {}),
                     forwardMode: body.forwardMode,
                     nicknameMode: body.nicknameMode,
+                    commandReplyMode: body.commandReplyMode,
+                    commandReplyFilter: body.commandReplyFilter,
+                    commandReplyList: body.commandReplyList,
                     ignoreRegex: body.ignoreRegex,
                     ignoreSenders: body.ignoreSenders
                 }
