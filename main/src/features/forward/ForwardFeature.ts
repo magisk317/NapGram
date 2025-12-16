@@ -108,6 +108,14 @@ export class ForwardFeature {
                 return;
             }
 
+            // Publish gateway event (doesn't affect forwarding)
+            try {
+                const unified = messageConverter.fromTelegram(tgMsg as any);
+                await this.instance.eventPublisher?.publishMessageCreated(this.instance.id, unified as any, pair);
+            } catch (e) {
+                logger.debug(e, '[Gateway] publishMessageCreated (TG) failed');
+            }
+
             // Check forward mode (TG -> QQ is index 1)
             const forwardMode = this.getForwardMode(pair);
             if (forwardMode[1] === '0') {
@@ -144,6 +152,13 @@ export class ForwardFeature {
             if (!pair) {
                 logger.debug(`No TG mapping for QQ chat ${msg.chat.id}`);
                 return;
+            }
+
+            // Publish gateway event (doesn't affect forwarding)
+            try {
+                await this.instance.eventPublisher?.publishMessageCreated(this.instance.id, msg as any, pair);
+            } catch (e) {
+                logger.debug(e, '[Gateway] publishMessageCreated (QQ) failed');
             }
 
             // Check forward mode (QQ -> TG is index 0)
