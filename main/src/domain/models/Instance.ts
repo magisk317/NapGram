@@ -6,6 +6,7 @@ import posthog from './posthog';
 import { qqClientFactory, type IQQClient } from '../../infrastructure/clients/qq';
 import { FeatureManager } from '../../features';
 import ForwardMap from './ForwardMap';
+import { GatewayRuntime, type GatewayServer, type EventPublisher, type ActionExecutor } from '../../gateway';
 
 export type WorkMode = 'personal' | 'group' | 'public';
 
@@ -27,6 +28,11 @@ export default class Instance {
   public forwardPairs!: ForwardMap;
   private featureManager?: FeatureManager;
   public isInit = false;
+
+  // Gateway 组件
+  public gatewayServer?: GatewayServer;
+  public eventPublisher?: EventPublisher;
+  public actionExecutor?: ActionExecutor;
 
   private constructor(public readonly id: number) {
     this.log = getLogger(`Instance - ${this.id}`);
@@ -137,6 +143,19 @@ export default class Instance {
           });
 
           this.log.info('Offline notification service ✓ 初始化完成');
+        }
+
+        // 初始化 Gateway（全局单例，按实例注册执行器）
+        this.log.debug('Gateway 正在初始化');
+        try {
+          const { server, publisher, executor } = GatewayRuntime.registerInstance(this.id, this.qqClient, this.tgBot);
+          this.gatewayServer = server;
+          this.eventPublisher = publisher;
+          this.actionExecutor = executor;
+          this.log.info('Gateway ✓ 初始化完成');
+        } catch (error) {
+          this.log.error('Gateway initialization failed', error);
+          // Gateway 失败不应阻止实例启动
         }
       }
 
