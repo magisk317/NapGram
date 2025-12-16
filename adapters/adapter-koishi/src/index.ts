@@ -1,4 +1,4 @@
-import { Adapter, Bot, MessageEncoder, Schema, Universal } from 'koishi';
+import { Adapter, Bot, MessageEncoder, Schema, Universal } from '@koishijs/core';
 import WebSocket from 'ws';
 import type { Frame, GatewayEvent, MessageCreatedEvent, Segment } from './types.js';
 import { segmentsToSatoriContent } from './mapping.js';
@@ -25,9 +25,9 @@ export const Config: Schema<Config> = Schema.object({
   adapterVersion: Schema.string().description('Adapter 版本（Identify 上报）。').default('0.0.0'),
   defaultInstanceId: Schema.number().description('发送消息时默认使用的 instanceId。').default(0),
   heartbeatMs: Schema.number().description('发送 ping 的间隔 (ms)。').default(25_000),
-  retryTimes: Schema.number().description('初次连接最大重试次数。').default(6).required(),
-  retryInterval: Schema.number().description('初次连接重试间隔 (ms)。').default(5_000).required(),
-  retryLazy: Schema.number().description('断线后重试间隔 (ms)。').default(60_000).required(),
+  retryTimes: Schema.number().description('初次连接最大重试次数。').default(6),
+  retryInterval: Schema.number().description('初次连接重试间隔 (ms)。').default(5_000),
+  retryLazy: Schema.number().description('断线后重试间隔 (ms)。').default(60_000),
 });
 
 class NapGramMessageEncoder extends MessageEncoder {

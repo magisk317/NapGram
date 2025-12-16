@@ -13,13 +13,14 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.json",
-    "dev": "tsx src/dev.ts"
+    "dev": "tsx src/dev.ts",
+    "dev:koishi": "tsx src/dev-koishi.ts"
   },
   "dependencies": {
     "ws": "^8.18.3"
   },
   "peerDependencies": {
-    "koishi": "^4.0.0"
+    "@koishijs/core": "^4.0.0"
   },
   "devDependencies": {
     "tsx": "^4.21.0",
