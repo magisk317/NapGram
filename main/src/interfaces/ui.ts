@@ -46,17 +46,29 @@ export default async function (fastify: FastifyInstance) {
     });
 
   } else if (env.UI_PATH) {
-    // Serve assets
+    // Serve assets (dynamic, so dev rebuild doesn't require server restart)
     const assetsPath = path.join(env.UI_PATH, 'assets');
-    if (fs.existsSync(assetsPath)) {
-      const assets = fs.readdirSync(assetsPath);
-      for (const asset of assets) {
-        fastify.get('/assets/' + asset, async (req: any, reply: any) => {
-          reply.header('content-type', getMimeType(asset));
-          return fs.createReadStream(path.join(assetsPath, asset));
-        });
+    fastify.get('/assets/*', async (req: any, reply: any) => {
+      const name = String((req.params as any)['*'] || '');
+      const safeName = path.basename(name);
+
+      if (!safeName || safeName !== name) {
+        return ErrorResponses.forbidden(reply);
       }
-    }
+
+      const filePath = path.join(assetsPath, safeName);
+      if (!path.resolve(filePath).startsWith(path.resolve(assetsPath))) {
+        return ErrorResponses.forbidden(reply);
+      }
+
+      if (!fs.existsSync(filePath)) {
+        return ErrorResponses.notFound(reply);
+      }
+
+      reply.header('cache-control', 'public, max-age=31536000, immutable');
+      reply.header('content-type', getMimeType(safeName));
+      return fs.createReadStream(filePath);
+    });
 
     // Serve vite.svg
     fastify.get('/vite.svg', async (req: any, reply: any) => {
@@ -67,6 +79,7 @@ export default async function (fastify: FastifyInstance) {
       ];
       for (const p of possiblePaths) {
         if (fs.existsSync(p)) {
+          reply.header('cache-control', 'no-store');
           reply.header('content-type', 'image/svg+xml');
           return fs.createReadStream(p);
         }
@@ -76,6 +89,7 @@ export default async function (fastify: FastifyInstance) {
 
     // Fallback for SPA (must be last)
     fastify.get('/*', async (req: any, reply: any) => {
+      reply.header('cache-control', 'no-store');
       reply.header('content-type', 'text/html');
       return fs.createReadStream(path.join(env.UI_PATH!, 'index.html'));
     });
