@@ -663,7 +663,7 @@ out
 # Nuxt.js build / generate output
 .nuxt
 dist
-!web/dist/
+web/dist/
 web/src/
 
 # Gatsby files
