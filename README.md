@@ -115,6 +115,13 @@ NapGram 支持在**进程内启动 Koishi 运行时**作为插件宿主（通过
 - `KOISHI_DEBUG_SESSIONS=1`：打印 Koishi `session`（用于联调）
 - `KOISHI_ADMIN_TOKEN=...`：可选，用于 `/api/admin/koishi/*` 的额外管理令牌（不依赖 DB Token；不设置时仅允许 `ADMIN_TOKEN`）
 
+Marketplace 安装（可选，默认更推荐 “自带依赖的 zip/tgz 包”）：
+
+- `KOISHI_PLUGIN_ALLOW_NPM_INSTALL=1`：允许安装阶段执行 `pnpm install`（兼容 npm 上的 Koishi 插件；默认关闭）
+- `KOISHI_PLUGIN_ALLOW_NETWORK=1`：安装阶段需要网络（与插件运行期 network 权限共用开关）
+- `KOISHI_PLUGIN_ALLOW_INSTALL_SCRIPTS=1`：允许执行 postinstall 等脚本（风险高，默认关闭）
+- `KOISHI_PLUGIN_NPM_REGISTRY=...`：可选：指定 npm registry
+
 ### 升级 FAQ
 
 #### 1) 升级流程建议（从旧版本升级到新版本）

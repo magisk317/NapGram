@@ -31,6 +31,14 @@ services:
       # KOISHI_ALLOW_TS: 0
       # KOISHI_DEBUG_SESSIONS: 0
       # KOISHI_ADMIN_TOKEN: "" # 可选：仅用于 /api/admin/koishi/* 的额外管理令牌（不依赖 DB Token）
+      #
+      # Marketplace 安装（可选，默认更推荐 “自带依赖的 zip/tgz 包”）：
+      # KOISHI_PLUGIN_ALLOW_NPM_INSTALL: 0          # 允许安装阶段执行 pnpm install（兼容 npm 上的 Koishi 插件）
+      # KOISHI_PLUGIN_ALLOW_NETWORK: 0              # pnpm install 需要网络（与插件运行期 network 权限共用开关）
+      # KOISHI_PLUGIN_ALLOW_INSTALL_SCRIPTS: 0      # 允许执行 postinstall 等脚本（风险高，不建议开启）
+      # KOISHI_PLUGIN_NPM_REGISTRY: ""              # 可选：指定 npm registry
+      # KOISHI_PLUGIN_NETWORK_ALLOWLIST: ""         # 可选：运行期 network allowlist（逗号分隔前缀）
+      # KOISHI_PLUGIN_ALLOW_FS: 0                   # 运行期 fs 权限开关（强风险）
       
       # 数据库连接（需与下方 postgres 服务凭据一致）
       DATABASE_URL: postgres://napgram_user:secure_password_here@postgres:5432/napgram
