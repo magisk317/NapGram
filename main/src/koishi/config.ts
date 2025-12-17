@@ -75,6 +75,15 @@ async function loadConfigFile(filePath: string): Promise<any> {
   return JSON.parse(raw);
 }
 
+async function exists(p: string): Promise<boolean> {
+  try {
+    await fs.access(p);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 function resolveModuleSpecifier(spec: string, baseDir: string): string {
   if (!spec) return spec;
   if (spec.startsWith('file://')) return spec;
@@ -117,8 +126,9 @@ export async function loadKoishiPluginSpecs(): Promise<KoishiPluginSpec[]> {
   const allowTs = resolveKoishiAllowTsPlugins();
   const dataDir = resolveDataDir();
 
-  const configPath = String(process.env.KOISHI_CONFIG_PATH || '').trim();
-  if (configPath) {
+  const managedConfigPath = path.join(dataDir, 'koishi', 'plugins.yaml');
+  const configPath = String(process.env.KOISHI_CONFIG_PATH || managedConfigPath).trim();
+  if (configPath && await exists(configPath)) {
     try {
       const abs = await resolvePathUnderDataDir(configPath);
       const baseDir = path.dirname(abs);
@@ -152,8 +162,9 @@ export async function loadKoishiPluginSpecs(): Promise<KoishiPluginSpec[]> {
     }
   }
 
-  const pluginsDir = String(process.env.KOISHI_PLUGINS_DIR || '').trim();
-  if (pluginsDir) {
+  const managedPluginsDir = path.join(dataDir, 'koishi', 'plugins');
+  const pluginsDir = String(process.env.KOISHI_PLUGINS_DIR || managedPluginsDir).trim();
+  if (pluginsDir && await exists(pluginsDir)) {
     try {
       const absDir = await resolvePathUnderDataDir(pluginsDir);
       const entries = await fs.readdir(absDir, { withFileTypes: true });
