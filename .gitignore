@@ -224,6 +224,14 @@ PublishScripts/
 **/[Pp]ackages/*
 # except build/, which is used as an MSBuild target.
 !**/[Pp]ackages/build/
+#
+# NapGram workspace packages (tracked)
+!packages/gateway-protocol/
+!packages/gateway-protocol/**
+!packages/gateway-client/
+!packages/gateway-client/**
+!packages/gateway-sdk/
+!packages/gateway-sdk/**
 # Uncomment if necessary however generally it will be regenerated when needed
 #!**/[Pp]ackages/repositories.config
 # NuGet v3's project.json files produces more ignorable files
