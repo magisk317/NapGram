@@ -21,6 +21,15 @@ services:
 
       # Telegram 媒体自毁（view-once/TTL），单位秒；不设置/0 表示关闭
       # TG_MEDIA_TTL_SECONDS: 10
+
+      # KoishiHost（可选）：在 NapGram 进程内启动 Koishi 插件宿主
+      # KOISHI_ENABLED: 1
+      # KOISHI_GATEWAY_URL: ws://127.0.0.1:8765
+      # KOISHI_INSTANCES: 0
+      # KOISHI_CONFIG_PATH: /app/data/koishi/plugins.yaml   # JSON/YAML，格式见文档
+      # KOISHI_PLUGINS_DIR: /app/data/koishi/plugins        # 扫描 .js/.mjs/.cjs（.ts 需 KOISHI_ALLOW_TS=1）
+      # KOISHI_ALLOW_TS: 0
+      # KOISHI_DEBUG_SESSIONS: 0
       
       # 数据库连接（需与下方 postgres 服务凭据一致）
       DATABASE_URL: postgres://napgram_user:secure_password_here@postgres:5432/napgram

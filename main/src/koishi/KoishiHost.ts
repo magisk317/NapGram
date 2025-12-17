@@ -47,6 +47,20 @@ export class KoishiHost {
     // MVP 内置插件：收到 ping 回复 pong
     ctx.plugin(pingPong as any, {});
 
+    if (String(process.env.KOISHI_DEBUG_SESSIONS || '').trim() === '1') {
+      ctx.on('message', (session: any) => {
+        logger.info({
+          platform: session.platform,
+          selfId: session.selfId,
+          userId: session.userId,
+          guildId: session.guildId,
+          channelId: session.channelId,
+          content: String(session.content || '').slice(0, 200),
+          referrer: session.referrer?.napgram,
+        }, 'Koishi session');
+      });
+    }
+
     // 可选：加载用户插件
     const specs = await loadKoishiPluginSpecs();
     for (const spec of specs) {
@@ -64,4 +78,3 @@ export class KoishiHost {
     logger.info({ endpoint, instances }, 'KoishiHost started');
   }
 }
-

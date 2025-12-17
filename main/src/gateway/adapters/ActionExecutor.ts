@@ -137,6 +137,10 @@ export class ActionExecutor {
             if (replySeg?.data?.messageId) {
                 const replyTo = this.extractTgMsgId(String(replySeg.data.messageId), chatId);
                 if (replyTo) params.replyTo = replyTo;
+            } else if (threadId) {
+                // forums/topics: using top message id (threadId) as reply target helps Telegram route message into the topic
+                // while still allowing explicit reply to override it above.
+                params.replyTo = threadId;
             }
 
             const text = this.buildTgInputTextFromSegments(segments);
