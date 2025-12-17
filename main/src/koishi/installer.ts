@@ -329,7 +329,7 @@ async function runPnpmInstall(projectDir: string, opts: Required<NonNullable<Mar
 async function loadMarketplaceIndex(marketplaceId: string): Promise<MarketplaceIndexV1> {
   const cached = await readMarketplaceCache(marketplaceId);
   if (!cached.exists) {
-    throw new Error(`Marketplace cache not found for "${marketplaceId}". Call /api/admin/koishi/marketplaces/refresh first.`);
+    throw new Error(`Marketplace cache not found for "${marketplaceId}". Call /api/admin/marketplaces/refresh first.`);
   }
   const data = cached.data?.data;
   if (!data || data.schemaVersion !== 1 || !Array.isArray(data.plugins)) {

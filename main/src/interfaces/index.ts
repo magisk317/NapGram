@@ -18,6 +18,8 @@ import settings from './settings';
 import tokens from './tokens';
 import koishi from './koishi';
 import koishiMarketplaces from './koishiMarketplaces';
+import plugins from './plugins';
+import marketplaces from './marketplaces';
 
 const log = getLogger('Web Api');
 
@@ -56,6 +58,8 @@ fastify.register(settings);
 fastify.register(tokens);
 fastify.register(koishi);
 fastify.register(koishiMarketplaces);
+fastify.register(plugins);
+fastify.register(marketplaces);
 
 // 📊 Register monitoring and statistics API
 setupMonitoring(fastify);
