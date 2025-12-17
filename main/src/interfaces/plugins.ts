@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { ApiResponse } from '../shared/utils/api-response';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import env from '../domain/models/env';
 import {
   normalizeModuleSpecifierForPluginsConfig,
   patchPluginConfig,
@@ -244,5 +245,89 @@ export default async function (fastify: FastifyInstance) {
       return reply.code(500).send(ApiResponse.error(error?.message || String(error)));
     }
   });
-}
 
+  fastify.get('/api/admin/plugins/:id/logs', { preHandler: requirePluginAdmin }, async (request, reply) => {
+    const { limit = 200, level, q } = request.query as { limit?: number; level?: string; q?: string };
+    const pluginId = String((request.params as any).id || '').trim();
+    if (!pluginId) return reply.code(400).send(ApiResponse.error('Missing plugin id'));
+
+    try {
+      const { config } = await readPluginsConfig();
+      const record = config.plugins.find(p => p.id === pluginId);
+      let absolute: string | null = null;
+      if (record) {
+        try {
+          absolute = (await normalizeModuleSpecifierForPluginsConfig(record.module)).absolute;
+        } catch {
+          absolute = null;
+        }
+      }
+
+      const patterns = [
+        pluginId,
+        record?.module,
+        absolute,
+        absolute ? path.basename(absolute) : null,
+      ].filter(Boolean).map(String);
+
+      const logDir = path.dirname(env.LOG_FILE);
+      const dateFormatter = new Intl.DateTimeFormat('sv-SE', {
+        timeZone: process.env.TZ || 'Asia/Shanghai',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      });
+      const currentDate = dateFormatter.format(new Date());
+      const todayLogFile = path.join(logDir, `${currentDate}.1.log`);
+      const yesterday = new Date();
+      yesterday.setDate(yesterday.getDate() - 1);
+      const yesterdayDate = dateFormatter.format(yesterday);
+      const yesterdayLogFile = path.join(logDir, `${yesterdayDate}.1.log`);
+
+      const possibleFiles = [todayLogFile, yesterdayLogFile, env.LOG_FILE].filter(Boolean);
+
+      const max = Math.min(Math.max(Number(limit) || 200, 1), 2000);
+      const out: Array<{ time: string; level: string; module: string; message: string }> = [];
+      for (const logFile of possibleFiles) {
+        try {
+          const content = await fs.readFile(logFile, 'utf-8');
+          const lines = content.split('\n').filter(line => line.trim());
+          for (const line of lines) {
+            try {
+              const entry = JSON.parse(line);
+              out.push({
+                time: entry.time,
+                level: entry.level?.toUpperCase() || 'INFO',
+                module: entry.logger || 'System',
+                message: Array.isArray(entry.messages) ? entry.messages.join(' ') : String(entry.messages || ''),
+              });
+            } catch {
+              // ignore
+            }
+          }
+          if (out.length >= max * 4) break;
+        } catch {
+          continue;
+        }
+      }
+
+      let filtered = out;
+      if (level) filtered = filtered.filter(l => l.level.toLowerCase() === String(level).toLowerCase());
+
+      const extra = String(q || '').trim();
+      filtered = filtered.filter(l => {
+        const hay = `${l.module} ${l.message}`;
+        const matchPlugin = patterns.length ? patterns.some(p => hay.includes(p)) : true;
+        const matchExtra = extra ? hay.includes(extra) : true;
+        return matchPlugin && matchExtra;
+      });
+
+      filtered.sort((a, b) => b.time.localeCompare(a.time));
+      const logs = filtered.slice(0, max);
+
+      return ApiResponse.success({ id: pluginId, patterns, logs, total: logs.length, source: possibleFiles[0] });
+    } catch (error: any) {
+      return reply.code(500).send(ApiResponse.error(error?.message || String(error)));
+    }
+  });
+}
