@@ -114,6 +114,44 @@ importers:
         specifier: ^4.0.16
         version: 4.0.16(@types/node@25.0.3)(jiti@2.6.1)(jsdom@16.7.0(canvas@2.11.2(encoding@0.1.13)))(lightningcss@1.30.2)(tsx@4.21.0)(yaml@2.8.2)
 
+  packages/gateway-client:
+    dependencies:
+      '@naplink/napgram-gateway-protocol':
+        specifier: ^0.0.0
+        version: link:../gateway-protocol
+      ws:
+        specifier: ^8.18.3
+        version: 8.18.3
+    devDependencies:
+      '@types/node':
+        specifier: ^25.0.3
+        version: 25.0.3
+      '@types/ws':
+        specifier: ^8.18.1
+        version: 8.18.1
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
+  packages/gateway-protocol:
+    devDependencies:
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
+  packages/gateway-sdk:
+    dependencies:
+      '@naplink/napgram-gateway-client':
+        specifier: ^0.0.0
+        version: link:../gateway-client
+      '@naplink/napgram-gateway-protocol':
+        specifier: ^0.0.0
+        version: link:../gateway-protocol
+    devDependencies:
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
   web:
     dependencies:
       '@radix-ui/react-alert-dialog':
