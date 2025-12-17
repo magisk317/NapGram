@@ -26,6 +26,13 @@ export interface MarketplacePluginVersion {
   version: string;
   entry: { type: 'file'; path: string };
   dist: { type: DistType; url: string; sha256: string };
+  install?: {
+    mode?: 'none' | 'pnpm';
+    production?: boolean;
+    ignoreScripts?: boolean;
+    frozenLockfile?: boolean;
+    registry?: string;
+  };
   permissions?: {
     network?: string[];
     fs?: string[];
@@ -173,6 +180,21 @@ function validatePermissions(permissions: Required<NonNullable<MarketplacePlugin
   }
 }
 
+function canInstallWithPnpm(): boolean {
+  const raw = String(process.env.KOISHI_PLUGIN_ALLOW_NPM_INSTALL || '').trim().toLowerCase();
+  return raw === '1' || raw === 'true' || raw === 'yes' || raw === 'on';
+}
+
+function canRunInstallScripts(): boolean {
+  const raw = String(process.env.KOISHI_PLUGIN_ALLOW_INSTALL_SCRIPTS || '').trim().toLowerCase();
+  return raw === '1' || raw === 'true' || raw === 'yes' || raw === 'on';
+}
+
+function isNetworkAllowedForInstall(): boolean {
+  const raw = String(process.env.KOISHI_PLUGIN_ALLOW_NETWORK || '').trim().toLowerCase();
+  return raw === '1' || raw === 'true' || raw === 'yes' || raw === 'on';
+}
+
 async function ensureDir(p: string) {
   await fs.mkdir(p, { recursive: true });
 }
@@ -264,6 +286,44 @@ async function resolveEntryFile(destDir: string, entryPath: string): Promise<str
   const npmLayout = safeJoin(destDir, path.join('package', entryPath));
   if (await pathExists(npmLayout)) return npmLayout;
   throw new Error(`Entry not found after extract: ${entryPath}`);
+}
+
+async function findPnpmProjectDir(destDir: string): Promise<string | null> {
+  const direct = path.join(destDir, 'package.json');
+  if (await pathExists(direct)) return destDir;
+  const npm = path.join(destDir, 'package', 'package.json');
+  if (await pathExists(npm)) return path.join(destDir, 'package');
+  return null;
+}
+
+async function runPnpmInstall(projectDir: string, opts: Required<NonNullable<MarketplacePluginVersion['install']>>) {
+  if (!canInstallWithPnpm()) {
+    throw new Error('Refusing to run pnpm install without KOISHI_PLUGIN_ALLOW_NPM_INSTALL=1');
+  }
+  if (!isNetworkAllowedForInstall()) {
+    throw new Error('pnpm install requires network; enable KOISHI_PLUGIN_ALLOW_NETWORK=1');
+  }
+  if (!opts.ignoreScripts && !canRunInstallScripts()) {
+    throw new Error('Refusing to run install scripts without KOISHI_PLUGIN_ALLOW_INSTALL_SCRIPTS=1');
+  }
+
+  const args = ['install'];
+  if (opts.production) args.push('--prod');
+  if (opts.ignoreScripts) args.push('--ignore-scripts');
+  if (opts.frozenLockfile) args.push('--frozen-lockfile');
+  else args.push('--no-frozen-lockfile');
+
+  // do not inherit workspace filter/lockfile; treat plugin as standalone project
+  args.push('--prefer-offline');
+
+  const envVars: NodeJS.ProcessEnv = { ...process.env };
+  if (opts.registry) envVars.npm_config_registry = opts.registry;
+
+  await execFileAsync('pnpm', args, {
+    cwd: projectDir,
+    env: envVars,
+    maxBuffer: 20 * 1024 * 1024,
+  });
 }
 
 async function loadMarketplaceIndex(marketplaceId: string): Promise<MarketplaceIndexV1> {
@@ -358,6 +418,21 @@ export async function installFromMarketplace(opts: InstallOptions): Promise<Plug
     const permissions = resolveRequestedPermissions(target.permissions);
     validatePermissions(permissions);
 
+    const install = {
+      mode: (target.install?.mode || 'none') as 'none' | 'pnpm',
+      production: target.install?.production !== false,
+      ignoreScripts: target.install?.ignoreScripts !== false,
+      frozenLockfile: target.install?.frozenLockfile === true,
+      registry: (target.install?.registry || String(process.env.KOISHI_PLUGIN_NPM_REGISTRY || '').trim() || undefined) as string | undefined,
+    };
+
+    if (install.mode === 'pnpm') {
+      // install requires network access even if runtime permissions are empty
+      if (!canInstallWithPnpm()) {
+        throw new Error('Plugin requires pnpm install; set KOISHI_PLUGIN_ALLOW_NPM_INSTALL=1 to enable');
+      }
+    }
+
     const installDir = resolveKoishiDir('plugins', pluginId, target.version);
     const tmpDir = resolveKoishiDir('tmp');
     const archivePath = path.join(tmpDir, `${pluginId}-${target.version}.${distType}`);
@@ -371,7 +446,7 @@ export async function installFromMarketplace(opts: InstallOptions): Promise<Plug
         module,
         installDir,
         permissions,
-        source: { type: 'marketplace', marketplaceId, pluginId, version: target.version, dist: { type: distType, url, sha256: expected }, permissions },
+        source: { type: 'marketplace', marketplaceId, pluginId, version: target.version, dist: { type: distType, url, sha256: expected }, install, permissions },
       };
     }
 
@@ -386,11 +461,17 @@ export async function installFromMarketplace(opts: InstallOptions): Promise<Plug
     await ensureDir(installDir);
     await extractArchive(distType, archivePath, installDir);
 
+    if (install.mode === 'pnpm') {
+      const projectDir = await findPnpmProjectDir(installDir);
+      if (!projectDir) throw new Error('install.mode=pnpm but package.json not found after extract');
+      await runPnpmInstall(projectDir, install as any);
+    }
+
     const entryFile = await resolveEntryFile(installDir, entryPath);
     const entryRel = path.relative(path.join(resolveKoishiDir('plugins', pluginId, target.version)), entryFile).split(path.sep).join('/');
     const module = buildModuleSpecifier(pluginId, target.version, entryRel);
 
-    const source = { type: 'marketplace', marketplaceId, pluginId, version: target.version, dist: { type: distType, url, sha256: expected }, permissions };
+    const source = { type: 'marketplace', marketplaceId, pluginId, version: target.version, dist: { type: distType, url, sha256: expected }, install, permissions };
     await writeInstallMeta(installDir, {
       installedAt: new Date().toISOString(),
       ...source,
