@@ -26,8 +26,8 @@ services:
       # KOISHI_ENABLED: 1
       # KOISHI_GATEWAY_URL: ws://127.0.0.1:8765
       # KOISHI_INSTANCES: 0
-      # KOISHI_CONFIG_PATH: /app/data/koishi/plugins.yaml   # JSON/YAML，格式见文档
-      # KOISHI_PLUGINS_DIR: /app/data/koishi/plugins        # 扫描 .js/.mjs/.cjs（.ts 需 KOISHI_ALLOW_TS=1）
+      # KOISHI_CONFIG_PATH: /app/data/koishi/plugins.yaml   # JSON/YAML（必须在 DATA_DIR=/app/data 下）
+      # KOISHI_PLUGINS_DIR: /app/data/koishi/plugins        # 扫描 .js/.mjs/.cjs（必须在 DATA_DIR=/app/data 下；.ts 需 KOISHI_ALLOW_TS=1）
       # KOISHI_ALLOW_TS: 0
       # KOISHI_DEBUG_SESSIONS: 0
       

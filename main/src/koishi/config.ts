@@ -1,8 +1,9 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import YAML from 'yaml';
 import { getLogger } from '../shared/logger';
+import env from '../domain/models/env';
 
 const logger = getLogger('KoishiHost');
 
@@ -41,6 +42,32 @@ export function resolveKoishiAllowTsPlugins(): boolean {
   return raw === '1' || raw === 'true' || raw === 'yes' || raw === 'on';
 }
 
+function resolveDataDir(): string {
+  const dataDir = String(env.DATA_DIR || process.env.DATA_DIR || '/app/data');
+  return path.resolve(dataDir);
+}
+
+async function realpathSafe(p: string): Promise<string> {
+  try {
+    return await fs.realpath(p);
+  } catch {
+    return p;
+  }
+}
+
+async function resolvePathUnderDataDir(inputPath: string): Promise<string> {
+  const abs = path.resolve(inputPath);
+  const real = await realpathSafe(abs);
+  const dataDir = resolveDataDir();
+  const dataReal = await realpathSafe(dataDir);
+
+  if (real === dataReal) return real;
+  if (!real.startsWith(dataReal + path.sep)) {
+    throw new Error(`Path is outside DATA_DIR: ${inputPath}`);
+  }
+  return real;
+}
+
 async function loadConfigFile(filePath: string): Promise<any> {
   const raw = await fs.readFile(filePath, 'utf8');
   const ext = path.extname(filePath).toLowerCase();
@@ -52,12 +79,21 @@ function resolveModuleSpecifier(spec: string, baseDir: string): string {
   if (!spec) return spec;
   if (spec.startsWith('file://')) return spec;
   if (spec.startsWith('.') || spec.startsWith('/')) return path.resolve(baseDir, spec);
-  return spec; // package name
+  // disallow package-name imports by default (marketplace/security layer)
+  return '';
 }
 
 function isTsFile(specifier: string): boolean {
   const s = specifier.startsWith('file://') ? specifier.slice('file://'.length) : specifier;
   return /\.ts$/i.test(s);
+}
+
+function fileUrlToPathSafe(specifier: string): string {
+  try {
+    return fileURLToPath(specifier);
+  } catch {
+    return specifier;
+  }
 }
 
 async function loadModule(specifier: string): Promise<any> {
@@ -73,18 +109,18 @@ async function loadModule(specifier: string): Promise<any> {
     const mod = await import(url);
     return mod?.default ?? mod;
   }
-  const mod = await import(specifier);
-  return mod?.default ?? mod;
+  throw new Error(`Refusing to load package module: ${specifier}`);
 }
 
 export async function loadKoishiPluginSpecs(): Promise<KoishiPluginSpec[]> {
   const specs: KoishiPluginSpec[] = [];
   const allowTs = resolveKoishiAllowTsPlugins();
+  const dataDir = resolveDataDir();
 
   const configPath = String(process.env.KOISHI_CONFIG_PATH || '').trim();
   if (configPath) {
     try {
-      const abs = path.resolve(configPath);
+      const abs = await resolvePathUnderDataDir(configPath);
       const baseDir = path.dirname(abs);
       const config = await loadConfigFile(abs);
       const plugins = Array.isArray(config?.plugins) ? config.plugins : [];
@@ -92,28 +128,34 @@ export async function loadKoishiPluginSpecs(): Promise<KoishiPluginSpec[]> {
       for (const p of plugins) {
         const moduleRaw = typeof p?.module === 'string' ? p.module : '';
         const module = resolveModuleSpecifier(moduleRaw, baseDir);
-        if (!module) continue;
+        if (!module) {
+          logger.warn({ module: moduleRaw }, 'Skip non-file Koishi plugin (only DATA_DIR file paths are allowed)');
+          continue;
+        }
         if (isTsFile(module) && !allowTs) {
           logger.warn({ module }, 'Skip .ts Koishi plugin (set KOISHI_ALLOW_TS=1 to enable)');
           continue;
         }
+        const resolved = module.startsWith('file://')
+          ? await resolvePathUnderDataDir(fileUrlToPathSafe(module))
+          : await resolvePathUnderDataDir(module);
         const enabled = p?.enabled === false ? false : true;
         specs.push({
-          module,
+          module: resolved,
           enabled,
           config: p?.config,
-          load: () => loadModule(module),
+          load: () => loadModule(resolved),
         });
       }
     } catch (error: any) {
-      logger.error({ configPath, error }, 'Failed to load KOISHI_CONFIG_PATH');
+      logger.error({ configPath, dataDir, error }, 'Failed to load KOISHI_CONFIG_PATH');
     }
   }
 
   const pluginsDir = String(process.env.KOISHI_PLUGINS_DIR || '').trim();
   if (pluginsDir) {
     try {
-      const absDir = path.resolve(pluginsDir);
+      const absDir = await resolvePathUnderDataDir(pluginsDir);
       const entries = await fs.readdir(absDir, { withFileTypes: true });
       const files = entries
         .filter(e => e.isFile())
@@ -131,7 +173,7 @@ export async function loadKoishiPluginSpecs(): Promise<KoishiPluginSpec[]> {
         });
       }
     } catch (error: any) {
-      logger.error({ pluginsDir, error }, 'Failed to load KOISHI_PLUGINS_DIR');
+      logger.error({ pluginsDir, dataDir, error }, 'Failed to load KOISHI_PLUGINS_DIR');
     }
   }
 

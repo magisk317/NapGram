@@ -109,9 +109,9 @@ NapGram 支持在**进程内启动 Koishi 运行时**作为插件宿主（通过
 - `KOISHI_ENABLED=1`：启用 KoishiHost（默认关闭）
 - `KOISHI_GATEWAY_URL=ws://127.0.0.1:8765`：Gateway 地址（默认本机）
 - `KOISHI_INSTANCES=0`：订阅实例列表（逗号分隔）
-- `KOISHI_CONFIG_PATH=/app/data/koishi/plugins.yaml`：从 JSON/YAML 配置加载插件
-- `KOISHI_PLUGINS_DIR=/app/data/koishi/plugins`：从目录加载插件（默认只加载 `.js/.mjs/.cjs`）
-- `KOISHI_ALLOW_TS=1`：允许加载 `.ts` 插件（仅建议开发环境）
+- `KOISHI_CONFIG_PATH=/app/data/koishi/plugins.yaml`：从 JSON/YAML 配置加载插件（必须在 `DATA_DIR` 下）
+- `KOISHI_PLUGINS_DIR=/app/data/koishi/plugins`：从目录加载插件（必须在 `DATA_DIR` 下；默认只加载 `.js/.mjs/.cjs`）
+- `KOISHI_ALLOW_TS=1`：允许加载 `.ts` 插件（仅建议开发环境；生产默认拒绝）
 - `KOISHI_DEBUG_SESSIONS=1`：打印 Koishi `session`（用于联调）
 
 ### 升级 FAQ
