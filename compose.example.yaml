@@ -30,6 +30,7 @@ services:
       # KOISHI_PLUGINS_DIR: /app/data/koishi/plugins        # 扫描 .js/.mjs/.cjs（必须在 DATA_DIR=/app/data 下；.ts 需 KOISHI_ALLOW_TS=1）
       # KOISHI_ALLOW_TS: 0
       # KOISHI_DEBUG_SESSIONS: 0
+      # KOISHI_ADMIN_TOKEN: "" # 可选：仅用于 /api/admin/koishi/* 的额外管理令牌（不依赖 DB Token）
       
       # 数据库连接（需与下方 postgres 服务凭据一致）
       DATABASE_URL: postgres://napgram_user:secure_password_here@postgres:5432/napgram

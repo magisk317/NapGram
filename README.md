@@ -113,6 +113,7 @@ NapGram 支持在**进程内启动 Koishi 运行时**作为插件宿主（通过
 - `KOISHI_PLUGINS_DIR=/app/data/koishi/plugins`：从目录加载插件（必须在 `DATA_DIR` 下；默认只加载 `.js/.mjs/.cjs`）
 - `KOISHI_ALLOW_TS=1`：允许加载 `.ts` 插件（仅建议开发环境；生产默认拒绝）
 - `KOISHI_DEBUG_SESSIONS=1`：打印 Koishi `session`（用于联调）
+- `KOISHI_ADMIN_TOKEN=...`：可选，用于 `/api/admin/koishi/*` 的额外管理令牌（不依赖 DB Token；不设置时仅允许 `ADMIN_TOKEN`）
 
 ### 升级 FAQ
 

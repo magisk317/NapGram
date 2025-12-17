@@ -7,6 +7,25 @@ import { KoishiHost } from '../koishi/KoishiHost';
  * KoishiHost Admin API
  */
 export default async function (fastify: FastifyInstance) {
+  async function requireKoishiAdmin(request: any, reply: any) {
+    const header = String(request.headers?.authorization || '');
+    const bearer = header.startsWith('Bearer ') ? header.slice('Bearer '.length) : '';
+    const cookieToken = request.cookies?.admin_token ? String(request.cookies.admin_token) : '';
+    const queryToken = request.query && typeof request.query === 'object' && 'token' in request.query ? String(request.query.token) : '';
+    const token = bearer || cookieToken || queryToken;
+
+    const koishiAdmin = String(process.env.KOISHI_ADMIN_TOKEN || '').trim();
+    if (koishiAdmin && token && token === koishiAdmin) return;
+
+    const { authMiddleware } = await import('../infrastructure/auth/authMiddleware');
+    await authMiddleware(request, reply);
+
+    const auth = (request as any).auth;
+    if (auth?.type !== 'env') {
+      return reply.code(403).send(ApiResponse.error('Forbidden'));
+    }
+  }
+
   const reloadSchema = z.object({
     instances: z.array(z.number().int()).optional(),
   });
@@ -16,10 +35,7 @@ export default async function (fastify: FastifyInstance) {
    * Reload KoishiHost plugins/runtime (in-process)
    */
   fastify.post('/api/admin/koishi/reload', {
-    preHandler: async (request, reply) => {
-      const { authMiddleware } = await import('../infrastructure/auth/authMiddleware');
-      await authMiddleware(request, reply);
-    }
+    preHandler: requireKoishiAdmin,
   }, async (request, reply) => {
     try {
       const body = reloadSchema.safeParse(request.body ?? {});
@@ -46,12 +62,8 @@ export default async function (fastify: FastifyInstance) {
    * Show last reload report/status
    */
   fastify.get('/api/admin/koishi/status', {
-    preHandler: async (request, reply) => {
-      const { authMiddleware } = await import('../infrastructure/auth/authMiddleware');
-      await authMiddleware(request, reply);
-    }
+    preHandler: requireKoishiAdmin,
   }, async () => {
     return ApiResponse.success(KoishiHost.getLastReport());
   });
 }
-
