@@ -141,26 +141,6 @@ export async function loadPluginSpecs(): Promise<PluginSpec[]> {
   const allowTs = resolveAllowTsPlugins();
   const dataDir = resolveDataDir();
 
-  // 加载内置插件
-  logger.info('Loading builtin plugins');
-  try {
-    const builtinPlugins: Array<PluginSpec> = [
-      {
-        id: 'ping-pong',
-        module: '@builtin/ping-pong',
-        enabled: true,
-        load: async () => builtinPingPong,
-      },
-    ];
-
-    specs.push(...builtinPlugins);
-    for (const builtin of builtinPlugins) {
-      logger.debug({ id: builtin.id, module: builtin.module }, 'Builtin plugin added');
-    }
-  } catch (error) {
-    logger.error({ error }, 'Failed to load builtin plugins');
-  }
-
   const managedConfigPath = await getManagedPluginsConfigPath();
   const configPath = readStringEnv(['PLUGINS_CONFIG_PATH']) || managedConfigPath;
   if (configPath && await exists(configPath)) {
@@ -227,6 +207,29 @@ export async function loadPluginSpecs(): Promise<PluginSpec[]> {
     } catch (error: any) {
       logger.error({ pluginsDir, dataDir, error }, 'Failed to load PLUGINS_DIR');
     }
+  }
+
+  // 加载内置插件（低优先级：仅当外部未提供同名 id）
+  try {
+    const builtinPlugins: Array<PluginSpec> = [
+      {
+        id: 'ping-pong',
+        module: '@builtin/ping-pong',
+        enabled: true,
+        load: async () => builtinPingPong,
+      },
+    ];
+
+    for (const builtin of builtinPlugins) {
+      if (specs.some(s => s.id === builtin.id)) {
+        logger.info({ id: builtin.id }, 'Builtin plugin skipped (overridden by user plugin)');
+        continue;
+      }
+      specs.push(builtin);
+      logger.debug({ id: builtin.id, module: builtin.module }, 'Builtin plugin added');
+    }
+  } catch (error) {
+    logger.error({ error }, 'Failed to load builtin plugins');
   }
 
   return specs;
