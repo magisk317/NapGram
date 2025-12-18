@@ -4,17 +4,12 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import YAML from 'yaml';
 import { getLogger } from '../../shared/logger';
 import env from '../../domain/models/env';
+import type { PluginSpec } from '../core/interfaces';
 import { readBoolEnv, readStringEnv } from './env';
 import { getManagedPluginsConfigPath } from './store';
+import builtinPingPong from '../builtin/ping-pong';
 
 const logger = getLogger('PluginHost');
-
-export interface PluginSpec {
-  module: string;
-  enabled: boolean;
-  config?: any;
-  load: () => Promise<any>;
-}
 
 export function resolvePluginsEnabled(): boolean {
   return readBoolEnv(['PLUGINS_ENABLED']);
@@ -106,6 +101,25 @@ function fileUrlToPathSafe(specifier: string): string {
   }
 }
 
+function inferIdFromPath(modulePath: string): string {
+  const clean = modulePath.startsWith('file://') ? fileUrlToPathSafe(modulePath) : modulePath;
+  const ext = path.extname(clean);
+  const base = path.basename(clean, ext);
+  if (base.toLowerCase() === 'index') {
+    return path.basename(path.dirname(clean)) || 'plugin';
+  }
+  return base || 'plugin';
+}
+
+function sanitizeId(input: string): string {
+  return String(input || '')
+    .trim()
+    .replace(/[^a-zA-Z0-9_-]/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^[-_]+|[-_]+$/g, '')
+    .slice(0, 64) || 'plugin';
+}
+
 async function loadModule(specifier: string): Promise<any> {
   if (isTsFile(specifier) && !resolveAllowTsPlugins()) {
     throw new Error(`Refusing to load TypeScript plugin without PLUGINS_ALLOW_TS=1: ${specifier}`);
@@ -127,6 +141,26 @@ export async function loadPluginSpecs(): Promise<PluginSpec[]> {
   const allowTs = resolveAllowTsPlugins();
   const dataDir = resolveDataDir();
 
+  // 加载内置插件
+  logger.info('Loading builtin plugins');
+  try {
+    const builtinPlugins: Array<PluginSpec> = [
+      {
+        id: 'ping-pong',
+        module: '@builtin/ping-pong',
+        enabled: true,
+        load: async () => builtinPingPong,
+      },
+    ];
+
+    specs.push(...builtinPlugins);
+    for (const builtin of builtinPlugins) {
+      logger.debug({ id: builtin.id, module: builtin.module }, 'Builtin plugin added');
+    }
+  } catch (error) {
+    logger.error({ error }, 'Failed to load builtin plugins');
+  }
+
   const managedConfigPath = await getManagedPluginsConfigPath();
   const configPath = readStringEnv(['PLUGINS_CONFIG_PATH']) || managedConfigPath;
   if (configPath && await exists(configPath)) {
@@ -137,6 +171,7 @@ export async function loadPluginSpecs(): Promise<PluginSpec[]> {
       const plugins = Array.isArray(config?.plugins) ? config.plugins : [];
 
       for (const p of plugins) {
+        const rawId = typeof p?.id === 'string' ? p.id : '';
         const moduleRaw = typeof p?.module === 'string' ? p.module : '';
         const module = resolveModuleSpecifier(moduleRaw, baseDir);
         if (!module) {
@@ -151,10 +186,13 @@ export async function loadPluginSpecs(): Promise<PluginSpec[]> {
           ? await resolvePathUnderDataDir(fileUrlToPathSafe(module))
           : await resolvePathUnderDataDir(module);
         const enabled = p?.enabled === false ? false : true;
+        const id = sanitizeId(rawId || inferIdFromPath(resolved));
         specs.push({
+          id,
           module: resolved,
           enabled,
           config: p?.config,
+          source: p?.source,
           load: () => loadModule(resolved),
         });
       }
@@ -178,7 +216,9 @@ export async function loadPluginSpecs(): Promise<PluginSpec[]> {
 
       for (const filename of files) {
         const modulePath = path.join(absDir, filename);
+        const id = sanitizeId(inferIdFromPath(modulePath));
         specs.push({
+          id,
           module: modulePath,
           enabled: true,
           load: () => loadModule(modulePath),
