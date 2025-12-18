@@ -5,6 +5,32 @@ import { getLogger } from '../../../shared/logger';
 
 const logger = getLogger('RefreshCommandHandler');
 
+function buildQqGroupAvatarUrl(groupId: string, size: 40 | 100 | 140 | 640 = 640) {
+    const gid = String(groupId || '').trim();
+    return `https://p.qlogo.cn/gh/${gid}/${gid}/${size}/`;
+}
+
+async function fetchBuffer(url: string): Promise<Buffer> {
+    const res = await fetch(url);
+    if (!res.ok) throw new Error(`Fetch failed: ${res.status} ${res.statusText}`);
+    const ab = await res.arrayBuffer();
+    return Buffer.from(ab);
+}
+
+function pickGroupDescription(notice: any): string | null {
+    const data = notice?.data ?? notice;
+    if (!data) return null;
+
+    // common shapes:
+    // - { data: { notices: [{ text, msg, content, ... }] } }
+    // - { notices: [...] }
+    const notices = Array.isArray(data?.notices) ? data.notices : Array.isArray(data?.data) ? data.data : [];
+    const first = notices && notices.length ? notices[0] : null;
+    const text = first?.text || first?.content || first?.msg || first?.notice || '';
+    const s = String(text || '').trim();
+    return s ? s.slice(0, 255) : null;
+}
+
 /**
  * 刷新命令处理器
  * 处理: refresh, refresh_all
@@ -65,24 +91,36 @@ export class RefreshCommandHandler {
                 }
             }
 
-            // TODO: 更新群组头像
-            // 需要实现从 QQ 获取群头像的逻辑
-            // const avatarUrl = await this.getGroupAvatar(qqGroupId);
-            // if (avatarUrl) {
-            //     const avatarBuffer = await fetch(avatarUrl).then(r => r.arrayBuffer());
-            //     await tgChat.setProfilePhoto(Buffer.from(avatarBuffer));
-            // }
+            // 更新群组头像（使用 QQ 群头像公共地址）
+            try {
+                const avatarUrl = buildQqGroupAvatarUrl(qqGroupId, 640);
+                const avatarBuffer = await fetchBuffer(avatarUrl);
+                if (avatarBuffer.length) {
+                    await tgChat.setProfilePhoto(avatarBuffer);
+                    logger.info(`Updated TG chat photo from QQ avatar: ${qqGroupId}`);
+                }
+            } catch (error) {
+                logger.warn('Failed to update chat photo:', error);
+            }
 
-            // TODO: 更新群组描述
-            // NapCat 可能没有获取群公告的 API
-            // const description = await this.getGroupDescription(qqGroupId);
-            // if (description) {
-            //     await tgChat.editAbout(description);
-            // }
+            // 更新群组描述（优先使用群公告）
+            try {
+                const noticeApi = this.context.qqClient.getGroupNotice;
+                if (typeof noticeApi === 'function') {
+                    const notice = await noticeApi.call(this.context.qqClient, qqGroupId);
+                    const description = pickGroupDescription(notice);
+                    if (description) {
+                        await tgChat.editAbout(description);
+                        logger.info(`Updated TG chat description from QQ notice: ${qqGroupId}`);
+                    }
+                }
+            } catch (error) {
+                logger.warn('Failed to update chat description:', error);
+            }
 
             await this.context.replyTG(
                 chatId,
-                `✅ 已刷新群组信息\n\n群名: ${groupInfo.name}\n\n⚠️ 头像和描述刷新功能待完善`,
+                `✅ 已刷新群组信息\n\n群名: ${groupInfo.name}`,
                 threadId
             );
         } catch (error) {
