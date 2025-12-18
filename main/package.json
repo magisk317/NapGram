@@ -3,7 +3,7 @@
   "version": "0.0.7",
   "type": "module",
   "scripts": {
-    "dev": "tsx watch --env-file=.env src/index.ts",
+    "dev": "tsx watch src/index.ts",
     "build": "tsx build.ts",
     "type-check": "tsc --noEmit",
     "pretype-check": "DATABASE_URL=postgresql://dummy pnpm exec prisma generate --no-hints",
