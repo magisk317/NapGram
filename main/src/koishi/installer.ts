@@ -152,46 +152,46 @@ function resolveRequestedPermissions(p?: MarketplacePluginVersion['permissions']
 }
 
 function validatePermissions(permissions: Required<NonNullable<MarketplacePluginVersion['permissions']>>) {
-  const allowNetwork = String(process.env.KOISHI_PLUGIN_ALLOW_NETWORK || '').trim().toLowerCase();
+  const allowNetwork = String(process.env.PLUGIN_ALLOW_NETWORK || process.env.KOISHI_PLUGIN_ALLOW_NETWORK || '').trim().toLowerCase();
   const networkAllowed = allowNetwork === '1' || allowNetwork === 'true' || allowNetwork === 'yes' || allowNetwork === 'on';
-  const allowFs = String(process.env.KOISHI_PLUGIN_ALLOW_FS || '').trim().toLowerCase();
+  const allowFs = String(process.env.PLUGIN_ALLOW_FS || process.env.KOISHI_PLUGIN_ALLOW_FS || '').trim().toLowerCase();
   const fsAllowed = allowFs === '1' || allowFs === 'true' || allowFs === 'yes' || allowFs === 'on';
 
-  const allowlistRaw = String(process.env.KOISHI_PLUGIN_NETWORK_ALLOWLIST || '').trim();
+  const allowlistRaw = String(process.env.PLUGIN_NETWORK_ALLOWLIST || process.env.KOISHI_PLUGIN_NETWORK_ALLOWLIST || '').trim();
   const allowlist = allowlistRaw
     ? allowlistRaw.split(',').map(s => s.trim()).filter(Boolean)
     : [];
 
   if (permissions.network.length) {
     if (!networkAllowed) {
-      throw new Error('Plugin requests network permission but KOISHI_PLUGIN_ALLOW_NETWORK is not enabled');
+      throw new Error('Plugin requests network permission but PLUGIN_ALLOW_NETWORK is not enabled');
     }
     if (allowlist.length) {
       for (const rule of permissions.network) {
         const prefix = rule.endsWith('*') ? rule.slice(0, -1) : rule;
         const ok = allowlist.some(a => prefix.startsWith(a) || a.startsWith(prefix));
-        if (!ok) throw new Error(`Network permission not allowed by KOISHI_PLUGIN_NETWORK_ALLOWLIST: ${rule}`);
+        if (!ok) throw new Error(`Network permission not allowed by PLUGIN_NETWORK_ALLOWLIST: ${rule}`);
       }
     }
   }
 
   if (permissions.fs.length && !fsAllowed) {
-    throw new Error('Plugin requests fs permission but KOISHI_PLUGIN_ALLOW_FS is not enabled');
+    throw new Error('Plugin requests fs permission but PLUGIN_ALLOW_FS is not enabled');
   }
 }
 
 function canInstallWithPnpm(): boolean {
-  const raw = String(process.env.KOISHI_PLUGIN_ALLOW_NPM_INSTALL || '').trim().toLowerCase();
+  const raw = String(process.env.PLUGIN_ALLOW_NPM_INSTALL || process.env.KOISHI_PLUGIN_ALLOW_NPM_INSTALL || '').trim().toLowerCase();
   return raw === '1' || raw === 'true' || raw === 'yes' || raw === 'on';
 }
 
 function canRunInstallScripts(): boolean {
-  const raw = String(process.env.KOISHI_PLUGIN_ALLOW_INSTALL_SCRIPTS || '').trim().toLowerCase();
+  const raw = String(process.env.PLUGIN_ALLOW_INSTALL_SCRIPTS || process.env.KOISHI_PLUGIN_ALLOW_INSTALL_SCRIPTS || '').trim().toLowerCase();
   return raw === '1' || raw === 'true' || raw === 'yes' || raw === 'on';
 }
 
 function isNetworkAllowedForInstall(): boolean {
-  const raw = String(process.env.KOISHI_PLUGIN_ALLOW_NETWORK || '').trim().toLowerCase();
+  const raw = String(process.env.PLUGIN_ALLOW_NETWORK || process.env.KOISHI_PLUGIN_ALLOW_NETWORK || '').trim().toLowerCase();
   return raw === '1' || raw === 'true' || raw === 'yes' || raw === 'on';
 }
 
@@ -298,13 +298,13 @@ async function findPnpmProjectDir(destDir: string): Promise<string | null> {
 
 async function runPnpmInstall(projectDir: string, opts: Required<NonNullable<MarketplacePluginVersion['install']>>) {
   if (!canInstallWithPnpm()) {
-    throw new Error('Refusing to run pnpm install without KOISHI_PLUGIN_ALLOW_NPM_INSTALL=1');
+    throw new Error('Refusing to run pnpm install without PLUGIN_ALLOW_NPM_INSTALL=1');
   }
   if (!isNetworkAllowedForInstall()) {
-    throw new Error('pnpm install requires network; enable KOISHI_PLUGIN_ALLOW_NETWORK=1');
+    throw new Error('pnpm install requires network; enable PLUGIN_ALLOW_NETWORK=1');
   }
   if (!opts.ignoreScripts && !canRunInstallScripts()) {
-    throw new Error('Refusing to run install scripts without KOISHI_PLUGIN_ALLOW_INSTALL_SCRIPTS=1');
+    throw new Error('Refusing to run install scripts without PLUGIN_ALLOW_INSTALL_SCRIPTS=1');
   }
 
   const args = ['install'];
