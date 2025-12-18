@@ -100,27 +100,29 @@
    docker-compose up -d
    ```
 
-### KoishiHost（可选）
+### 插件宿主（可选）
 
-NapGram 支持在**进程内启动 Koishi 运行时**作为插件宿主（通过 NapGram Gateway 收消息/发消息），用于后续插件市场与生态兼容。
+NapGram 支持在**进程内启动插件宿主**（通过 NapGram Gateway 收消息/发消息），用于后续插件市场与生态兼容。
 
 相关环境变量（可选）：
 
-- `KOISHI_ENABLED=1`：启用 KoishiHost（默认关闭）
-- `KOISHI_GATEWAY_URL=ws://127.0.0.1:8765`：Gateway 地址（默认本机）
-- `KOISHI_INSTANCES=0`：订阅实例列表（逗号分隔）
-- `KOISHI_CONFIG_PATH=/app/data/koishi/plugins.yaml`：从 JSON/YAML 配置加载插件（必须在 `DATA_DIR` 下）
-- `KOISHI_PLUGINS_DIR=/app/data/koishi/plugins`：从目录加载插件（必须在 `DATA_DIR` 下；默认只加载 `.js/.mjs/.cjs`）
-- `KOISHI_ALLOW_TS=1`：允许加载 `.ts` 插件（仅建议开发环境；生产默认拒绝）
-- `KOISHI_DEBUG_SESSIONS=1`：打印 Koishi `session`（用于联调）
-- `KOISHI_ADMIN_TOKEN=...`：可选，用于 `/api/admin/koishi/*` 的额外管理令牌（不依赖 DB Token；不设置时仅允许 `ADMIN_TOKEN`）
+- `PLUGINS_ENABLED=1`：启用插件宿主（默认关闭）
+- `PLUGINS_GATEWAY_URL=ws://127.0.0.1:8765`：Gateway 地址（默认本机）
+- `PLUGINS_INSTANCES=0`：订阅实例列表（逗号分隔）
+- `PLUGINS_CONFIG_PATH=/app/data/plugins/plugins.yaml`：从 JSON/YAML 配置加载插件（必须在 `DATA_DIR` 下）
+- `PLUGINS_DIR=/app/data/plugins/local`：从目录加载插件（必须在 `DATA_DIR` 下；默认只加载 `.js/.mjs/.cjs`）
+- `PLUGINS_ALLOW_TS=1`：允许加载 `.ts` 插件（仅建议开发环境；生产默认拒绝）
+- `PLUGINS_DEBUG_SESSIONS=1`：打印插件 `session`（用于联调）
+- `PLUGIN_ADMIN_TOKEN=...`：可选：插件管理接口额外管理令牌（不依赖 DB Token；不设置时仅允许 `ADMIN_TOKEN`）
 
 Marketplace 安装（可选，默认更推荐 “自带依赖的 zip/tgz 包”）：
 
-- `KOISHI_PLUGIN_ALLOW_NPM_INSTALL=1`：允许安装阶段执行 `pnpm install`（兼容 npm 上的 Koishi 插件；默认关闭）
-- `KOISHI_PLUGIN_ALLOW_NETWORK=1`：安装阶段需要网络（与插件运行期 network 权限共用开关）
-- `KOISHI_PLUGIN_ALLOW_INSTALL_SCRIPTS=1`：允许执行 postinstall 等脚本（风险高，默认关闭）
-- `KOISHI_PLUGIN_NPM_REGISTRY=...`：可选：指定 npm registry
+- `PLUGIN_ALLOW_NPM_INSTALL=1`：允许安装阶段执行 `pnpm install`（兼容 npm 风格插件包；默认关闭）
+- `PLUGIN_ALLOW_NETWORK=1`：安装阶段需要网络（与插件运行期 network 权限共用开关）
+- `PLUGIN_ALLOW_INSTALL_SCRIPTS=1`：允许执行 postinstall 等脚本（风险高，默认关闭）
+- `PLUGIN_NPM_REGISTRY=...`：可选：指定 npm registry
+- `PLUGIN_NETWORK_ALLOWLIST=...`：可选：运行期 network allowlist（逗号分隔前缀）
+- `PLUGIN_ALLOW_FS=1`：运行期 fs 权限开关（高风险）
 
 ### 升级 FAQ
 
