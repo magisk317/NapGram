@@ -49,6 +49,17 @@ export default async function (fastify: FastifyInstance) {
     }
   });
 
+  fastify.post('/api/admin/plugins/:id/reload', { preHandler: requirePluginAdmin }, async (request, reply) => {
+    try {
+      const pluginId = String((request.params as any).id || '').trim();
+      if (!pluginId) return reply.code(400).send(ApiResponse.error('Missing plugin id'));
+      const result = await PluginRuntime.reloadPlugin(pluginId);
+      return ApiResponse.success(result);
+    } catch (error: any) {
+      return reply.code(500).send(ApiResponse.error(error?.message || String(error)));
+    }
+  });
+
   fastify.get('/api/admin/plugins/policy', { preHandler: requirePluginAdmin }, async () => {
     const readBool = (...keys: string[]) => {
       for (const key of keys) {
@@ -136,7 +147,7 @@ export default async function (fastify: FastifyInstance) {
   fastify.get('/api/admin/plugins', { preHandler: requirePluginAdmin }, async () => {
     const { path: configPath, config, exists } = await readPluginsConfig();
     const report = PluginRuntime.getLastReport();
-    const failed = new Map(report.failed.map((f: any) => [f.module, f.error] as const));
+    const failed = new Map(report.failed.map((f: any) => [f.id, f.error] as const));
     const loaded = new Set(report.loaded);
 
     const plugins = await Promise.all(config.plugins.map(async p => {
@@ -150,8 +161,8 @@ export default async function (fastify: FastifyInstance) {
         ...p,
         absolute,
         exists: await moduleExistsAbsolute(absolute || p.module),
-        loaded: Boolean(absolute && loaded.has(absolute)),
-        error: (absolute && failed.get(absolute)) || failed.get(p.id) || failed.get(p.module) || null,
+        loaded: loaded.has(p.id),
+        error: failed.get(p.id) || null,
       };
     }));
 

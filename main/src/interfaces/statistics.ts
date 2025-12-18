@@ -3,6 +3,8 @@ import { authMiddleware } from '../infrastructure/auth/authMiddleware';
 import db from '../domain/models/db';
 
 import { ApiResponse } from '../shared/utils/api-response';
+import Instance from '../domain/models/Instance';
+import { PluginRuntime } from '../plugins/runtime';
 /**
  * 统计分析 API
  */
@@ -19,7 +21,7 @@ export default async function (fastify: FastifyInstance) {
             pairCount,
             instanceCount,
             messageCount,
-            todayMessageCount
+            todayMessageCount,
         ] = await Promise.all([
             db.forwardPair.count(),
             db.instance.count(),
@@ -30,8 +32,53 @@ export default async function (fastify: FastifyInstance) {
                         gte: startOfToday
                     }
                 }
-            })
+            }),
         ]);
+
+        // Basic health check
+        const health = {
+            db: true,
+            instances: { total: 0, online: 0, details: [] as Array<{ id: number; tg: boolean; qq: boolean }> },
+            plugins: { enabled: false, loaded: 0, failed: 0 },
+        };
+
+        try {
+            await db.$queryRaw`SELECT 1`;
+        } catch {
+            health.db = false;
+        }
+
+        try {
+            const runtimeReport = PluginRuntime.getLastReport();
+            health.plugins.enabled = Boolean(runtimeReport?.enabled);
+            health.plugins.loaded = Array.isArray(runtimeReport?.loaded) ? runtimeReport.loaded.length : 0;
+            health.plugins.failed = Array.isArray(runtimeReport?.failed) ? runtimeReport.failed.length : 0;
+        } catch {
+            // ignore
+        }
+
+        try {
+            const instances = Instance.instances || [];
+            health.instances.total = instances.length;
+            for (const inst of instances) {
+                const tgOk = Boolean((inst as any).tgBot?.isOnline);
+                let qqOk = false;
+                try {
+                    qqOk = Boolean(await inst.qqClient?.isOnline?.());
+                } catch {
+                    qqOk = false;
+                }
+                if (tgOk && qqOk) health.instances.online++;
+                health.instances.details.push({ id: inst.id, tg: tgOk, qq: qqOk });
+            }
+        } catch {
+            // ignore
+        }
+
+        const status =
+            !health.db ? 'unhealthy'
+                : (health.plugins.failed > 0 ? 'degraded'
+                    : (health.instances.total > 0 && health.instances.online < health.instances.total ? 'degraded' : 'healthy'));
 
         return {
             success: true,
@@ -41,7 +88,8 @@ export default async function (fastify: FastifyInstance) {
                 messageCount,
                 todayMessageCount,
                 avgMessagesPerDay: messageCount > 0 ? Math.round(messageCount / 30) : 0,
-                status: 'healthy' // TODO: 实际健康检查
+                status,
+                health,
             }
         };
     });
