@@ -137,9 +137,52 @@ async function loadModule(specifier: string): Promise<any> {
 }
 
 export async function loadPluginSpecs(): Promise<PluginSpec[]> {
-  const specs: PluginSpec[] = [];
+  type SpecOrigin = 'config' | 'local' | 'builtin';
+  const priorityByOrigin: Record<SpecOrigin, number> = {
+    config: 3,
+    local: 2,
+    builtin: 1,
+  };
+  const specsById = new Map<string, { spec: PluginSpec; origin: SpecOrigin; priority: number; order: number }>();
+  let order = 0;
   const allowTs = resolveAllowTsPlugins();
   const dataDir = resolveDataDir();
+  const hasSpec = (predicate: (spec: PluginSpec) => boolean): boolean => {
+    for (const entry of specsById.values()) {
+      if (predicate(entry.spec)) return true;
+    }
+    return false;
+  };
+  const addSpec = (spec: PluginSpec, origin: SpecOrigin) => {
+    const priority = priorityByOrigin[origin];
+    const existing = specsById.get(spec.id);
+    if (!existing) {
+      specsById.set(spec.id, { spec, origin, priority, order: order++ });
+      return;
+    }
+    if (priority > existing.priority) {
+      logger.info({
+        id: spec.id,
+        module: spec.module,
+        origin,
+        previous: existing.origin,
+        previousModule: existing.spec.module,
+      }, 'Plugin spec overridden by higher priority source');
+      specsById.set(spec.id, { spec, origin, priority, order: order++ });
+      return;
+    }
+    if (origin === 'builtin') {
+      logger.info({ id: spec.id }, 'Builtin plugin skipped (overridden by user plugin)');
+      return;
+    }
+    logger.warn({
+      id: spec.id,
+      module: spec.module,
+      origin,
+      previous: existing.origin,
+      previousModule: existing.spec.module,
+    }, 'Duplicate plugin id skipped');
+  };
 
   const managedConfigPath = await getManagedPluginsConfigPath();
   const configPath = readStringEnv(['PLUGINS_CONFIG_PATH']) || managedConfigPath;
@@ -167,14 +210,14 @@ export async function loadPluginSpecs(): Promise<PluginSpec[]> {
           : await resolvePathUnderDataDir(module);
         const enabled = p?.enabled === false ? false : true;
         const id = sanitizeId(rawId || inferIdFromPath(resolved));
-        specs.push({
+        addSpec({
           id,
           module: resolved,
           enabled,
           config: p?.config,
           source: p?.source,
           load: () => loadModule(resolved),
-        });
+        }, 'config');
       }
     } catch (error: any) {
       logger.error({ configPath, dataDir, error }, 'Failed to load PLUGINS_CONFIG_PATH');
@@ -186,7 +229,10 @@ export async function loadPluginSpecs(): Promise<PluginSpec[]> {
   if (pluginsDir && await exists(pluginsDir)) {
     try {
       const absDir = await resolvePathUnderDataDir(pluginsDir);
+      logger.debug({ absDir }, 'Scanning local plugins directory');
       const entries = await fs.readdir(absDir, { withFileTypes: true });
+
+      // 加载文件（单文件插件）
       const files = entries
         .filter(e => e.isFile())
         .map(e => e.name)
@@ -195,17 +241,94 @@ export async function loadPluginSpecs(): Promise<PluginSpec[]> {
         .sort((a, b) => a.localeCompare(b));
 
       for (const filename of files) {
-        const modulePath = path.join(absDir, filename);
-        const id = sanitizeId(inferIdFromPath(modulePath));
-        specs.push({
-          id,
-          module: modulePath,
-          enabled: true,
-          load: () => loadModule(modulePath),
-        });
+        try {
+          const modulePath = path.join(absDir, filename);
+          const id = sanitizeId(inferIdFromPath(modulePath));
+
+          // 如果该插件已在配置文件中定义（无论启用与否），则跳过自动发现
+          // 检查 ID 或 模块路径是否匹配
+          if (specsById.has(id) || hasSpec(s => s.module === modulePath)) {
+            logger.debug({ id }, 'Plugin already configured via config file, skipping auto-discovery');
+            continue;
+          }
+
+          logger.debug({ id, modulePath }, 'Found local file plugin');
+          addSpec({
+            id,
+            module: modulePath,
+            enabled: true,
+            load: () => loadModule(modulePath),
+          }, 'local');
+        } catch (err) {
+          logger.warn({ filename, error: err }, 'Failed to parse file plugin');
+        }
+      }
+
+      // 加载目录（package 插件）
+      const dirs = entries
+        .filter(e => e.isDirectory())
+        .map(e => e.name)
+        .filter(name => !name.startsWith('.'))
+        .sort((a, b) => a.localeCompare(b));
+
+      for (const dirname of dirs) {
+        const dirPath = path.join(absDir, dirname);
+        const pkgPath = path.join(dirPath, 'package.json');
+
+        logger.debug({ dirname, dirPath }, 'Checking directory for plugin');
+
+        // 检查是否有 package.json
+        if (await exists(pkgPath)) {
+          try {
+            const pkgRaw = await fs.readFile(pkgPath, 'utf8');
+            const pkg = JSON.parse(pkgRaw);
+
+            // 默认寻找 index.mjs -> index.js -> package.json[main]
+            let mainFile = pkg.main;
+            if (!mainFile) {
+              if (await exists(path.join(dirPath, 'index.mjs'))) mainFile = 'index.mjs';
+              else if (await exists(path.join(dirPath, 'index.js'))) mainFile = 'index.js';
+            }
+
+            if (!mainFile) {
+              logger.debug({ dirname }, 'Skip directory plugin: No entry file (main/index.mjs/index.js) found');
+              continue;
+            }
+
+            const modulePath = path.join(dirPath, mainFile);
+
+            if (await exists(modulePath)) {
+              // 提取 ID 时，如果 package.json 有 name，则优先使用其最后一部分
+              const pkgName = typeof pkg.name === 'string' ? pkg.name : '';
+              const rawId = pkgName.split('/').pop() || dirname;
+              const id = sanitizeId(rawId);
+
+              // 如果该插件已在配置文件中定义（无论启用与否），则跳过自动发现
+              // 检查 ID 或 模块路径（入口文件或目录）是否匹配
+              if (specsById.has(id) || hasSpec(s => s.module === modulePath || s.module === dirPath)) {
+                logger.debug({ id }, 'Plugin already configured via config file, skipping auto-discovery');
+                continue;
+              }
+
+              logger.debug({ id, modulePath, pkgName }, 'Found local directory plugin');
+              addSpec({
+                id,
+                module: modulePath,
+                enabled: true,
+                load: () => loadModule(modulePath),
+              }, 'local');
+            } else {
+              logger.debug({ dirname, modulePath }, 'Skip directory plugin: Entry file does not exist');
+            }
+          } catch (err: any) {
+            logger.warn({ dir: dirname, error: err.message }, 'Failed to load directory plugin');
+          }
+        } else {
+          logger.debug({ dirname }, 'Skip directory: No package.json found');
+        }
       }
     } catch (error: any) {
-      logger.error({ pluginsDir, dataDir, error }, 'Failed to load PLUGINS_DIR');
+      logger.error({ pluginsDir, dataDir, error: error.message }, 'Failed to scan PLUGINS_DIR');
     }
   }
 
@@ -221,16 +344,16 @@ export async function loadPluginSpecs(): Promise<PluginSpec[]> {
     ];
 
     for (const builtin of builtinPlugins) {
-      if (specs.some(s => s.id === builtin.id)) {
-        logger.info({ id: builtin.id }, 'Builtin plugin skipped (overridden by user plugin)');
-        continue;
+      addSpec(builtin, 'builtin');
+      if (specsById.get(builtin.id)?.spec === builtin) {
+        logger.debug({ id: builtin.id, module: builtin.module }, 'Builtin plugin added');
       }
-      specs.push(builtin);
-      logger.debug({ id: builtin.id, module: builtin.module }, 'Builtin plugin added');
     }
   } catch (error) {
     logger.error({ error }, 'Failed to load builtin plugins');
   }
 
-  return specs;
+  return Array.from(specsById.values())
+    .sort((a, b) => a.order - b.order)
+    .map(entry => entry.spec);
 }
