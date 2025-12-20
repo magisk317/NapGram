@@ -7,6 +7,7 @@ import { unzipSync } from 'fflate';
 import env from '../../domain/models/env';
 import { readMarketplaceCache } from './marketplace';
 import { patchPluginConfig, readPluginsConfig, removePluginConfig, upsertPluginConfig } from './store';
+import { PluginRuntime } from '../runtime';
 
 const execFileAsync = promisify(execFile);
 
@@ -553,8 +554,50 @@ export async function uninstallPlugin(pluginIdRaw: string, options: UninstallOpt
     const { config } = await readPluginsConfig();
     const idx = config.plugins.findIndex(p => p.id === pluginId);
     const removed = idx >= 0;
-    if (!options.dryRun && removed) {
-      await removePluginConfig(pluginId);
+
+    if (!options.dryRun) {
+      if (removed) {
+        const entry = config.plugins[idx];
+        const isMarketplacePlugin = entry.source && typeof entry.source === 'object' && entry.source.type === 'marketplace';
+
+        // For marketplace plugins, remove the config entry (they can be reinstalled)
+        // For local plugins, keep the entry but set enabled: false to prevent auto-discovery from re-enabling
+        if (isMarketplacePlugin) {
+          await removePluginConfig(pluginId);
+        } else {
+          await patchPluginConfig(pluginId, { enabled: false });
+        }
+      } else {
+        // Plugin not in config yet (probably auto-discovered local plugin)
+        // Check if it's loaded in runtime to determine if it's a local plugin
+        const runtime = PluginRuntime.getLastReport();
+        const isLoaded = runtime.loaded.includes(pluginId);
+
+        if (isLoaded) {
+          // It's a local plugin that was auto-discovered - add it to config as disabled
+          const loadedPlugin = runtime.loadedPlugins?.find(p => p.id === pluginId);
+          if (loadedPlugin) {
+            // Try to infer the module path from runtime
+            const localDir = resolvePluginsRoot('local', pluginId);
+            const possiblePaths = [
+              `./local/${pluginId}/index.mjs`,
+              `./local/${pluginId}/index.js`,
+            ];
+
+            // Add the plugin to config with enabled: false
+            try {
+              await upsertPluginConfig({
+                id: pluginId,
+                module: possiblePaths[0], // Use default path
+                enabled: false,
+              });
+            } catch (error) {
+              // If upsert fails, it means we can't persist the disable - this is acceptable
+              // The plugin will be re-enabled on next reload
+            }
+          }
+        }
+      }
     }
 
     let filesRemoved = false;

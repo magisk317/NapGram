@@ -154,7 +154,28 @@ export async function patchPluginConfig(id: string, patch: { module?: string; en
   const pluginId = sanitizeId(id);
   const { path: configPath, config } = await readPluginsConfig();
   const idx = config.plugins.findIndex(p => p.id === pluginId);
-  if (idx < 0) throw new Error(`Plugin not found: ${pluginId}`);
+
+  if (idx < 0) {
+    // Plugin not in config yet - try to add it
+    // This handles the case where a local plugin was auto-discovered but never explicitly configured
+    if (!patch.module) {
+      // Try to infer the module path for local plugins
+      const possiblePaths = [
+        `./local/${pluginId}/index.mjs`,
+        `./local/${pluginId}/index.js`,
+      ];
+      patch.module = possiblePaths[0]; // Use default path
+    }
+
+    // Create new entry using upsertPluginConfig
+    return await upsertPluginConfig({
+      id: pluginId,
+      module: patch.module!,
+      enabled: patch.enabled,
+      config: patch.config,
+      source: patch.source,
+    });
+  }
 
   const next = { ...config.plugins[idx] } as any;
   if (typeof patch.enabled === 'boolean') next.enabled = patch.enabled;
