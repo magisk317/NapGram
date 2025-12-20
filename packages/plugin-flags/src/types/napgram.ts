@@ -18,6 +18,7 @@ export interface PluginContext {
     readonly pluginId: string;
     readonly logger: PluginLogger;
     readonly config: any;
+    readonly storage: PluginStorage;
 
     command(config: CommandConfig): this;
 
@@ -79,6 +80,14 @@ export interface QQClientAPI {
 export interface InstanceAPI {
     id: number;
     forwardPairs: any; // ForwardMap
+}
+
+export interface PluginStorage {
+    get<T = any>(key: string): Promise<T | null>;
+    set<T = any>(key: string, value: T): Promise<void>;
+    delete(key: string): Promise<void>;
+    keys(): Promise<string[]>;
+    clear(): Promise<void>;
 }
 
 export interface PluginLogger {

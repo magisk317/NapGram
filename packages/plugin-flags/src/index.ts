@@ -1,5 +1,32 @@
 import type { NapGramPlugin, PluginContext, MessageEvent } from './types/napgram.js';
 
+type FlagsByInstance = Record<string, Record<string, boolean>>;
+
+const STORAGE_KEY = 'flags-v1';
+
+const normalizeFlagName = (input: string) => String(input || '').trim().replace(/\s+/g, '_');
+
+const loadAllFlags = async (ctx: PluginContext): Promise<FlagsByInstance> => {
+    try {
+        const data = await ctx.storage.get<FlagsByInstance>(STORAGE_KEY);
+        if (!data || typeof data !== 'object' || Array.isArray(data)) return {};
+        return data;
+    } catch (error) {
+        ctx.logger.warn('Flags plugin: Failed to load flags, fallback to empty', error);
+        return {};
+    }
+};
+
+const saveAllFlags = async (ctx: PluginContext, data: FlagsByInstance) => {
+    await ctx.storage.set(STORAGE_KEY, data);
+};
+
+const applyInstanceFlags = (event: MessageEvent, flags: Record<string, boolean>) => {
+    const instance = event.instance as any;
+    if (!instance) return;
+    instance._flagsStore = new Map(Object.entries(flags));
+};
+
 const plugin: NapGramPlugin = {
     id: 'flags',
     name: 'Flags Plugin',
@@ -17,7 +44,7 @@ const plugin: NapGramPlugin = {
         ctx.command({
             name: 'flags',
             description: '管理实验性功能标志',
-            adminOnly: true, // 目前在插件内部判断
+            adminOnly: true,
             handler: async (event: MessageEvent, args: string[]) => {
                 if (event.platform !== 'tg') {
                     return;
@@ -41,7 +68,7 @@ const plugin: NapGramPlugin = {
                 }
 
                 const action = args[0].toLowerCase();
-                const flagName = args[1];
+                const flagName = normalizeFlagName(args[1]);
 
                 switch (action) {
                     case 'list':
@@ -70,15 +97,17 @@ const plugin: NapGramPlugin = {
         });
 
         const listFlags = async (event: MessageEvent) => {
-            const instance = event.instance as any;
-            const flagsMap = instance._flagsStore as Map<string, boolean>;
+            const instanceId = String(event.instance?.id ?? event.instanceId ?? '0');
+            const allFlags = await loadAllFlags(ctx);
+            const flagsMap = allFlags[instanceId] || {};
 
             let message = `⚙️ **实验性功能标志**\n\n`;
 
-            if (!flagsMap || flagsMap.size === 0) {
+            const entries = Object.entries(flagsMap);
+            if (entries.length === 0) {
                 message += `当前没有启用任何实验性功能\n\n`;
             } else {
-                for (const [key, value] of flagsMap.entries()) {
+                for (const [key, value] of entries.sort((a, b) => a[0].localeCompare(b[0]))) {
                     const status = value ? '✅ 已启用' : '❌ 已禁用';
                     message += `\`${key}\` - ${status}\n`;
                 }
@@ -90,22 +119,28 @@ const plugin: NapGramPlugin = {
             message += `• \`experimental_quotly\` - QuotLy 生成功能\n`;
             message += `• \`debug_mode\` - 调试模式`;
 
+            applyInstanceFlags(event, flagsMap);
             await event.reply(message);
         };
 
         const setFlag = async (event: MessageEvent, flagName: string, enabled: boolean) => {
-            const instance = event.instance as any;
+            try {
+                const instanceId = String(event.instance?.id ?? event.instanceId ?? '0');
+                const allFlags = await loadAllFlags(ctx);
+                const next = { ...(allFlags[instanceId] || {}) };
+                next[flagName] = enabled;
+                allFlags[instanceId] = next;
+                await saveAllFlags(ctx, allFlags);
+                applyInstanceFlags(event, next);
 
-            if (!instance._flagsStore) {
-                instance._flagsStore = new Map<string, boolean>();
+                const status = enabled ? '✅ 已启用' : '❌ 已禁用';
+                await event.reply(
+                    `${status} 功能标志: \`${flagName}\`\n\n✅ 已持久化保存（实例 ${instanceId}）`
+                );
+            } catch (error) {
+                ctx.logger.error('Flags plugin: Failed to set flag', error);
+                await event.reply('❌ 设置功能标志失败，请查看日志');
             }
-
-            instance._flagsStore.set(flagName, enabled);
-
-            const status = enabled ? '✅ 已启用' : '❌ 已禁用';
-            await event.reply(
-                `${status} 功能标志: \`${flagName}\`\n\n⚠️ 当前使用内存存储，重启后失效`
-            );
         };
 
         ctx.logger.info('Flags plugin: All commands registered');
