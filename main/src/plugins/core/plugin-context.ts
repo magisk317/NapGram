@@ -19,6 +19,7 @@ import type {
     InstanceAPI,
     UserAPI,
     GroupAPI,
+    CommandConfig,
 } from './interfaces';
 import { EventBus } from './event-bus';
 import { createPluginLogger } from '../api/logger';
@@ -38,6 +39,9 @@ export class PluginContextImpl implements PluginContext {
     readonly instance!: InstanceAPI;
     readonly user!: UserAPI;
     readonly group!: GroupAPI;
+
+    /** 命令注册表 */
+    private commands: Map<string, CommandConfig> = new Map();
 
     /** 生命周期钩子 */
     private reloadCallbacks: Array<() => void | Promise<void>> = [];
@@ -178,6 +182,34 @@ export class PluginContextImpl implements PluginContext {
         );
     }
 
+    // === 命令注册 ===
+
+    /**
+     * 注册命令
+     */
+    command(config: CommandConfig): this {
+        // 注册主命令名
+        this.commands.set(config.name, config);
+
+        // 注册别名
+        if (config.aliases) {
+            for (const alias of config.aliases) {
+                this.commands.set(alias, config);
+            }
+        }
+
+        this.logger.debug(`Command registered: ${config.name}${config.aliases ? ` (aliases: ${config.aliases.join(', ')})` : ''}`);
+        return this;
+    }
+
+    /**
+     * 获取已注册的命令
+     * @internal
+     */
+    getCommands(): Map<string, CommandConfig> {
+        return this.commands;
+    }
+
     // === 生命周期钩子 ===
 
     onReload(callback: () => void | Promise<void>): void {
@@ -219,11 +251,12 @@ export class PluginContextImpl implements PluginContext {
     }
 
     /**
-     * 清理上下文（移除所有事件订阅）
+     * 清理上下文（移除所有事件订阅和命令）
      * @internal
      */
     cleanup(): void {
         this.eventBus.removePluginSubscriptions(this.pluginId);
+        this.commands.clear();
         this.reloadCallbacks = [];
         this.unloadCallbacks = [];
     }

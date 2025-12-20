@@ -145,3 +145,6 @@ export class PluginRuntime {
     return runtime.getEventBus();
   }
 }
+
+// 导出 getGlobalRuntime 供其他模块使用（如 CommandsFeature）
+export { getGlobalRuntime };

@@ -45,6 +45,12 @@ export interface RuntimeReport {
     /** 已加载的插件 ID */
     loaded: string[];
 
+    /** 已加载的插件实例（用于命令系统访问）*/
+    loadedPlugins?: Array<{
+        id: string;
+        context: any;
+    }>;
+
     /** 加载失败的插件 */
     failed: Array<{ id: string; error: string }>;
 
@@ -168,6 +174,10 @@ export class PluginRuntime {
 
             // 更新报告
             report.stats = this.getStats();
+            report.loadedPlugins = instances.map(inst => ({
+                id: inst.id,
+                context: inst.context,
+            }));
 
             this.isRunning = true;
             this.lastReport = report;

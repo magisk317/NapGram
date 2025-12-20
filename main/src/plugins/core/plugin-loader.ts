@@ -71,12 +71,7 @@ export class PluginLoader {
             // 验证插件
             this.validatePlugin(plugin, spec.id);
 
-            logger.info({
-                id: spec.id,
-                module: spec.module,
-                type,
-                version: plugin.version
-            }, 'Plugin loaded');
+            logger.info(`Plugin loaded: { id: '${spec.id}', module: '${spec.module}', type: '${type}', version: '${plugin.version}' }`);
 
             return { plugin, type, modulePath };
         } catch (error) {

@@ -1,4 +1,5 @@
 import { getLogger } from '../../shared/logger';
+import { messageConverter } from '../../domain/message/converter';
 import type { IQQClient } from '../../infrastructure/clients/qq';
 import type { UnifiedMessage } from '../../domain/message';
 import type Telegram from '../../infrastructure/clients/telegram/client';
@@ -26,6 +27,7 @@ import { QuotLyCommandHandler } from './handlers/QuotLyCommandHandler';
 import { GroupManagementCommandHandler } from './handlers/GroupManagementCommandHandler';
 import { AdvancedGroupManagementCommandHandler } from './handlers/AdvancedGroupManagementCommandHandler';
 import { RequestManagementCommandHandler } from './handlers/RequestManagementCommandHandler';
+import { md } from '@mtcute/markdown-parser';
 
 const logger = getLogger('CommandsFeature');
 
@@ -98,7 +100,10 @@ export class CommandsFeature {
         this.advancedGroupManagementHandler = new AdvancedGroupManagementCommandHandler(this.commandContext);
         this.requestManagementHandler = new RequestManagementCommandHandler(this.commandContext);
 
-        this.registerDefaultCommands();
+        // 异步注册命令（包括从插件加载）
+        this.registerDefaultCommands().catch(err => {
+            logger.error('Failed to register default commands:', err);
+        });
         this.setupListeners();
         logger.info('CommandsFeature ✓ 初始化完成');
     }
@@ -106,7 +111,10 @@ export class CommandsFeature {
     /**
      * 注册默认命令
      */
-    private registerDefaultCommands() {
+    private async registerDefaultCommands() {
+        // === 从插件系统加载命令（双轨并行策略） ===
+        const pluginCommands = await this.loadPluginCommands();
+
         // TODO: 旧版 constants/commands.ts 中有更细分的指令清单（preSetup/group/private 等），后续可按需合并： 
         // setup/login/flags/alive/add/addfriend/addgroup/refresh_all/newinstance/info/q/rm/rmt/rmq/forwardoff/forwardon/disable_qq_forward/enable_qq_forward/disable_tg_forward/enable_tg_forward/refresh/poke/nick/mute 等。
 
@@ -208,20 +216,26 @@ export class CommandsFeature {
         });
 
         // QQ 交互命令
-        this.registerCommand({
-            name: 'poke',
-            aliases: ['戳一戳'],
-            description: '戳一戳（需要 NapCat API 支持）',
-            handler: (msg, args) => this.qqInteractionHandler.execute(msg, args, 'poke'),
-        });
+        // TODO: Remove after plugin-qq-interaction is stable
+        if (!pluginCommands.has('poke')) {
+            this.registerCommand({
+                name: 'poke',
+                aliases: ['戳一戳'],
+                description: '戳一戳（需要 NapCat API 支持）',
+                handler: (msg, args) => this.qqInteractionHandler.execute(msg, args, 'poke'),
+            });
+        }
 
-        this.registerCommand({
-            name: 'nick',
-            aliases: ['群名片'],
-            description: '获取/设置 QQ 群名片',
-            usage: '/nick [新名片]',
-            handler: (msg, args) => this.qqInteractionHandler.execute(msg, args, 'nick'),
-        });
+        // TODO: Remove after plugin-qq-interaction is stable
+        if (!pluginCommands.has('nick')) {
+            this.registerCommand({
+                name: 'nick',
+                aliases: ['群名片'],
+                description: '获取/设置 QQ 群名片',
+                usage: '/nick [新名片]',
+                handler: (msg, args) => this.qqInteractionHandler.execute(msg, args, 'nick'),
+            });
+        }
 
         // 群组管理命令（新实现）
         this.registerCommand({
@@ -258,37 +272,49 @@ export class CommandsFeature {
         });
 
         // 刷新命令
-        this.registerCommand({
-            name: 'refresh',
-            aliases: ['刷新'],
-            description: '刷新当前群组的头像和简介',
-            handler: (msg, args) => this.refreshHandler.execute(msg, args, 'refresh'),
-            adminOnly: true,
-        });
+        // TODO: Remove after plugin-refresh is stable
+        if (!pluginCommands.has('refresh')) {
+            this.registerCommand({
+                name: 'refresh',
+                aliases: ['刷新'],
+                description: '刷新当前群组的头像和简介',
+                handler: (msg, args) => this.refreshHandler.execute(msg, args, 'refresh'),
+                adminOnly: true,
+            });
+        }
 
-        this.registerCommand({
-            name: 'refresh_all',
-            description: '刷新所有群组的头像和简介',
-            handler: (msg, args) => this.refreshHandler.execute(msg, args, 'refresh_all'),
-            adminOnly: true,
-        });
+        // TODO: Remove after plugin-refresh is stable
+        if (!pluginCommands.has('refresh_all')) {
+            this.registerCommand({
+                name: 'refresh_all',
+                description: '刷新所有群组的头像和简介',
+                handler: (msg, args) => this.refreshHandler.execute(msg, args, 'refresh_all'),
+                adminOnly: true,
+            });
+        }
 
         // Flags 命令
-        this.registerCommand({
-            name: 'flags',
-            description: '管理实验性功能标志',
-            usage: '/flags [list|enable|disable] [flag_name]',
-            handler: (msg, args) => this.flagsHandler.execute(msg, args),
-            adminOnly: true,
-        });
+        // TODO: Remove after plugin-flags is stable
+        if (!pluginCommands.has('flags')) {
+            this.registerCommand({
+                name: 'flags',
+                description: '管理实验性功能标志',
+                usage: '/flags [list|enable|disable] [flag_name]',
+                handler: (msg, args) => this.flagsHandler.execute(msg, args),
+                adminOnly: true,
+            });
+        }
 
         // QuotLy 命令
-        this.registerCommand({
-            name: 'q',
-            description: '生成 QuotLy 引用图片（开发中）',
-            usage: '/q (请回复要引用的消息)',
-            handler: (msg, args) => this.quotlyHandler.execute(msg, args),
-        });
+        // TODO: Remove after plugin-quotly is stable
+        if (!pluginCommands.has('q')) {
+            this.registerCommand({
+                name: 'q',
+                description: '生成 QuotLy 引用图片（开发中）',
+                usage: '/q (请回复要引用的消息)',
+                handler: (msg, args) => this.quotlyHandler.execute(msg, args),
+            });
+        }
 
         // ============ Phase 2: 高级群组管理命令 ============
 
@@ -384,22 +410,8 @@ export class CommandsFeature {
         });
 
         // ============ Phase 3: QQ交互增强 ============
-
-        this.registerCommand({
-            name: 'like',
-            aliases: ['点赞'],
-            description: 'QQ点赞（1-10次）',
-            usage: '/like <QQ号/回复消息> [次数]',
-            handler: (msg, args) => this.qqInteractionHandler.execute(msg, args, 'like'),
-        });
-
-        this.registerCommand({
-            name: 'honor',
-            aliases: ['群荣誉'],
-            description: '查看群荣誉榜单',
-            usage: '/honor [talkative|performer|legend|strong_newbie|emotion|all]',
-            handler: (msg, args) => this.qqInteractionHandler.execute(msg, args, 'honor'),
-        });
+        // Note: like and honor commands are now exclusively provided by plugin-qq-interaction
+        // They will only be available when the plugin is enabled
 
         // ============ Phase 4: 请求统计与批量操作 ============
 
@@ -438,6 +450,141 @@ export class CommandsFeature {
      */
     registerCommand(command: Command) {
         this.registry.register(command);
+    }
+
+    /**
+     * 从插件系统加载命令
+     * @returns 已加载的命令名集合
+     */
+    private async loadPluginCommands(): Promise<Set<string>> {
+        const loadedCommands = new Set<string>();
+
+        try {
+            // 动态导入 plugin runtime（避免循环依赖，ESM 兼容）
+            const { getGlobalRuntime } = await import('../../plugins/runtime.js');
+            const runtime = getGlobalRuntime();
+
+            if (!runtime) {
+                logger.debug('Plugin runtime not initialized, skipping plugin command loading');
+                return loadedCommands;
+            }
+
+            const report = runtime.getLastReport();
+            const loadedPlugins = report?.loadedPlugins || [];
+
+            logger.debug(`Loading commands from ${loadedPlugins.length} plugins`);
+
+            for (const pluginInfo of loadedPlugins) {
+                try {
+                    const context = (pluginInfo as any).context;
+
+                    if (!context || typeof context.getCommands !== 'function') {
+                        continue;
+                    }
+
+                    const commands = context.getCommands();
+                    logger.debug(`Plugin ${pluginInfo.id}: found ${commands.size} command(s)`);
+
+                    for (const [commandName, config] of commands) {
+                        // 将插件命令注册到 CommandsFeature
+                        this.registerCommand({
+                            name: config.name,
+                            aliases: config.aliases,
+                            description: config.description,
+                            usage: config.usage,
+                            adminOnly: config.adminOnly,
+                            handler: async (msg, args) => {
+                                // 将 UnifiedMessage 转换为 MessageEvent
+                                const event = this.convertToMessageEvent(msg, (context as any).logger);
+                                await config.handler(event, args);
+                            },
+                        });
+
+                        loadedCommands.add(config.name);
+                        if (config.aliases) {
+                            config.aliases.forEach(alias => loadedCommands.add(alias));
+                        }
+
+                        logger.debug(`  ✓ Loaded command: /${config.name}${config.aliases ? ` (aliases: ${config.aliases.join(', ')})` : ''} from plugin ${pluginInfo.id}`);
+                    }
+                } catch (error) {
+                    logger.warn(`Failed to load commands from plugin ${pluginInfo.id}:`, error);
+                }
+            }
+
+            if (loadedCommands.size > 0) {
+                logger.info(`✓ Loaded ${loadedCommands.size} command(s) from plugins`);
+            }
+        } catch (error) {
+            logger.warn('Failed to load plugin commands:', error);
+        }
+
+        return loadedCommands;
+    }
+
+    /**
+     * 将 UnifiedMessage 转换为 MessageEvent（用于插件命令处理）
+     */
+    private convertToMessageEvent(msg: UnifiedMessage, pluginLogger?: any) {
+        // 捕获 commandContext 供闭包使用
+        const commandContext = this.commandContext;
+        const eventLogger = pluginLogger || logger;
+
+        return {
+            eventId: msg.id,
+            instanceId: this.instance.id,
+            platform: msg.platform === 'telegram' ? 'tg' : 'qq',
+            channelId: msg.chat.id,
+            threadId: commandContext.extractThreadId(msg, []),
+            channelType: msg.chat.type as any,
+            sender: {
+                userId: msg.sender.id,
+                userName: msg.sender.name,
+            },
+            message: {
+                id: msg.id,
+                text: msg.content.find(c => c.type === 'text')?.data.text || '',
+                segments: msg.content as any[],
+                timestamp: msg.timestamp,
+            },
+            logger: eventLogger,
+            raw: {
+                ...msg.metadata?.raw,
+                rawReply: msg.metadata?.rawReply,
+            },
+            // 便捷方法（使用 CommandContext 的方法）
+            reply: async (content: string | any[]) => {
+                const text = typeof content === 'string' ? content : JSON.stringify(content);
+                if (msg.platform === 'telegram') {
+                    const chatId = msg.chat.id;
+                    const threadId = commandContext.extractThreadId(msg, []);
+                    await commandContext.replyTG(chatId, text, threadId);
+                } else {
+                    const chatId = msg.chat.id;
+                    await commandContext.replyQQ(chatId, text);
+                }
+            },
+            send: async (content: string | any[]) => {
+                // send 与 reply 相同（暂时没有独立的 send API）
+                const text = typeof content === 'string' ? content : JSON.stringify(content);
+                if (msg.platform === 'telegram') {
+                    const chatId = msg.chat.id;
+                    const threadId = commandContext.extractThreadId(msg, []);
+                    await commandContext.replyTG(chatId, text, threadId);
+                } else {
+                    const chatId = msg.chat.id;
+                    await commandContext.replyQQ(chatId, text);
+                }
+            },
+            recall: async () => {
+                // recall 功能暂不实现
+                throw new Error('recall() not yet implemented');
+            },
+            // API 访问
+            qq: this.qqClient,
+            tg: this.tgBot,
+            instance: this.instance,
+        };
     }
 
 
@@ -608,16 +755,30 @@ export class CommandsFeature {
 
             logger.info(`Executing command: ${commandName} by ${senderName}`);
 
+            // 如果有回复但回复对象不完整，尝试获取完整消息
+            let replenishedReply: Message | undefined;
+            const replyToId = ((tgMsg as any).replyTo as any)?.messageId || (tgMsg.replyToMessage as any)?.id;
+
+            if (replyToId && (!tgMsg.replyToMessage || !(tgMsg.replyToMessage as any).text)) {
+                try {
+                    const repliedMsg = await this.tgBot.client.getMessages(tgMsg.chat.id, [replyToId]);
+                    if (repliedMsg[0]) {
+                        replenishedReply = repliedMsg[0];
+                        logger.debug(`Fetched full replenished replied message for ${tgMsg.id}`);
+                    }
+                } catch (e) {
+                    logger.warn(`Failed to fetch replied message for ${tgMsg.id}:`, e);
+                }
+            }
+
+            const unifiedMsg = messageConverter.fromTelegram(tgMsg, replenishedReply);
+            if (replenishedReply) {
+                unifiedMsg.metadata = { ...unifiedMsg.metadata, rawReply: replenishedReply };
+                logger.debug(`Added rawReply to metadata for msg ${tgMsg.id}`);
+            }
+
             try {
-                await command.handler({
-                    id: String(tgMsg.id),
-                    platform: 'telegram',
-                    sender: { id: String(senderId), name: senderName },
-                    chat: { id: String(chatId), type: 'group' },
-                    content: [{ type: 'text', data: { text } }],
-                    timestamp: tgMsg.date.getTime(),
-                    metadata: { raw: tgMsg },
-                } as UnifiedMessage, args);
+                await command.handler(unifiedMsg, args);
             } catch (handlerError) {
                 throw handlerError;
             }
@@ -716,7 +877,17 @@ export class CommandsFeature {
                 params.replyTo = threadId;
                 params.messageThreadId = threadId;
             }
-            await chat.sendMessage(text, params);
+
+            // 使用 parseMode: 'markdown' 并不稳定，我们直接使用 mtcute 的 md 解析器
+            // 能够将包含 markdown 语法的动态字符串解析为 InputText
+            let msgContent = text;
+            if (typeof text === 'string') {
+                const parts: any = [text];
+                parts.raw = [text];
+                msgContent = md(parts as TemplateStringsArray);
+            }
+
+            await chat.sendMessage(msgContent, params);
         } catch (error) {
             logger.warn(`Failed to send reply to ${chatId}: ${error}`);
         }

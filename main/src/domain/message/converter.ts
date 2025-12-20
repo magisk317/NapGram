@@ -40,7 +40,7 @@ export class MessageConverter {
     /**
      * 从 Telegram 消息转换为统一格式
      */
-    fromTelegram(tgMsg: Message): UnifiedMessage {
+    fromTelegram(tgMsg: Message, repliedMsgOverride?: Message): UnifiedMessage {
         logger.debug('Converting from Telegram:', tgMsg.id);
 
         const content: MessageContent[] = [];
@@ -153,8 +153,13 @@ export class MessageConverter {
             });
         }
 
-        if (tgMsg.replyToMessage) {
-            const reply = tgMsg.replyToMessage;
+        if (repliedMsgOverride || tgMsg.replyToMessage) {
+            const reply = repliedMsgOverride || tgMsg.replyToMessage!;
+            if (repliedMsgOverride) {
+                logger.info(`Using repliedMsgOverride for TG msg ${tgMsg.id}`);
+            } else {
+                logger.info(`Detected replyToMessage in TG msg ${tgMsg.id}`);
+            }
             content.push({
                 type: 'reply',
                 data: {
@@ -164,6 +169,8 @@ export class MessageConverter {
                     text: (reply as any).text || '',
                 },
             });
+        } else if ((tgMsg as any).replyTo) {
+            logger.info(`Detected replyTo ID but no replyToMessage object in TG msg ${tgMsg.id}`);
         }
 
         const senderId = String((tgMsg.sender as any)?.id || (tgMsg.chat as any)?.id || '');

@@ -73,9 +73,11 @@ import { PluginRuntime } from './plugins/runtime';
   const instanceEntries = await db.instance.findMany();
   const targets = instanceEntries.length ? instanceEntries.map(it => it.id) : [0];
 
-  await Promise.all(targets.map(id => Instance.start(id)));
-
+  // 先启动插件运行时（在 Instance 之前，确保插件命令可被 CommandsFeature 发现）
   await PluginRuntime.start({ defaultInstances: targets });
+
+  // 再启动实例（包括 FeatureManager 中的 CommandsFeature）
+  await Promise.all(targets.map(id => Instance.start(id)));
 
   posthog.capture('启动完成', { instanceCount: targets.length });
 })();
