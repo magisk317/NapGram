@@ -22,6 +22,7 @@ jobs:
           ref: ${{ env.BUILD_REF }}
           fetch-depth: 0
           submodules: recursive
+          token: ${{ secrets.SUBMODULE_TOKEN || secrets.UI_SRC_TOKEN || github.token }}
 
       - name: Derive build info
         run: echo "BUILD_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
