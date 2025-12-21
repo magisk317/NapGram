@@ -21,6 +21,7 @@ jobs:
         with:
           ref: ${{ env.BUILD_REF }}
           fetch-depth: 0
+          submodules: recursive
 
       - name: Derive build info
         run: echo "BUILD_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
