@@ -45,14 +45,12 @@ COPY external/sdk/packages/sdk/package.json /app/external/sdk/packages/sdk/
 COPY external/sdk/packages/core/package.json /app/external/sdk/packages/core/
 COPY external/sdk/packages/utils/package.json /app/external/sdk/packages/utils/
 
-# 三步安装策略：
-# 1. 先安装 Prisma 相关包并运行 postinstall（下载引擎）
-# 2. 再安装其他依赖并跳过脚本（避免 sharp 尝试源码编译）
-# 3. 编译必需的原生模块
+# 两步安装策略：
+# 1. 安装所有依赖并跳过脚本（避免 sharp 尝试源码编译）
+# 2. 编译必需的原生模块
 #    - better-sqlite3: mtcute 用于 Telegram session 存储
 #    - silk-wasm 是纯 WASM，无需编译
-RUN pnpm install --filter=prisma --filter=@prisma/client --filter=@prisma/engines --no-frozen-lockfile --shamefully-hoist && \
-    pnpm install --no-frozen-lockfile --shamefully-hoist --ignore-scripts && \
+RUN pnpm install --no-frozen-lockfile --shamefully-hoist --ignore-scripts && \
     pnpm -r rebuild better-sqlite3
 
 # 源码构建（后端）
