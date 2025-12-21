@@ -75,6 +75,17 @@ export default async function (fastify: FastifyInstance) {
     id: z.string().min(1).max(64).optional(),
   });
 
+  const isValidReadmeUrl = (value: string) => {
+    try {
+      const url = new URL(value);
+      return url.protocol === 'https:';
+    } catch {
+      return false;
+    }
+  };
+
+  const MAX_README_BYTES = 512 * 1024;
+
   fastify.post('/api/admin/marketplaces/refresh', { preHandler: requirePluginAdmin }, async (request, reply) => {
     const body = marketplaceRefreshSchema.safeParse(request.body ?? {});
     if (!body.success) {
@@ -104,5 +115,34 @@ export default async function (fastify: FastifyInstance) {
       return reply.code(500).send(ApiResponse.error(error?.message || String(error)));
     }
   });
-}
 
+  fastify.get('/api/admin/marketplaces/:id/plugins/:pluginId/readme', { preHandler: requirePluginAdmin }, async (request, reply) => {
+    const marketplaceId = String((request.params as any).id || '').trim();
+    const pluginId = String((request.params as any).pluginId || '').trim();
+    try {
+      const data = await readMarketplaceCache(marketplaceId);
+      if (!data.exists) return reply.code(404).send(ApiResponse.error('Marketplace cache not found'));
+      const index = data.data?.data;
+      const plugins = Array.isArray(index?.plugins) ? index.plugins : [];
+      const plugin = plugins.find((p: any) => String(p?.id || '') === pluginId);
+      if (!plugin) return reply.code(404).send(ApiResponse.error('Plugin not found in marketplace'));
+
+      const readmeUrl = String(plugin?.readme || '').trim();
+      if (!readmeUrl) return reply.code(404).send(ApiResponse.error('README not available'));
+      if (!isValidReadmeUrl(readmeUrl)) return reply.code(400).send(ApiResponse.error('Invalid README url'));
+
+      const res = await fetch(readmeUrl, { headers: { accept: 'text/plain,text/markdown,*/*' } });
+      if (!res.ok) {
+        return reply.code(502).send(ApiResponse.error(`README fetch failed: ${res.status} ${res.statusText}`));
+      }
+      const buf = Buffer.from(await res.arrayBuffer());
+      if (buf.length > MAX_README_BYTES) {
+        return reply.code(413).send(ApiResponse.error('README too large'));
+      }
+      const content = buf.toString('utf8');
+      return ApiResponse.success({ url: readmeUrl, content });
+    } catch (error: any) {
+      return reply.code(500).send(ApiResponse.error(error?.message || String(error)));
+    }
+  });
+}

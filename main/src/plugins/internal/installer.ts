@@ -19,6 +19,8 @@ export interface MarketplaceIndexV1 {
   plugins: Array<{
     id: string;
     name?: string;
+    description?: string;
+    readme?: string;
     versions: Array<MarketplacePluginVersion>;
   }>;
 }
@@ -616,4 +618,3 @@ export async function getPluginVersions(pluginIdRaw: string): Promise<{ current:
   const installed = await listInstalledVersions(pluginId);
   return { current, installed };
 }
-
