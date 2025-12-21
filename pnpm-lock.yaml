@@ -6,7 +6,11 @@ settings:
 
 importers:
 
-  .: {}
+  .:
+    dependencies:
+      '@napgram/sdk':
+        specifier: workspace:*
+        version: link:external/sdk/packages/sdk
 
   external/sdk/packages/core:
     devDependencies:
