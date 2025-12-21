@@ -288,6 +288,80 @@ async function resolveEntryFile(destDir: string, entryPath: string): Promise<str
   throw new Error(`Entry not found after extract: ${entryPath}`);
 }
 
+/**
+ * Create symlink to host's @napgram SDK packages in plugin's node_modules
+ * This allows plugins to import '@napgram/sdk' without bundling it
+ */
+async function linkHostSdk(installDir: string): Promise<void> {
+  try {
+    // Find the actual plugin directory (could be at root or under 'package/')
+    const candidates = [installDir, path.join(installDir, 'package')];
+    let pluginRoot: string | null = null;
+
+    for (const candidate of candidates) {
+      const pkgPath = path.join(candidate, 'package.json');
+      if (await pathExists(pkgPath)) {
+        pluginRoot = candidate;
+        break;
+      }
+    }
+
+    if (!pluginRoot) {
+      // No package.json found, skip SDK linking
+      return;
+    }
+
+    // Create node_modules/@napgram directory in plugin
+    const pluginNodeModules = path.join(pluginRoot, 'node_modules', '@napgram');
+    await ensureDir(pluginNodeModules);
+
+    // Host SDK packages location (in main app)
+    const hostNodeModules = path.resolve('/app/node_modules/@napgram');
+
+    // Check if host SDK exists
+    if (!await pathExists(hostNodeModules)) {
+      // Fallback: try relative to current working directory
+      const fallbackHost = path.resolve(process.cwd(), 'node_modules', '@napgram');
+      if (!await pathExists(fallbackHost)) {
+        // SDK not found, skip linking
+        return;
+      }
+    }
+
+    const sdkPackages = ['sdk', 'core', 'utils'];
+
+    for (const pkg of sdkPackages) {
+      const hostPkg = path.join(hostNodeModules, pkg);
+      const pluginPkg = path.join(pluginNodeModules, pkg);
+
+      // Check if host package exists
+      if (!await pathExists(hostPkg)) continue;
+
+      // Remove existing link/directory if present
+      try {
+        await fs.rm(pluginPkg, { recursive: true, force: true });
+      } catch {
+        // Ignore errors
+      }
+
+      // Create symlink
+      try {
+        await fs.symlink(hostPkg, pluginPkg, 'dir');
+      } catch (error) {
+        // If symlink fails (permissions, platform), try copying instead
+        try {
+          await fs.cp(hostPkg, pluginPkg, { recursive: true });
+        } catch {
+          // Ignore copy errors
+        }
+      }
+    }
+  } catch (error) {
+    // SDK linking is optional, don't fail the installation
+    // Just log and continue
+  }
+}
+
 async function findPnpmProjectDir(destDir: string): Promise<string | null> {
   const direct = path.join(destDir, 'package.json');
   if (await pathExists(direct)) return destDir;
@@ -462,6 +536,9 @@ export async function installFromMarketplace(opts: InstallOptions): Promise<Plug
       if (!projectDir) throw new Error('install.mode=pnpm but package.json not found after extract');
       await runPnpmInstall(projectDir, install as any);
     }
+
+    // Link host SDK packages to plugin's node_modules
+    await linkHostSdk(installDir);
 
     const entryFile = await resolveEntryFile(installDir, entryPath);
     const entryRel = path.relative(installDir, entryFile).split(path.sep).join('/');
