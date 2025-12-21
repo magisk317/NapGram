@@ -58,7 +58,6 @@ export interface RuntimeReport {
     stats: {
         total: number;
         native: number;
-        koishi: number;
         installed: number;
         error: number;
     };
@@ -99,7 +98,7 @@ export class PluginRuntime {
         enabled: false,
         loaded: [],
         failed: [],
-        stats: { total: 0, native: 0, koishi: 0, installed: 0, error: 0 },
+        stats: { total: 0, native: 0, installed: 0, error: 0 },
     };
 
     /** API 注入 */
@@ -145,7 +144,7 @@ export class PluginRuntime {
             enabled: true,
             loaded: [],
             failed: [],
-            stats: { total: 0, native: 0, koishi: 0, installed: 0, error: 0 },
+            stats: { total: 0, native: 0, installed: 0, error: 0 },
         };
 
         try {
@@ -374,7 +373,6 @@ export class PluginRuntime {
         return {
             total: instances.length,
             native: Array.from(this.pluginTypes.values()).filter(t => t === PluginType.Native).length,
-            koishi: Array.from(this.pluginTypes.values()).filter(t => t === PluginType.Koishi).length,
             installed: instances.filter(i => i.state === PluginState.Installed).length,
             error: instances.filter(i => i.state === PluginState.Error).length,
         };

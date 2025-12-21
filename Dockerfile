@@ -54,8 +54,8 @@ RUN pnpm install --filter=prisma --filter=@prisma/client --filter=@prisma/engine
 
 # 源码构建（后端）
 COPY main/ /app/main/
-RUN DATABASE_URL="postgresql://dummy" pnpm --filter=@napgram/core exec prisma generate --no-hints
-RUN pnpm --filter=@napgram/core run build
+RUN DATABASE_URL="postgresql://dummy" pnpm --filter=@napgram/app exec prisma generate --no-hints
+RUN pnpm --filter=@napgram/app run build
 
 # Frontend 使用预构建产物
 COPY web/dist/ /app/web/dist/

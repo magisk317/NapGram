@@ -4,14 +4,14 @@
  * 负责加载和验证插件模块，支持：
  * - ESM 和 CJS 格式
  * - TypeScript 插件（开发模式）
- * - 插件类型检测（Native vs Koishi）
+ * - 插件类型检测
  * - 依赖解析
  */
 
+import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import type { NapGramPlugin, PluginSpec } from './interfaces';
-import { loadKoishiPlugin } from '../bridges/koishi/loader';
 import { getLogger } from '../../shared/logger';
 
 const logger = getLogger('PluginLoader');
@@ -22,8 +22,6 @@ const logger = getLogger('PluginLoader');
 export enum PluginType {
     /** NapGram 原生插件 */
     Native = 'native',
-    /** Koishi 插件 */
-    Koishi = 'koishi',
     /** 未知类型 */
     Unknown = 'unknown',
 }
@@ -44,6 +42,16 @@ export interface LoadResult {
  * 插件加载器
  */
 export class PluginLoader {
+    private buildFileImportUrl(modulePath: string): string {
+        const fileUrl = pathToFileURL(modulePath).href;
+        try {
+            const stat = fs.statSync(modulePath);
+            return `${fileUrl}?v=${stat.mtimeMs}`;
+        } catch {
+            return fileUrl;
+        }
+    }
+
     /**
      * 加载插件模块
      * 
@@ -110,7 +118,7 @@ export class PluginLoader {
         try {
             // 如果是本地文件路径，转换为 file:// URL
             if (modulePath.startsWith('/') || modulePath.startsWith('.')) {
-                const fileUrl = pathToFileURL(modulePath).href;
+                const fileUrl = this.buildFileImportUrl(modulePath);
                 return await import(fileUrl);
             }
 
@@ -123,7 +131,7 @@ export class PluginLoader {
             for (const ext of extensions) {
                 try {
                     const pathWithExt = modulePath + ext;
-                    const fileUrl = pathToFileURL(pathWithExt).href;
+                    const fileUrl = this.buildFileImportUrl(pathWithExt);
                     return await import(fileUrl);
                 } catch {
                     // 继续尝试下一个扩展名
@@ -144,11 +152,6 @@ export class PluginLoader {
         // 检查是否为 NapGram 原生插件
         if (this.isNativePlugin(module)) {
             return PluginType.Native;
-        }
-
-        // 检查是否为 Koishi 插件
-        if (this.isKoishiPlugin(module)) {
-            return PluginType.Koishi;
         }
 
         return PluginType.Unknown;
@@ -174,19 +177,7 @@ export class PluginLoader {
         );
     }
 
-    /**
-     * 判断是否为 Koishi 插件
-     * 
-     * @param module 模块对象
-     * @returns 是否为 Koishi 插件
-     */
-    private isKoishiPlugin(module: any): boolean {
-        // Koishi 插件导出 apply 函数或 name + apply
-        return (
-            typeof module.apply === 'function' ||
-            (typeof module.name === 'string' && typeof module.default?.apply === 'function')
-        );
-    }
+
 
     /**
    * 提取插件对象
@@ -199,18 +190,6 @@ export class PluginLoader {
     private extractPlugin(module: any, spec: PluginSpec, type: PluginType): NapGramPlugin {
         if (type === PluginType.Native) {
             return module.default || module;
-        }
-
-        if (type === PluginType.Koishi) {
-            // 使用 Koishi 加载器包装插件
-            try {
-                return loadKoishiPlugin(module, spec);
-            } catch (error) {
-                logger.error({ error, id: spec.id }, 'Failed to load Koishi plugin');
-                throw new Error(
-                    `Failed to wrap Koishi plugin ${spec.id}: ${(error as Error).message}`
-                );
-            }
         }
 
         throw new Error(`Unknown plugin type for ${spec.id}`);

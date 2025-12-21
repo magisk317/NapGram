@@ -1,7 +1,7 @@
 /**
  * NapGram 插件运行时 - 公共 API
  * 
- * 重构版本：使用原生 PluginRuntime 替代 Koishi
+ * 原生插件系统的统一入口
  */
 
 import { getGlobalRuntime } from './core/plugin-runtime';

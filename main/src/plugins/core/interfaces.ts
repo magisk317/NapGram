@@ -795,8 +795,8 @@ export interface PluginSpec {
      * 加载插件模块的函数
      *
      * 设计说明：
-     * - 返回值允许是 NapGramPlugin（原生插件对象）或任意“模块导出对象”（用于 Koishi 包装/兼容层）
-     * - 具体类型识别与包装在 PluginLoader 中完成
+     * - 返回值允许是 NapGramPlugin（原生插件对象）或任意"模块导出对象"
+     * - 具体类型识别与验证在 PluginLoader 中完成
      */
     load: () => Promise<any>;
 }

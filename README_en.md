@@ -81,10 +81,10 @@ docker-compose up -d
 pnpm install
 
 # Build
-pnpm --filter=@napgram/core run build
+pnpm --filter=@napgram/app run build
 
 # Start
-pnpm --filter=@napgram/core start
+pnpm --filter=@napgram/app start
 ```
 
 ## 📖 Documentation
@@ -119,13 +119,13 @@ See Wiki: https://github.com/NapLink/NapGram/wiki/Guide-Commands
 pnpm install
 
 # Development mode
-pnpm --filter=@napgram/core run dev
+pnpm --filter=@napgram/app run dev
 
 # Type checking
-pnpm --filter=@napgram/core run type-check
+pnpm --filter=@napgram/app run type-check
 
 # Build
-pnpm --filter=@napgram/core run build
+pnpm --filter=@napgram/app run build
 ```
 
 ## 🤝 Contributing
