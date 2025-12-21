@@ -18,6 +18,7 @@ import settings from './settings';
 import tokens from './tokens';
 import plugins from './plugins';
 import marketplaces from './marketplaces';
+import database from './database';
 
 const log = getLogger('Web Api');
 
@@ -56,6 +57,7 @@ fastify.register(settings);
 fastify.register(tokens);
 fastify.register(plugins);
 fastify.register(marketplaces);
+fastify.register(database);
 
 // 📊 Register monitoring and statistics API
 setupMonitoring(fastify);
