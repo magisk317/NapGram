@@ -62,17 +62,23 @@ export class NapCatAdapter extends EventEmitter {
         this.client.on('connect', () => {
             this.emit('online');
             this.refreshSelfInfo();
-            this.emit('connection:restored', {
-                timestamp: Date.now()
-            });
         });
 
         this.client.on('disconnect', () => {
             this.emit('offline');
-            this.emit('connection:lost', {
-                timestamp: Date.now(),
-                reason: 'WebSocket closed'
-            });
+        });
+
+        // 优先使用 NapLink SDK 的连接状态事件
+        this.client.on('connection:lost', (data: any) => {
+            const timestamp = typeof data?.timestamp === 'number' ? data.timestamp : Date.now();
+            const attempts = typeof data?.attempts === 'number' ? data.attempts : undefined;
+            const reason = attempts ? `Reconnect attempts exceeded (${attempts})` : 'Connection lost';
+            this.emit('connection:lost', { timestamp, reason });
+        });
+
+        this.client.on('connection:restored', (data: any) => {
+            const timestamp = typeof data?.timestamp === 'number' ? data.timestamp : Date.now();
+            this.emit('connection:restored', { timestamp });
         });
 
         // 消息事件 - 使用SDK的细粒度事件
