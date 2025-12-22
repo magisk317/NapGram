@@ -68,6 +68,7 @@ FROM base AS release
 # Note: TGS to GIF conversion now handled by tgs-to npm package
 
 COPY --from=build --chown=node:node /app/node_modules /app/node_modules
+COPY --from=build --chown=node:node /app/external/sdk /app/external/sdk
 COPY --from=build --chown=node:node /app/main/build /app/build
 COPY --from=build --chown=node:node /app/main/package.json /app/package.json
 COPY --from=build --chown=node:node /app/main/prisma /app/prisma
