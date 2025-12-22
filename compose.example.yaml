@@ -1,108 +1,147 @@
 services:
   napgram:
-    # 可用 latest 或指定版本号（例如 v0.1.1）
+    # 镜像版本：可用 latest，或固定到某个发布标签（例如 v0.1.1）以避免自动变化
     image: ghcr.io/napgram/napgram:latest
+    # 容器名：方便 docker ps / logs 识别
     container_name: napgram
-    user: "1000" # 使用与 NapCat 相同的 UID，避免文件权限问题
+    # 运行用户：通常设置为与 NapCat 相同的 UID，避免挂载目录权限问题
+    user: "1000"
     ports:
+      # 映射宿主机端口 -> 容器 LISTEN_PORT
       - "8080:8080"
     environment:
       # -----------------------------------------------------------------------------
       # 必填：Telegram Bot
       # -----------------------------------------------------------------------------
+      # Telegram 应用 API ID（在 my.telegram.org 获取）
       TG_API_ID: "123456"
+      # Telegram 应用 API Hash（在 my.telegram.org 获取）
       TG_API_HASH: "replace_me"
+      # 机器人 Token（@BotFather 获取）
       TG_BOT_TOKEN: "replace_me"
 
       # -----------------------------------------------------------------------------
       # 必填：Web / 管理
       # -----------------------------------------------------------------------------
+      # 服务监听端口（需与 ports 映射一致）
       LISTEN_PORT: "8080"
+      # 对外访问的 Web 地址（用于生成链接、跨服务回调等）
       WEB_ENDPOINT: "http://localhost:8080"
+      # 管理后台访问 Token（请设置为强随机字符串）
       ADMIN_TOKEN: "replace_me"
 
       # -----------------------------------------------------------------------------
       # 存储路径（可选；不改则用默认值）
       # -----------------------------------------------------------------------------
+      # 数据目录（数据库迁移、插件数据、日志等默认都在此）
       DATA_DIR: "/app/data"
+      # 缓存目录（临时文件、媒体缓存等）
       CACHE_DIR: "/app/data/cache"
 
       # -----------------------------------------------------------------------------
       # 日志（可选）
       # -----------------------------------------------------------------------------
+      # 应用日志等级：debug/info/warn/error
       LOG_LEVEL: "info"
+      # 文件日志等级：用于写入 LOG_FILE 的日志阈值
       LOG_FILE_LEVEL: "debug"
+      # 文件日志路径（确保目录可写）
       LOG_FILE: "/app/data/logs/app.log"
+      # OICQ 相关日志等级（QQ 侧）
       OICQ_LOG_LEVEL: "warn"
+      # Telegram 相关日志等级
       TG_LOG_LEVEL: "warn"
 
       # -----------------------------------------------------------------------------
       # Telegram 连接（可选）
       # -----------------------------------------------------------------------------
-      TG_CONNECTION: "tcp" # tcp/websocket
+      # 连接方式：tcp 或 websocket
+      TG_CONNECTION: "tcp"
+      # 首次连接指定 DC ID（用于网络不稳定或需要固定入口）
       TG_INITIAL_DCID: "" # 例如 "5"
+      # 首次连接指定 DC IP（与 TG_INITIAL_DCID 配套）
       TG_INITIAL_SERVER: "" # 例如 "91.108.56.174"
+      # 是否使用测试 DC（true/false）
       TG_USE_TEST_DC: "false"
+      # 是否启用 IPv6（true/false）
       IPV6: "false"
 
       # -----------------------------------------------------------------------------
       # 管理员（可选）
       # -----------------------------------------------------------------------------
+      # 管理 QQ 号（可填多个，以逗号分隔）
       ADMIN_QQ: ""
+      # 管理 Telegram 用户 ID（可填多个，以逗号分隔）
       ADMIN_TG: ""
 
       # -----------------------------------------------------------------------------
       # 代理（可选）
       # -----------------------------------------------------------------------------
+      # 代理服务器 IP/域名
       PROXY_IP: ""
+      # 代理端口
       PROXY_PORT: ""
+      # 代理认证用户名（如无可留空）
       PROXY_USERNAME: ""
+      # 代理认证密码（如无可留空）
       PROXY_PASSWORD: ""
 
       # -----------------------------------------------------------------------------
       # NapCat / 签名（可选）
       # -----------------------------------------------------------------------------
+      # NapCat WebSocket 地址（用于连接 QQ）
       NAPCAT_WS_URL: "ws://napcat:3001"
+      # 签名服务地址（某些平台/协议需要）
       SIGN_API: ""
+      # 签名服务版本标识（按服务方要求填写）
       SIGN_VER: ""
 
       # -----------------------------------------------------------------------------
       # 外部工具（可选）
       # -----------------------------------------------------------------------------
+      # ffmpeg 可执行文件路径（留空则使用系统 PATH）
       FFMPEG_PATH: ""
+      # ffprobe 可执行文件路径（留空则使用系统 PATH）
       FFPROBE_PATH: ""
+      # TGS 转 GIF 的命令或脚本名（默认 tgs_to_gif）
       TGS_TO_GIF: "tgs_to_gif"
-
-      # -----------------------------------------------------------------------------
-      # CRV（可选）
-      # -----------------------------------------------------------------------------
-      CRV_API: ""
-      CRV_VIEWER_APP: ""
-      CRV_KEY: ""
 
       # -----------------------------------------------------------------------------
       # UI（可选：本地 dist 或反代）
       # -----------------------------------------------------------------------------
+      # UI 静态文件目录（容器内路径）
       UI_PATH: "/app/web/dist"
+      # UI 反向代理地址（如前端独立部署）
       UI_PROXY: ""
+      # 内部 Web 地址（容器间访问时使用）
       INTERNAL_WEB_ENDPOINT: ""
 
       # -----------------------------------------------------------------------------
       # 功能开关（可选）
       # -----------------------------------------------------------------------------
+      # 禁用“文件上传提示”类消息（true/false）
       DISABLE_FILE_UPLOAD_TIP: "false"
+      # 图片摘要/识别策略（留空使用默认策略）
       IMAGE_SUMMARY: ""
+      # 是否启用功能管理器（true/false）
       ENABLE_FEATURE_MANAGER: "false"
+      # 是否禁用 PostHog 统计（true/false）
       POSTHOG_OPTOUT: "false"
+      # 昵称显示模式（具体取值参考文档）
       SHOW_NICKNAME_MODE: "11"
+      # 转发模式（具体取值参考文档）
       FORWARD_MODE: "11"
+      # 是否启用自动撤回（true/false）
       ENABLE_AUTO_RECALL: "true"
+      # 是否启用离线通知（true/false）
       ENABLE_OFFLINE_NOTIFICATION: "true"
+      # 离线通知冷却时间（毫秒）
       OFFLINE_NOTIFICATION_COOLDOWN: "3600000"
 
       # -----------------------------------------------------------------------------
       # 构建信息（可选；不改则用默认值）
       # -----------------------------------------------------------------------------
+      # 展示在管理页面中的构建信息
       REPO: "Local Build"
       REF: "Local Build"
       COMMIT: "Local Build"
@@ -110,16 +149,20 @@ services:
       # -----------------------------------------------------------------------------
       # 数据库连接（Prisma 使用；需与下方 postgres 服务凭据一致）
       # -----------------------------------------------------------------------------
+      # PostgreSQL 连接串（注意用户名/密码/库名需与 postgres 服务一致）
       DATABASE_URL: "postgres://napgram_user:secure_password_here@postgres:5432/napgram"
 
-      # 时区（可选）
+      # 时区（可选；影响日志与定时任务）
       TZ: "Asia/Shanghai"
     volumes:
+      # 数据持久化目录（宿主机路径 -> 容器 DATA_DIR）
       - ./data:/app/data
-      # 挂载 NapCat 的 QQ 数据目录以访问媒体文件
+      # 挂载 NapCat 的 QQ 数据目录以访问媒体文件（按实际路径修改）
       - /path/to/napcat/data:/app/.config/QQ
     depends_on:
+      # 依赖数据库服务，先启动 postgres
       - postgres
+    # 启动命令：首次运行创建/同步数据表，然后启动应用
     command: sh -c "npx prisma db push && node build/index.js"
     networks:
       - napgram_net
@@ -131,16 +174,21 @@ services:
     container_name: napgram-postgres
     restart: always
     environment:
+      # 数据库名
       POSTGRES_DB: napgram
+      # 用户名
       POSTGRES_USER: napgram_user
+      # 密码
       POSTGRES_PASSWORD: secure_password_here
     volumes:
+      # 持久化数据库数据
       - postgres_data:/var/lib/postgresql/data
     networks:
       - napgram_net
 
 networks:
   napgram_net:
+    # 内部桥接网络，容器间可通过服务名互通
     driver: bridge
   # 如需连接到外部服务，可添加：
   # external_network:
