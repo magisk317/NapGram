@@ -49,10 +49,6 @@ const configParsed = z.object({
 
   TGS_TO_GIF: z.string().default('tgs_to_gif'),
 
-  CRV_API: z.preprocess(emptyStringToUndefined, z.string().url().optional()),
-  CRV_VIEWER_APP: z.preprocess(emptyStringToUndefined, z.string().url().startsWith('https://t.me/').optional()),
-  CRV_KEY: z.preprocess(emptyStringToUndefined, z.string().optional()),
-
   DISABLE_FILE_UPLOAD_TIP: z.string().default('false').transform((v) => ['true', '1', 'yes'].includes(v.toLowerCase())),
   IMAGE_SUMMARY: z.preprocess(emptyStringToUndefined, z.string().optional()),
   ENABLE_FEATURE_MANAGER: z.string().default('false').transform((v) => ['true', '1', 'yes'].includes(v.toLowerCase())),
