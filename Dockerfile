@@ -41,6 +41,9 @@ RUN if [ "$USE_MIRROR" = "true" ]; then \
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json* /app/
 COPY main/package.json /app/main/
 COPY web/package.json /app/web/
+COPY external/sdk/packages/sdk/package.json /app/external/sdk/packages/sdk/
+COPY external/sdk/packages/core/package.json /app/external/sdk/packages/core/
+COPY external/sdk/packages/utils/package.json /app/external/sdk/packages/utils/
 
 # 三步安装策略：
 # 1. 先安装 Prisma 相关包并运行 postinstall（下载引擎）
@@ -53,6 +56,7 @@ RUN pnpm install --filter=prisma --filter=@prisma/client --filter=@prisma/engine
     pnpm -r rebuild better-sqlite3
 
 # 源码构建（后端）
+COPY external/sdk/ /app/external/sdk/
 COPY main/ /app/main/
 RUN DATABASE_URL="postgresql://dummy" pnpm --filter=@napgram/core run prisma generate
 RUN pnpm --filter=@napgram/core run build

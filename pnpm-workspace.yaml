@@ -1,3 +1,4 @@
 packages:
   - 'main'
   - 'web'
+  - 'external/sdk/packages/*'
