@@ -6,7 +6,7 @@
 version: 2
 updates:
   # main 服务
-  - package-ecosystem: "npm"
+  - package-ecosystem: "pnpm"
     directory: "/main"
     schedule:
       interval: "daily"
