@@ -110,7 +110,7 @@ services:
       # UI（可选：本地 dist 或反代）
       # -----------------------------------------------------------------------------
       # UI 静态文件目录（容器内路径）
-      UI_PATH: "/app/web/dist"
+      UI_PATH: "/app/public"
       # UI 反向代理地址（如前端独立部署）
       UI_PROXY: ""
       # 内部 Web 地址（容器间访问时使用）
@@ -151,6 +151,8 @@ services:
       # -----------------------------------------------------------------------------
       # PostgreSQL 连接串（注意用户名/密码/库名需与 postgres 服务一致）
       DATABASE_URL: "postgres://napgram_user:secure_password_here@postgres:5432/napgram"
+      # 插件 Prisma schema 同步允许数据丢失提示（默认 1）
+      # PLUGIN_PRISMA_ACCEPT_DATA_LOSS: "1"
 
       # 时区（可选；影响日志与定时任务）
       TZ: "Asia/Shanghai"
