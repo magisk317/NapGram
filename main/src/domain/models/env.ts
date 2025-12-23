@@ -1,13 +1,14 @@
-import z from 'zod';
-import path from 'path';
+import path from 'node:path'
+import process from 'node:process'
+import z from 'zod'
 
-const emptyStringToUndefined = (value: unknown) => (value === '' ? undefined : value);
+const emptyStringToUndefined = (value: unknown) => (value === '' ? undefined : value)
 
 // 在测试环境下填充必要的占位符，避免 zod 校验直接退出
 if (process.env.NODE_ENV === 'test') {
-  process.env.TG_API_ID ??= '1';
-  process.env.TG_API_HASH ??= 'dummy-hash';
-  process.env.TG_BOT_TOKEN ??= 'dummy-token';
+  process.env.TG_API_ID ??= '1'
+  process.env.TG_API_HASH ??= 'dummy-hash'
+  process.env.TG_BOT_TOKEN ??= 'dummy-token'
 }
 
 const configParsed = z.object({
@@ -35,10 +36,10 @@ const configParsed = z.object({
   TG_CONNECTION: z.enum(['websocket', 'tcp']).default('tcp'),
   TG_INITIAL_DCID: z.preprocess(emptyStringToUndefined, z.string().regex(/^\d+$/).transform(Number).optional()),
   TG_INITIAL_SERVER: z.preprocess(emptyStringToUndefined, z.union([z.ipv4(), z.ipv6()]).optional()),
-  TG_USE_TEST_DC: z.string().default('false').transform((v) => ['true', '1', 'yes'].includes(v.toLowerCase())),
+  TG_USE_TEST_DC: z.string().default('false').transform(v => ['true', '1', 'yes'].includes(v.toLowerCase())),
   // Telegram 媒体自毁（view-once/TTL），单位秒；不设置或 <=0 表示禁用
   TG_MEDIA_TTL_SECONDS: z.string().regex(/^\d+$/).transform(Number).optional(),
-  IPV6: z.string().default('false').transform((v) => ['true', '1', 'yes'].includes(v.toLowerCase())),
+  IPV6: z.string().default('false').transform(v => ['true', '1', 'yes'].includes(v.toLowerCase())),
   ADMIN_QQ: z.preprocess(emptyStringToUndefined, z.string().regex(/^\d+$/).transform(Number).optional()),
   ADMIN_TG: z.preprocess(emptyStringToUndefined, z.string().regex(/^-?\d+$/).transform(Number).optional()),
 
@@ -49,9 +50,9 @@ const configParsed = z.object({
 
   TGS_TO_GIF: z.string().default('tgs_to_gif'),
 
-  DISABLE_FILE_UPLOAD_TIP: z.string().default('false').transform((v) => ['true', '1', 'yes'].includes(v.toLowerCase())),
+  DISABLE_FILE_UPLOAD_TIP: z.string().default('false').transform(v => ['true', '1', 'yes'].includes(v.toLowerCase())),
   IMAGE_SUMMARY: z.preprocess(emptyStringToUndefined, z.string().optional()),
-  ENABLE_FEATURE_MANAGER: z.string().default('false').transform((v) => ['true', '1', 'yes'].includes(v.toLowerCase())),
+  ENABLE_FEATURE_MANAGER: z.string().default('false').transform(v => ['true', '1', 'yes'].includes(v.toLowerCase())),
 
   LISTEN_PORT: z.string().regex(/^\d+$/).default('8080').transform(Number),
 
@@ -61,22 +62,22 @@ const configParsed = z.object({
   WEB_ENDPOINT: z.preprocess(emptyStringToUndefined, z.string().url().optional()),
   INTERNAL_WEB_ENDPOINT: z.preprocess(emptyStringToUndefined, z.string().url().optional()),
 
-  POSTHOG_OPTOUT: z.string().default('false').transform((v) => ['true', '1', 'yes'].includes(v.toLowerCase())),
+  POSTHOG_OPTOUT: z.string().default('false').transform(v => ['true', '1', 'yes'].includes(v.toLowerCase())),
   SHOW_NICKNAME_MODE: z.string().regex(/^[01]{2}$/).default('11'),
   FORWARD_MODE: z.string().regex(/^[01]{2}$/).default('11'),
-  COMMAND_REPLY_BOTH_SIDES: z.string().default('false').transform((v) => ['true', '1', 'yes'].includes(v.toLowerCase())),
-  ENABLE_AUTO_RECALL: z.string().default('true').transform((v) => ['true', '1', 'yes'].includes(v.toLowerCase())),
-  ENABLE_OFFLINE_NOTIFICATION: z.string().default('true').transform((v) => ['true', '1', 'yes'].includes(v.toLowerCase())),
+  COMMAND_REPLY_BOTH_SIDES: z.string().default('false').transform(v => ['true', '1', 'yes'].includes(v.toLowerCase())),
+  ENABLE_AUTO_RECALL: z.string().default('true').transform(v => ['true', '1', 'yes'].includes(v.toLowerCase())),
+  ENABLE_OFFLINE_NOTIFICATION: z.string().default('true').transform(v => ['true', '1', 'yes'].includes(v.toLowerCase())),
   OFFLINE_NOTIFICATION_COOLDOWN: z.string().regex(/^\d+$/).default('3600000').transform(Number), // 默认1小时
 
   REPO: z.string().default('Local Build'),
   REF: z.string().default('Local Build'),
   COMMIT: z.string().default('Local Build'),
-}).safeParse(process.env);
+}).safeParse(process.env)
 
 if (!configParsed.success) {
-  console.error('环境变量解析错误:', (configParsed as any).error);
-  process.exit(1);
+  console.error('环境变量解析错误:', (configParsed as any).error)
+  process.exit(1)
 }
 
-export default configParsed.data;
+export default configParsed.data

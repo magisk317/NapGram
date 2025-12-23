@@ -1,3 +1,3 @@
-export { ForwardMapper } from './MessageMapper';
-export { ForwardModeService } from './ForwardModeService';
-export { ReplyResolver } from './ReplyResolver';
+export { ForwardModeService } from './ForwardModeService'
+export { ForwardMapper } from './MessageMapper'
+export { ReplyResolver } from './ReplyResolver'

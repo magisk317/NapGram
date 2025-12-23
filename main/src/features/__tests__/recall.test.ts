@@ -1,33 +1,34 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import type { RecallEvent } from '../../domain/message'
+
+import type { IQQClient } from '../../infrastructure/clients/qq'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import db from '../../domain/models/db'
+// Now import after mocks are set up
+import { RecallFeature } from '../RecallFeature'
 
 // Mock database
 vi.mock('../../domain/models/db', () => ({
-    default: {
-        message: {
-            findFirst: vi.fn(),
-            update: vi.fn(),
-        },
+  default: {
+    message: {
+      findFirst: vi.fn(),
+      update: vi.fn(),
     },
-}));
+  },
+}))
 
 // Mock environment
 vi.mock('../../domain/models/env', () => ({
-    default: {
-        ENABLE_AUTO_RECALL: true,
-        LOG_FILE: '/tmp/test-logs/app.log',
-        LOG_LEVEL: 'off',
-        LOG_FILE_LEVEL: 'off',
-        DATA_DIR: '/tmp/test-data',
-    },
-}));
+  default: {
+    ENABLE_AUTO_RECALL: true,
+    LOG_FILE: '/tmp/test-logs/app.log',
+    LOG_LEVEL: 'off',
+    LOG_FILE_LEVEL: 'off',
+    DATA_DIR: '/tmp/test-data',
+  },
+}))
 
-// Now import after mocks are set up
-import { RecallFeature } from '../RecallFeature';
-import type { RecallEvent } from '../../domain/message';
-import type { IQQClient } from '../../infrastructure/clients/qq';
-import db from '../../domain/models/db';
-
-const createMockQQClient = (): IQQClient => ({
+function createMockQQClient(): IQQClient {
+  return {
     uin: 123456,
     nickname: 'TestBot',
     clientType: 'napcat',
@@ -49,209 +50,214 @@ const createMockQQClient = (): IQQClient => ({
     login: vi.fn(),
     logout: vi.fn(),
     destroy: vi.fn(),
-} as any);
+  } as any
+}
 
-const createMockTgBot = () => ({
+function createMockTgBot() {
+  return {
     deleteMessages: vi.fn(),
     getChat: vi.fn().mockResolvedValue({
-        deleteMessages: vi.fn().mockResolvedValue(undefined),
+      deleteMessages: vi.fn().mockResolvedValue(undefined),
     }),
     addDeletedMessageEventHandler: vi.fn(),
     removeDeletedMessageEventHandler: vi.fn(),
-} as any);
+  } as any
+}
 
-const createMockInstance = () => ({
+function createMockInstance() {
+  return {
     id: 0,
     owner: 123456,
-} as any);
+  } as any
+}
 
-describe('RecallFeature', () => {
-    let recallFeature: RecallFeature;
-    let mockQQClient: IQQClient;
-    let mockTgBot: any;
-    let mockInstance: any;
+describe('recallFeature', () => {
+  let recallFeature: RecallFeature
+  let mockQQClient: IQQClient
+  let mockTgBot: any
+  let mockInstance: any
 
-    beforeEach(() => {
-        vi.clearAllMocks();
-        mockQQClient = createMockQQClient();
-        mockTgBot = createMockTgBot();
-        mockInstance = createMockInstance();
+  beforeEach(() => {
+    vi.clearAllMocks()
+    mockQQClient = createMockQQClient()
+    mockTgBot = createMockTgBot()
+    mockInstance = createMockInstance()
 
-        recallFeature = new RecallFeature(
-            mockInstance,
-            mockTgBot,
-            mockQQClient
-        );
-    });
+    recallFeature = new RecallFeature(
+      mockInstance,
+      mockTgBot,
+      mockQQClient,
+    )
+  })
 
-    describe('QQ Message Recall', () => {
-        it('should handle QQ message recall and delete TG message', async () => {
-            const recallEvent: RecallEvent = {
-                messageId: '12345',
-                chatId: '789',
-                operatorId: '456',
-                timestamp: Date.now(),
-            };
+  describe('qQ Message Recall', () => {
+    it('should handle QQ message recall and delete TG message', async () => {
+      const recallEvent: RecallEvent = {
+        messageId: '12345',
+        chatId: '789',
+        operatorId: '456',
+        timestamp: Date.now(),
+      }
 
-            const mockDbEntry = {
-                id: 1,
-                qqRoomId: 789,
-                seq: '12345',
-                tgChatId: BigInt(-100123),
-                tgMsgId: 999,
-                deleted: false,
-            };
+      const mockDbEntry = {
+        id: 1,
+        qqRoomId: 789,
+        seq: '12345',
+        tgChatId: BigInt(-100123),
+        tgMsgId: 999,
+        deleted: false,
+      };
 
-            (db.message.findFirst as any).mockResolvedValue(mockDbEntry);
-            (db.message.update as any).mockResolvedValue({ ...mockDbEntry, deleted: true });
+      (db.message.findFirst as any).mockResolvedValue(mockDbEntry);
+      (db.message.update as any).mockResolvedValue({ ...mockDbEntry, deleted: true })
 
-            const mockChat = {
-                deleteMessages: vi.fn().mockResolvedValue(undefined),
-            };
-            mockTgBot.getChat.mockResolvedValue(mockChat);
+      const mockChat = {
+        deleteMessages: vi.fn().mockResolvedValue(undefined),
+      }
+      mockTgBot.getChat.mockResolvedValue(mockChat)
 
-            await recallFeature['handleQQRecall'](recallEvent);
+      await recallFeature.handleQQRecall(recallEvent)
 
-            expect(db.message.findFirst).toHaveBeenCalledWith({
-                where: {
-                    instanceId: mockInstance.id,
-                    qqRoomId: BigInt(789),
-                    seq: 12345,
-                },
-            });
+      expect(db.message.findFirst).toHaveBeenCalledWith({
+        where: {
+          instanceId: mockInstance.id,
+          qqRoomId: BigInt(789),
+          seq: 12345,
+        },
+      })
 
-            expect(mockTgBot.getChat).toHaveBeenCalledWith(Number(mockDbEntry.tgChatId));
-            expect(mockChat.deleteMessages).toHaveBeenCalledWith([mockDbEntry.tgMsgId]);
+      expect(mockTgBot.getChat).toHaveBeenCalledWith(Number(mockDbEntry.tgChatId))
+      expect(mockChat.deleteMessages).toHaveBeenCalledWith([mockDbEntry.tgMsgId])
 
-            expect(db.message.update).toHaveBeenCalledWith({
-                where: { id: 1 },
-                data: { ignoreDelete: true },
-            });
-        });
+      expect(db.message.update).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: { ignoreDelete: true },
+      })
+    })
 
-        it('should handle QQ recall when no TG message found', async () => {
-            const recallEvent: RecallEvent = {
-                messageId: '12345',
-                chatId: '789',
-                operatorId: '456',
-                timestamp: Date.now(),
-            };
+    it('should handle QQ recall when no TG message found', async () => {
+      const recallEvent: RecallEvent = {
+        messageId: '12345',
+        chatId: '789',
+        operatorId: '456',
+        timestamp: Date.now(),
+      };
 
-            (db.message.findFirst as any).mockResolvedValue(null);
+      (db.message.findFirst as any).mockResolvedValue(null)
 
-            await recallFeature['handleQQRecall'](recallEvent);
+      await recallFeature.handleQQRecall(recallEvent)
 
-            expect(db.message.findFirst).toHaveBeenCalled();
-            expect(mockTgBot.deleteMessages).not.toHaveBeenCalled();
-            expect(db.message.update).not.toHaveBeenCalled();
-        });
+      expect(db.message.findFirst).toHaveBeenCalled()
+      expect(mockTgBot.deleteMessages).not.toHaveBeenCalled()
+      expect(db.message.update).not.toHaveBeenCalled()
+    })
 
-        it('should handle TG deletion error gracefully', async () => {
-            const recallEvent: RecallEvent = {
-                messageId: '12345',
-                chatId: '789',
-                operatorId: '456',
-                timestamp: Date.now(),
-            };
+    it('should handle TG deletion error gracefully', async () => {
+      const recallEvent: RecallEvent = {
+        messageId: '12345',
+        chatId: '789',
+        operatorId: '456',
+        timestamp: Date.now(),
+      }
 
-            const mockDbEntry = {
-                id: 1,
-                qqRoomId: 789,
-                seq: '12345',
-                tgChatId: BigInt(-100123),
-                tgMsgId: 999,
-                deleted: false,
-            };
+      const mockDbEntry = {
+        id: 1,
+        qqRoomId: 789,
+        seq: '12345',
+        tgChatId: BigInt(-100123),
+        tgMsgId: 999,
+        deleted: false,
+      };
 
-            (db.message.findFirst as any).mockResolvedValue(mockDbEntry);
-            (db.message.update as any).mockResolvedValue({ ...mockDbEntry, ignoreDelete: true });
+      (db.message.findFirst as any).mockResolvedValue(mockDbEntry);
+      (db.message.update as any).mockResolvedValue({ ...mockDbEntry, ignoreDelete: true })
 
-            // Mock getChat to return a chat with failing deleteMessages
-            const mockChat = {
-                deleteMessages: vi.fn().mockRejectedValue(new Error('TG API Error')),
-            };
-            mockTgBot.getChat.mockResolvedValue(mockChat);
+      // Mock getChat to return a chat with failing deleteMessages
+      const mockChat = {
+        deleteMessages: vi.fn().mockRejectedValue(new Error('TG API Error')),
+      }
+      mockTgBot.getChat.mockResolvedValue(mockChat)
 
-            await expect(
-                recallFeature['handleQQRecall'](recallEvent)
-            ).resolves.not.toThrow();
+      await expect(
+        recallFeature.handleQQRecall(recallEvent),
+      ).resolves.not.toThrow()
 
-            expect(db.message.update).toHaveBeenCalled();
-        });
-    });
+      expect(db.message.update).toHaveBeenCalled()
+    })
+  })
 
-    describe('TG Message Recall', () => {
-        it('should handle TG message recall and recall QQ message', async () => {
-            const mockDbEntry = {
-                id: 1,
-                qqRoomId: 789,
-                seq: '12345',
-                tgChatId: BigInt(-100123),
-                tgMsgId: 999,
-                deleted: false,
-            };
+  describe('tG Message Recall', () => {
+    it('should handle TG message recall and recall QQ message', async () => {
+      const mockDbEntry = {
+        id: 1,
+        qqRoomId: 789,
+        seq: '12345',
+        tgChatId: BigInt(-100123),
+        tgMsgId: 999,
+        deleted: false,
+      };
 
-            (db.message.findFirst as any).mockResolvedValue(mockDbEntry);
-            (db.message.update as any).mockResolvedValue({ ...mockDbEntry, deleted: true });
+      (db.message.findFirst as any).mockResolvedValue(mockDbEntry);
+      (db.message.update as any).mockResolvedValue({ ...mockDbEntry, deleted: true })
 
-            await recallFeature.handleTGRecall(-100123, 999);
+      await recallFeature.handleTGRecall(-100123, 999)
 
-            expect(db.message.findFirst).toHaveBeenCalledWith({
-                where: {
-                    instanceId: mockInstance.id,
-                    tgChatId: BigInt(-100123),
-                    tgMsgId: 999,
-                },
-            });
+      expect(db.message.findFirst).toHaveBeenCalledWith({
+        where: {
+          instanceId: mockInstance.id,
+          tgChatId: BigInt(-100123),
+          tgMsgId: 999,
+        },
+      })
 
-            expect(mockQQClient.recallMessage).toHaveBeenCalledWith('12345');
+      expect(mockQQClient.recallMessage).toHaveBeenCalledWith('12345')
 
-            expect(db.message.update).toHaveBeenCalledWith({
-                where: { id: 1 },
-                data: { ignoreDelete: true },
-            });
-        });
+      expect(db.message.update).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: { ignoreDelete: true },
+      })
+    })
 
-        it('should handle TG recall when no QQ message found', async () => {
-            (db.message.findFirst as any).mockResolvedValue(null);
+    it('should handle TG recall when no QQ message found', async () => {
+      (db.message.findFirst as any).mockResolvedValue(null)
 
-            await recallFeature.handleTGRecall(-100123, 999);
+      await recallFeature.handleTGRecall(-100123, 999)
 
-            expect(db.message.findFirst).toHaveBeenCalled();
-            expect(mockQQClient.recallMessage).not.toHaveBeenCalled();
-            expect(db.message.update).not.toHaveBeenCalled();
-        });
+      expect(db.message.findFirst).toHaveBeenCalled()
+      expect(mockQQClient.recallMessage).not.toHaveBeenCalled()
+      expect(db.message.update).not.toHaveBeenCalled()
+    })
 
-        it('should handle QQ recall error gracefully', async () => {
-            const mockDbEntry = {
-                id: 1,
-                qqRoomId: 789,
-                seq: '12345',
-                tgChatId: BigInt(-100123),
-                tgMsgId: 999,
-                deleted: false,
-            };
+    it('should handle QQ recall error gracefully', async () => {
+      const mockDbEntry = {
+        id: 1,
+        qqRoomId: 789,
+        seq: '12345',
+        tgChatId: BigInt(-100123),
+        tgMsgId: 999,
+        deleted: false,
+      };
 
-            (db.message.findFirst as any).mockResolvedValue(mockDbEntry);
-            (mockQQClient.recallMessage as any).mockRejectedValue(new Error('QQ API Error'));
+      (db.message.findFirst as any).mockResolvedValue(mockDbEntry);
+      (mockQQClient.recallMessage as any).mockRejectedValue(new Error('QQ API Error'))
 
-            await expect(
-                recallFeature.handleTGRecall(-100123, 999)
-            ).resolves.not.toThrow();
+      await expect(
+        recallFeature.handleTGRecall(-100123, 999),
+      ).resolves.not.toThrow()
 
-            expect(db.message.update).toHaveBeenCalled();
-        });
-    });
+      expect(db.message.update).toHaveBeenCalled()
+    })
+  })
 
-    describe('Lifecycle', () => {
-        it('should setup listeners on creation', () => {
-            expect(mockQQClient.on).toHaveBeenCalledWith('recall', expect.any(Function));
-        });
+  describe('lifecycle', () => {
+    it('should setup listeners on creation', () => {
+      expect(mockQQClient.on).toHaveBeenCalledWith('recall', expect.any(Function))
+    })
 
-        it('should cleanup on destroy', () => {
-            recallFeature.destroy();
+    it('should cleanup on destroy', () => {
+      recallFeature.destroy()
 
-            expect(mockQQClient.off).toHaveBeenCalledWith('recall', expect.any(Function));
-        });
-    });
-});
+      expect(mockQQClient.off).toHaveBeenCalledWith('recall', expect.any(Function))
+    })
+  })
+})

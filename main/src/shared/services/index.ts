@@ -1,2 +1,2 @@
-export * from './ReconnectingWebSocket';
-export * from './WaitForMessageHelper';
+export * from './ReconnectingWebSocket'
+export * from './WaitForMessageHelper'

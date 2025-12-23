@@ -3,5 +3,5 @@
  * Phase 1: 消息类型和转换器
  */
 
-export * from './types';
-export * from './converter';
+export * from './converter'
+export * from './types'

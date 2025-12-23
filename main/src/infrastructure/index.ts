@@ -1,6 +1,6 @@
 /**
  * Infrastructure Layer Exports
- * 
+ *
  * 此模块负责导出基础设施层的所有组件，包括：
  * - 客户端适配器 (QQ、Telegram)
  * - 性能监控和优化服务
@@ -16,32 +16,17 @@
  * QQ Client
  * NapCat WebSocket 适配器及相关工具
  */
-export * from './clients/qq';
+export * from './clients/qq'
 
 /**
- * Telegram Client  
+ * Telegram Client
  * MTCute 客户端封装
  */
-export * from './clients/telegram';
+export * from './clients/telegram'
 
 // ============================================
 // Services - 基础设施服务
 // ============================================
-
-/**
- * Performance Monitoring
- * 性能监控器 - 收集和分析系统性能指标
- * - 消息处理延迟跟踪
- * - 错误率统计
- * - 缓存命中率
- * - 内存使用监控
- */
-export {
-    PerformanceMonitor,
-    performanceMonitor,
-    type PerformanceMetrics,
-    type PerformanceStats,
-} from './services/PerformanceMonitor';
 
 /**
  * Cache Management
@@ -52,13 +37,13 @@ export {
  * - 配置缓存
  */
 export {
-    CacheManager,
-    groupInfoCache,
-    userInfoCache,
-    mediaCache,
-    configCache,
-    type CacheConfig,
-} from './services/CacheManager';
+  type CacheConfig,
+  CacheManager,
+  configCache,
+  groupInfoCache,
+  mediaCache,
+  userInfoCache,
+} from './services/CacheManager'
 
 /**
  * Message Queue
@@ -68,8 +53,22 @@ export {
  * - 自动重试
  */
 export {
-    MessageQueue,
-    type MessageHandler,
-    type QueueConfig,
-} from './services/MessageQueue';
+  type MessageHandler,
+  MessageQueue,
+  type QueueConfig,
+} from './services/MessageQueue'
 
+/**
+ * Performance Monitoring
+ * 性能监控器 - 收集和分析系统性能指标
+ * - 消息处理延迟跟踪
+ * - 错误率统计
+ * - 缓存命中率
+ * - 内存使用监控
+ */
+export {
+  type PerformanceMetrics,
+  PerformanceMonitor,
+  performanceMonitor,
+  type PerformanceStats,
+} from './services/PerformanceMonitor'

@@ -1,22 +1,23 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { ForwardControlCommandHandler } from '../ForwardControlCommandHandler';
-import type { CommandContext } from '../CommandContext';
-import type { UnifiedMessage } from '../../../../domain/message';
-import type { IQQClient } from '../../../../infrastructure/clients/qq';
+import type { UnifiedMessage } from '../../../../domain/message'
+import type { IQQClient } from '../../../../infrastructure/clients/qq'
+import type { CommandContext } from '../CommandContext'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import db from '../../../../domain/models/db'
+
+import { ForwardControlCommandHandler } from '../ForwardControlCommandHandler'
 
 // Mock database
 vi.mock('../../../../domain/models/db', () => ({
-    default: {
-        forwardPair: {
-            update: vi.fn().mockResolvedValue({}),
-        },
+  default: {
+    forwardPair: {
+      update: vi.fn().mockResolvedValue({}),
     },
-}));
-
-import db from '../../../../domain/models/db';
+  },
+}))
 
 // Mock QQ Client
-const createMockQQClient = (): IQQClient => ({
+function createMockQQClient(): IQQClient {
+  return {
     uin: 123456,
     nickname: 'TestBot',
     clientType: 'napcat',
@@ -39,356 +40,358 @@ const createMockQQClient = (): IQQClient => ({
     login: vi.fn(),
     logout: vi.fn(),
     destroy: vi.fn(),
-} as any);
+  } as any
+}
 
 // Mock Telegram Bot
-const createMockTgBot = () => ({
+function createMockTgBot() {
+  return {
     sendMessage: vi.fn().mockResolvedValue({}),
-} as any);
+  } as any
+}
 
 // Mock Command Context
-const createMockContext = (qqClient: IQQClient, tgBot: any): CommandContext => ({
+function createMockContext(qqClient: IQQClient, tgBot: any): CommandContext {
+  return {
     qqClient,
     tgBot,
     registry: {} as any,
     permissionChecker: {} as any,
     stateManager: {} as any,
     instance: {
-        id: 1,
-        owner: '123456',
-        forwardPairs: {
-            findByTG: vi.fn().mockReturnValue(null),
-            findByQQ: vi.fn(),
-            find: vi.fn(),
-            add: vi.fn(),
-            remove: vi.fn(),
-        },
+      id: 1,
+      owner: '123456',
+      forwardPairs: {
+        findByTG: vi.fn().mockReturnValue(null),
+        findByQQ: vi.fn(),
+        find: vi.fn(),
+        add: vi.fn(),
+        remove: vi.fn(),
+      },
     } as any,
     replyTG: vi.fn().mockResolvedValue(undefined),
     extractThreadId: vi.fn().mockReturnValue(undefined),
-} as any);
+  } as any
+}
 
 // Helper to create UnifiedMessage
-const createMessage = (
-    text: string,
-    senderId: string = '999999',
-    chatId: string = '777777',
-    platform: 'telegram' | 'qq' = 'telegram'
-): UnifiedMessage => ({
+function createMessage(text: string, senderId: string = '999999', chatId: string = '777777', platform: 'telegram' | 'qq' = 'telegram'): UnifiedMessage {
+  return {
     id: '12345',
     platform,
     sender: {
-        id: senderId,
-        name: 'TestUser',
+      id: senderId,
+      name: 'TestUser',
     },
     chat: {
-        id: chatId,
-        type: 'group',
+      id: chatId,
+      type: 'group',
     },
     content: [
-        {
-            type: 'text',
-            data: { text },
-        },
+      {
+        type: 'text',
+        data: { text },
+      },
     ],
     timestamp: Date.now(),
     metadata: {},
-});
+  }
+}
 
-describe('ForwardControlCommandHandler', () => {
-    let handler: ForwardControlCommandHandler;
-    let mockQQClient: IQQClient;
-    let mockTgBot: any;
-    let mockContext: CommandContext;
-    let mockPair: any;
+describe('forwardControlCommandHandler', () => {
+  let handler: ForwardControlCommandHandler
+  let mockQQClient: IQQClient
+  let mockTgBot: any
+  let mockContext: CommandContext
+  let mockPair: any
 
-    beforeEach(() => {
-        mockQQClient = createMockQQClient();
-        mockTgBot = createMockTgBot();
-        mockContext = createMockContext(mockQQClient, mockTgBot);
-        handler = new ForwardControlCommandHandler(mockContext);
+  beforeEach(() => {
+    mockQQClient = createMockQQClient()
+    mockTgBot = createMockTgBot()
+    mockContext = createMockContext(mockQQClient, mockTgBot)
+    handler = new ForwardControlCommandHandler(mockContext)
 
-        // Reset mock pair
-        mockPair = {
-            id: 1,
-            qqRoomId: '888888',
-            tgChatId: '777777',
-            forwardMode: null,
-        };
+    // Reset mock pair
+    mockPair = {
+      id: 1,
+      qqRoomId: '888888',
+      tgChatId: '777777',
+      forwardMode: null,
+    }
 
-        mockContext.instance.forwardPairs.findByTG = vi.fn().mockReturnValue(mockPair);
-        vi.mocked(db.forwardPair.update).mockClear();
-    });
+    mockContext.instance.forwardPairs.findByTG = vi.fn().mockReturnValue(mockPair)
+    vi.mocked(db.forwardPair.update).mockClear()
+  })
 
-    describe('Platform Filtering', () => {
-        it('should only process commands from Telegram platform', async () => {
-            const msg = createMessage('/forwardoff', '999999', '777777', 'qq');
-            await handler.execute(msg, [], 'forwardoff');
+  describe('platform Filtering', () => {
+    it('should only process commands from Telegram platform', async () => {
+      const msg = createMessage('/forwardoff', '999999', '777777', 'qq')
+      await handler.execute(msg, [], 'forwardoff')
 
-            expect(mockContext.replyTG).not.toHaveBeenCalled();
-            expect(db.forwardPair.update).not.toHaveBeenCalled();
-        });
-    });
+      expect(mockContext.replyTG).not.toHaveBeenCalled()
+      expect(db.forwardPair.update).not.toHaveBeenCalled()
+    })
+  })
 
-    describe('No Binding Scenario', () => {
-        it('should show error when chat is not bound', async () => {
-            mockContext.instance.forwardPairs.findByTG = vi.fn().mockReturnValue(null);
+  describe('no Binding Scenario', () => {
+    it('should show error when chat is not bound', async () => {
+      mockContext.instance.forwardPairs.findByTG = vi.fn().mockReturnValue(null)
 
-            const msg = createMessage('/forwardoff', '999999', '777777');
-            await handler.execute(msg, [], 'forwardoff');
+      const msg = createMessage('/forwardoff', '999999', '777777')
+      await handler.execute(msg, [], 'forwardoff')
 
-            expect(mockContext.replyTG).toHaveBeenCalledWith(
-                '777777',
-                expect.stringContaining('未绑定任何 QQ 群'),
-                undefined
-            );
-            expect(db.forwardPair.update).not.toHaveBeenCalled();
-        });
-    });
+      expect(mockContext.replyTG).toHaveBeenCalledWith(
+        '777777',
+        expect.stringContaining('未绑定任何 QQ 群'),
+        undefined,
+      )
+      expect(db.forwardPair.update).not.toHaveBeenCalled()
+    })
+  })
 
-    describe('/forwardoff command', () => {
-        it('should set forward mode to off', async () => {
-            const msg = createMessage('/forwardoff', '999999', '777777');
-            await handler.execute(msg, [], 'forwardoff');
+  describe('/forwardoff command', () => {
+    it('should set forward mode to off', async () => {
+      const msg = createMessage('/forwardoff', '999999', '777777')
+      await handler.execute(msg, [], 'forwardoff')
 
-            expect(db.forwardPair.update).toHaveBeenCalledWith({
-                where: { id: 1 },
-                data: { forwardMode: 'off' },
-            });
-        });
+      expect(db.forwardPair.update).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: { forwardMode: 'off' },
+      })
+    })
 
-        it('should update pair in memory', async () => {
-            const msg = createMessage('/forwardoff', '999999', '777777');
-            await handler.execute(msg, [], 'forwardoff');
+    it('should update pair in memory', async () => {
+      const msg = createMessage('/forwardoff', '999999', '777777')
+      await handler.execute(msg, [], 'forwardoff')
 
-            expect(mockPair.forwardMode).toBe('off');
-        });
+      expect(mockPair.forwardMode).toBe('off')
+    })
 
-        it('should send success message', async () => {
-            const msg = createMessage('/forwardoff', '999999', '777777');
-            await handler.execute(msg, [], 'forwardoff');
+    it('should send success message', async () => {
+      const msg = createMessage('/forwardoff', '999999', '777777')
+      await handler.execute(msg, [], 'forwardoff')
 
-            expect(mockContext.replyTG).toHaveBeenCalledWith(
-                '777777',
-                expect.stringContaining('已暂停双向转发'),
-                undefined
-            );
-        });
-    });
+      expect(mockContext.replyTG).toHaveBeenCalledWith(
+        '777777',
+        expect.stringContaining('已暂停双向转发'),
+        undefined,
+      )
+    })
+  })
 
-    describe('/forwardon command', () => {
-        it('should set forward mode to null (normal)', async () => {
-            mockPair.forwardMode = 'off';
+  describe('/forwardon command', () => {
+    it('should set forward mode to null (normal)', async () => {
+      mockPair.forwardMode = 'off'
 
-            const msg = createMessage('/forwardon', '999999', '777777');
-            await handler.execute(msg, [], 'forwardon');
+      const msg = createMessage('/forwardon', '999999', '777777')
+      await handler.execute(msg, [], 'forwardon')
 
-            expect(db.forwardPair.update).toHaveBeenCalledWith({
-                where: { id: 1 },
-                data: { forwardMode: null },
-            });
-        });
+      expect(db.forwardPair.update).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: { forwardMode: null },
+      })
+    })
 
-        it('should send success message', async () => {
-            const msg = createMessage('/forwardon', '999999', '777777');
-            await handler.execute(msg, [], 'forwardon');
+    it('should send success message', async () => {
+      const msg = createMessage('/forwardon', '999999', '777777')
+      await handler.execute(msg, [], 'forwardon')
 
-            expect(mockContext.replyTG).toHaveBeenCalledWith(
-                '777777',
-                expect.stringContaining('已恢复双向转发'),
-                undefined
-            );
-        });
-    });
+      expect(mockContext.replyTG).toHaveBeenCalledWith(
+        '777777',
+        expect.stringContaining('已恢复双向转发'),
+        undefined,
+      )
+    })
+  })
 
-    describe('/disable_qq_forward command', () => {
-        it('should set forward mode to tg_only', async () => {
-            const msg = createMessage('/disable_qq_forward', '999999', '777777');
-            await handler.execute(msg, [], 'disable_qq_forward');
+  describe('/disable_qq_forward command', () => {
+    it('should set forward mode to tg_only', async () => {
+      const msg = createMessage('/disable_qq_forward', '999999', '777777')
+      await handler.execute(msg, [], 'disable_qq_forward')
 
-            expect(db.forwardPair.update).toHaveBeenCalledWith({
-                where: { id: 1 },
-                data: { forwardMode: 'tg_only' },
-            });
-        });
+      expect(db.forwardPair.update).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: { forwardMode: 'tg_only' },
+      })
+    })
 
-        it('should send success message', async () => {
-            const msg = createMessage('/disable_qq_forward', '999999', '777777');
-            await handler.execute(msg, [], 'disable_qq_forward');
+    it('should send success message', async () => {
+      const msg = createMessage('/disable_qq_forward', '999999', '777777')
+      await handler.execute(msg, [], 'disable_qq_forward')
 
-            expect(mockContext.replyTG).toHaveBeenCalledWith(
-                '777777',
-                expect.stringContaining('已停止 QQ → TG 的转发'),
-                undefined
-            );
-        });
-    });
+      expect(mockContext.replyTG).toHaveBeenCalledWith(
+        '777777',
+        expect.stringContaining('已停止 QQ → TG 的转发'),
+        undefined,
+      )
+    })
+  })
 
-    describe('/enable_qq_forward command', () => {
-        it('should set forward mode to null (normal)', async () => {
-            mockPair.forwardMode = 'tg_only';
+  describe('/enable_qq_forward command', () => {
+    it('should set forward mode to null (normal)', async () => {
+      mockPair.forwardMode = 'tg_only'
 
-            const msg = createMessage('/enable_qq_forward', '999999', '777777');
-            await handler.execute(msg, [], 'enable_qq_forward');
+      const msg = createMessage('/enable_qq_forward', '999999', '777777')
+      await handler.execute(msg, [], 'enable_qq_forward')
 
-            expect(db.forwardPair.update).toHaveBeenCalledWith({
-                where: { id: 1 },
-                data: { forwardMode: null },
-            });
-        });
+      expect(db.forwardPair.update).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: { forwardMode: null },
+      })
+    })
 
-        it('should send success message', async () => {
-            const msg = createMessage('/enable_qq_forward', '999999', '777777');
-            await handler.execute(msg, [], 'enable_qq_forward');
+    it('should send success message', async () => {
+      const msg = createMessage('/enable_qq_forward', '999999', '777777')
+      await handler.execute(msg, [], 'enable_qq_forward')
 
-            expect(mockContext.replyTG).toHaveBeenCalledWith(
-                '777777',
-                expect.stringContaining('已恢复 QQ → TG 的转发'),
-                undefined
-            );
-        });
-    });
+      expect(mockContext.replyTG).toHaveBeenCalledWith(
+        '777777',
+        expect.stringContaining('已恢复 QQ → TG 的转发'),
+        undefined,
+      )
+    })
+  })
 
-    describe('/disable_tg_forward command', () => {
-        it('should set forward mode to qq_only', async () => {
-            const msg = createMessage('/disable_tg_forward', '999999', '777777');
-            await handler.execute(msg, [], 'disable_tg_forward');
+  describe('/disable_tg_forward command', () => {
+    it('should set forward mode to qq_only', async () => {
+      const msg = createMessage('/disable_tg_forward', '999999', '777777')
+      await handler.execute(msg, [], 'disable_tg_forward')
 
-            expect(db.forwardPair.update).toHaveBeenCalledWith({
-                where: { id: 1 },
-                data: { forwardMode: 'qq_only' },
-            });
-        });
+      expect(db.forwardPair.update).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: { forwardMode: 'qq_only' },
+      })
+    })
 
-        it('should send success message', async () => {
-            const msg = createMessage('/disable_tg_forward', '999999', '777777');
-            await handler.execute(msg, [], 'disable_tg_forward');
+    it('should send success message', async () => {
+      const msg = createMessage('/disable_tg_forward', '999999', '777777')
+      await handler.execute(msg, [], 'disable_tg_forward')
 
-            expect(mockContext.replyTG).toHaveBeenCalledWith(
-                '777777',
-                expect.stringContaining('已停止 TG → QQ 的转发'),
-                undefined
-            );
-        });
-    });
+      expect(mockContext.replyTG).toHaveBeenCalledWith(
+        '777777',
+        expect.stringContaining('已停止 TG → QQ 的转发'),
+        undefined,
+      )
+    })
+  })
 
-    describe('/enable_tg_forward command', () => {
-        it('should set forward mode to null (normal)', async () => {
-            mockPair.forwardMode = 'qq_only';
+  describe('/enable_tg_forward command', () => {
+    it('should set forward mode to null (normal)', async () => {
+      mockPair.forwardMode = 'qq_only'
 
-            const msg = createMessage('/enable_tg_forward', '999999', '777777');
-            await handler.execute(msg, [], 'enable_tg_forward');
+      const msg = createMessage('/enable_tg_forward', '999999', '777777')
+      await handler.execute(msg, [], 'enable_tg_forward')
 
-            expect(db.forwardPair.update).toHaveBeenCalledWith({
-                where: { id: 1 },
-                data: { forwardMode: null },
-            });
-        });
+      expect(db.forwardPair.update).toHaveBeenCalledWith({
+        where: { id: 1 },
+        data: { forwardMode: null },
+      })
+    })
 
-        it('should send success message', async () => {
-            const msg = createMessage('/enable_tg_forward', '999999', '777777');
-            await handler.execute(msg, [], 'enable_tg_forward');
+    it('should send success message', async () => {
+      const msg = createMessage('/enable_tg_forward', '999999', '777777')
+      await handler.execute(msg, [], 'enable_tg_forward')
 
-            expect(mockContext.replyTG).toHaveBeenCalledWith(
-                '777777',
-                expect.stringContaining('已恢复 TG → QQ 的转发'),
-                undefined
-            );
-        });
-    });
+      expect(mockContext.replyTG).toHaveBeenCalledWith(
+        '777777',
+        expect.stringContaining('已恢复 TG → QQ 的转发'),
+        undefined,
+      )
+    })
+  })
 
-    describe('Unknown Command', () => {
-        it('should reject unknown command', async () => {
-            const msg = createMessage('/unknown', '999999', '777777');
-            await handler.execute(msg, [], 'unknown');
+  describe('unknown Command', () => {
+    it('should reject unknown command', async () => {
+      const msg = createMessage('/unknown', '999999', '777777')
+      await handler.execute(msg, [], 'unknown')
 
-            expect(db.forwardPair.update).not.toHaveBeenCalled();
-            expect(mockContext.replyTG).toHaveBeenCalledWith(
-                '777777',
-                expect.stringContaining('未知命令'),
-                undefined
-            );
-        });
-    });
+      expect(db.forwardPair.update).not.toHaveBeenCalled()
+      expect(mockContext.replyTG).toHaveBeenCalledWith(
+        '777777',
+        expect.stringContaining('未知命令'),
+        undefined,
+      )
+    })
+  })
 
-    describe('Binding Information Display', () => {
-        it('should include binding info in success message', async () => {
-            const msg = createMessage('/forwardoff', '999999', '777777');
-            await handler.execute(msg, [], 'forwardoff');
+  describe('binding Information Display', () => {
+    it('should include binding info in success message', async () => {
+      const msg = createMessage('/forwardoff', '999999', '777777')
+      await handler.execute(msg, [], 'forwardoff')
 
-            expect(mockContext.replyTG).toHaveBeenCalledWith(
-                '777777',
-                expect.stringContaining('QQ 888888'),
-                undefined
-            );
-        });
+      expect(mockContext.replyTG).toHaveBeenCalledWith(
+        '777777',
+        expect.stringContaining('QQ 888888'),
+        undefined,
+      )
+    })
 
-        it('should include thread ID in binding info when present', async () => {
-            mockPair.tgThreadId = 12345;
-            vi.mocked(mockContext.extractThreadId).mockReturnValue(12345);
+    it('should include thread ID in binding info when present', async () => {
+      mockPair.tgThreadId = 12345
+      vi.mocked(mockContext.extractThreadId).mockReturnValue(12345)
 
-            const msg = createMessage('/forwardoff', '999999', '777777');
-            await handler.execute(msg, [], 'forwardoff');
+      const msg = createMessage('/forwardoff', '999999', '777777')
+      await handler.execute(msg, [], 'forwardoff')
 
-            expect(mockContext.replyTG).toHaveBeenCalledWith(
-                '777777',
-                expect.stringContaining('话题 12345'),
-                12345
-            );
-        });
-    });
+      expect(mockContext.replyTG).toHaveBeenCalledWith(
+        '777777',
+        expect.stringContaining('话题 12345'),
+        12345,
+      )
+    })
+  })
 
-    describe('Error Handling', () => {
-        it('should handle database update failure', async () => {
-            vi.mocked(db.forwardPair.update).mockRejectedValue(new Error('DB Error'));
+  describe('error Handling', () => {
+    it('should handle database update failure', async () => {
+      vi.mocked(db.forwardPair.update).mockRejectedValue(new Error('DB Error'))
 
-            const msg = createMessage('/forwardoff', '999999', '777777');
-            await handler.execute(msg, [], 'forwardoff');
+      const msg = createMessage('/forwardoff', '999999', '777777')
+      await handler.execute(msg, [], 'forwardoff')
 
-            expect(mockContext.replyTG).toHaveBeenCalledWith(
-                '777777',
-                expect.stringContaining('更新转发模式失败'),
-                undefined
-            );
-        });
+      expect(mockContext.replyTG).toHaveBeenCalledWith(
+        '777777',
+        expect.stringContaining('更新转发模式失败'),
+        undefined,
+      )
+    })
 
-        it('should not update memory on database failure', async () => {
-            const originalMode = mockPair.forwardMode;
-            vi.mocked(db.forwardPair.update).mockRejectedValue(new Error('DB Error'));
+    it('should not update memory on database failure', async () => {
+      const originalMode = mockPair.forwardMode
+      vi.mocked(db.forwardPair.update).mockRejectedValue(new Error('DB Error'))
 
-            const msg = createMessage('/forwardoff', '999999', '777777');
-            await handler.execute(msg, [], 'forwardoff');
+      const msg = createMessage('/forwardoff', '999999', '777777')
+      await handler.execute(msg, [], 'forwardoff')
 
-            // Memory should not be updated if DB update fails
-            expect(mockPair.forwardMode).toBe(originalMode);
-        });
-    });
+      // Memory should not be updated if DB update fails
+      expect(mockPair.forwardMode).toBe(originalMode)
+    })
+  })
 
-    describe('Thread Support', () => {
-        it('should use extracted thread ID', async () => {
-            vi.mocked(mockContext.extractThreadId).mockReturnValue(99999);
+  describe('thread Support', () => {
+    it('should use extracted thread ID', async () => {
+      vi.mocked(mockContext.extractThreadId).mockReturnValue(99999)
 
-            const msg = createMessage('/forwardoff', '999999', '777777');
-            await handler.execute(msg, [], 'forwardoff');
+      const msg = createMessage('/forwardoff', '999999', '777777')
+      await handler.execute(msg, [], 'forwardoff')
 
-            expect(mockContext.instance.forwardPairs.findByTG).toHaveBeenCalledWith(
-                '777777',
-                99999,
-                true
-            );
-        });
+      expect(mockContext.instance.forwardPairs.findByTG).toHaveBeenCalledWith(
+        '777777',
+        99999,
+        true,
+      )
+    })
 
-        it('should reply to correct thread', async () => {
-            vi.mocked(mockContext.extractThreadId).mockReturnValue(54321);
+    it('should reply to correct thread', async () => {
+      vi.mocked(mockContext.extractThreadId).mockReturnValue(54321)
 
-            const msg = createMessage('/forwardoff', '999999', '777777');
-            await handler.execute(msg, [], 'forwardoff');
+      const msg = createMessage('/forwardoff', '999999', '777777')
+      await handler.execute(msg, [], 'forwardoff')
 
-            expect(mockContext.replyTG).toHaveBeenCalledWith(
-                '777777',
-                expect.any(String),
-                54321
-            );
-        });
-    });
-});
+      expect(mockContext.replyTG).toHaveBeenCalledWith(
+        '777777',
+        expect.any(String),
+        54321,
+      )
+    })
+  })
+})

@@ -9,7 +9,7 @@ export default {
         c: data,
         p: '1',
       }),
-    });
-    return req.headers.get('Location');
+    })
+    return req.headers.get('Location')
   },
-};
+}

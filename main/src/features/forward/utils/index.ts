@@ -1,1 +1,1 @@
-export { renderContent } from './render';
+export { renderContent } from './render'

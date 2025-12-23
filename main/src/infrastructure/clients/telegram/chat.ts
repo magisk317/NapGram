@@ -1,13 +1,13 @@
-import { TelegramClient } from '@mtcute/node';
-import { Chat, InputPeerLike, Message, InputText } from '@mtcute/core';
-import Telegram from './client';
-import WaitForMessageHelper from '../../../shared/services/WaitForMessageHelper';
+import type { Chat, InputPeerLike, InputText } from '@mtcute/core'
+import type { TelegramClient } from '@mtcute/node'
+import type { Buffer } from 'node:buffer'
+import type Telegram from './client'
 // import createPaginatedInlineSelector from '../../../shared/utils/paginatedInlineSelector';
 // import inlineDigitInput from '../../../shared/utils/inlineDigitInput';
 // import { TelegramImportSession } from './session';
 
 export default class TelegramChat {
-  public readonly id: number;
+  public readonly id: number
 
   constructor(
     public readonly parent: Telegram,
@@ -15,11 +15,11 @@ export default class TelegramChat {
     public readonly chat: Chat,
     // private readonly waitForInputHelper: WaitForMessageHelper
   ) {
-    this.id = chat.id;
+    this.id = chat.id
   }
 
   public async sendMessage(text: InputText, params?: Parameters<TelegramClient['sendText']>[2]) {
-    return await this.client.sendText(this.id, text, params);
+    return await this.client.sendText(this.id, text, params)
   }
 
   // public async getMessage(params: Parameters<typeof this.client.getMessages>[1]) {
@@ -63,7 +63,7 @@ export default class TelegramChat {
       chatId: this.id,
       media: photo,
       type: 'photo',
-    });
+    })
   }
 
   /**
@@ -73,7 +73,7 @@ export default class TelegramChat {
   public async setAdmin(user: InputPeerLike, rights?: any) {
     try {
       // 默认管理员权限
-      const adminRights = rights || {
+      const _adminRights = rights || {
         changeInfo: true,
         postMessages: true,
         editMessages: true,
@@ -84,7 +84,7 @@ export default class TelegramChat {
         manageCall: true,
         anonymous: false,
         manageTopics: false,
-      };
+      }
 
       // TODO: 使用 mtcute 的底层 MTProto API
       // 当前暂不实现，标记为待完善
@@ -96,29 +96,33 @@ export default class TelegramChat {
       //     rank: '',
       // });
 
-      throw new Error('setAdmin 功能待完善：需要使用 mtcute 的 call() 方法调用 channels.editAdmin API');
-
-    } catch (error: any) {
+      throw new Error('setAdmin 功能待完善：需要使用 mtcute 的 call() 方法调用 channels.editAdmin API')
+    }
+    catch (error: any) {
       // 处理常见错误
       if (error.message?.includes('CHAT_ADMIN_REQUIRED')) {
-        throw new Error('机器人需要管理员权限才能提升其他用户');
-      } else if (error.message?.includes('USER_NOT_PARTICIPANT')) {
-        throw new Error('目标用户不在群组中');
-      } else if (error.message?.includes('CHAT_NOT_MODIFIED')) {
-        throw new Error('用户已经是管理员');
+        throw new Error('机器人需要管理员权限才能提升其他用户')
       }
-      throw error;
+      else if (error.message?.includes('USER_NOT_PARTICIPANT')) {
+        throw new Error('目标用户不在群组中')
+      }
+      else if (error.message?.includes('CHAT_NOT_MODIFIED')) {
+        throw new Error('用户已经是管理员')
+      }
+      throw error
     }
-  } public async editAbout(about: string) {
-    return await this.client.setChatDescription(this.id, about);
+  }
+
+  public async editAbout(about: string) {
+    return await this.client.setChatDescription(this.id, about)
   }
 
   public async editTitle(title: string) {
-    return await this.client.setChatTitle(this.id, title);
+    return await this.client.setChatTitle(this.id, title)
   }
 
   public async getInviteLink() {
-    return await this.client.createInviteLink(this.id);
+    return await this.client.createInviteLink(this.id)
   }
 
   /**
@@ -128,7 +132,7 @@ export default class TelegramChat {
     return await this.client.getChatMember({
       chatId: this.id,
       userId: user,
-    });
+    })
   }
 
   /**
@@ -137,15 +141,15 @@ export default class TelegramChat {
    */
   public async deleteMessages(messageIds: number[]) {
     // 使用 mtcute 的底层 API 直接删除
-    const { deleteMessagesById } = await import('@mtcute/core/methods.js');
-    return await deleteMessagesById(this.client as any, this.id, messageIds);
+    const { deleteMessagesById } = await import('@mtcute/core/methods.js')
+    return await deleteMessagesById(this.client as any, this.id, messageIds)
   }
 
   /**
    * 邀请成员
    */
   public async inviteMember(users: InputPeerLike[]) {
-    return await this.client.addChatMembers(this.id, users, { forwardCount: 0 });
+    return await this.client.addChatMembers(this.id, users, { forwardCount: 0 })
   }
 
   /**
@@ -155,7 +159,7 @@ export default class TelegramChat {
     return await this.client.setTyping({
       peerId: this.id,
       status: action as any,
-    });
+    })
   }
 
   // public async startImportSession(textFile: CustomFile, mediaCount: number) {

@@ -1,48 +1,49 @@
-export function debounce<TArgs extends any[], TRet>(fn: (...originArgs: TArgs) => TRet, dur = 100) {
-  let timer: NodeJS.Timeout;
-  return function (...args: TArgs) {
-    clearTimeout(timer);
+export function debounce<TArgs extends any[], TRet, TThis>(fn: (this: TThis, ...originArgs: TArgs) => TRet, dur = 100) {
+  let timer: NodeJS.Timeout | undefined
+  return function (this: TThis, ...args: TArgs) {
+    clearTimeout(timer)
     timer = setTimeout(() => {
-      // @ts-ignore
-      fn.apply(this, args);
-    }, dur);
-  };
+      fn.apply(this, args)
+    }, dur)
+  }
 }
 
-export function throttle<TArgs extends any[], TRet>(fn: (...originArgs: TArgs) => TRet, time = 500) {
-  let timer: NodeJS.Timeout;
-  return function (...args) {
+export function throttle<TArgs extends any[], TRet, TThis>(fn: (this: TThis, ...originArgs: TArgs) => TRet, time = 500) {
+  let timer: NodeJS.Timeout | null = null
+  return function (this: TThis, ...args: TArgs) {
     if (timer == null) {
-      fn.apply(this, args);
+      fn.apply(this, args)
       timer = setTimeout(() => {
-        timer = null;
-      }, time);
+        timer = null
+      }, time)
     }
-  };
+  }
 }
 
-export function consumer<TArgs extends any[], TRet>(fn: (...originArgs: TArgs) => TRet, time = 100) {
-  const tasks: Function[] = [];
-  let timer: NodeJS.Timeout;
+export function consumer<TArgs extends any[], TRet, TThis>(fn: (this: TThis, ...originArgs: TArgs) => TRet, time = 100) {
+  const tasks: Array<() => TRet> = []
+  let timer: NodeJS.Timeout | null = null
 
   const nextTask = () => {
-    if (tasks.length === 0) return false;
+    if (tasks.length === 0)
+      return false
 
-    tasks.shift().call(null);
-    return true;
-  };
+    const task = tasks.shift()
+    task?.()
+    return true
+  }
 
-  return function (...args: TArgs) {
-    tasks.push(fn.bind(this, ...args));
+  return function (this: TThis, ...args: TArgs) {
+    tasks.push(fn.bind(this, ...args))
 
     if (timer == null) {
-      nextTask();
+      nextTask()
       timer = setInterval(() => {
         if (!nextTask()) {
-          clearInterval(timer);
-          timer = null;
+          clearInterval(timer)
+          timer = null
         }
-      }, time);
+      }, time)
     }
-  };
+  }
 }

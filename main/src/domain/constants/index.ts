@@ -1,2 +1,2 @@
-export * from './flags';
-export { default as qfaceMap } from './qface';
+export * from './flags'
+export { default as qfaceMap } from './qface'

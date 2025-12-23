@@ -1,2 +1,2 @@
-export { QQMessageHandler } from './QQMessageHandler';
-export { ModeCommandHandler } from './ModeCommandHandler';
+export { ModeCommandHandler } from './ModeCommandHandler'
+export { QQMessageHandler } from './QQMessageHandler'
