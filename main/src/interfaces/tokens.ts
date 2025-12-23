@@ -1,14 +1,16 @@
-import { FastifyInstance } from 'fastify';
-import { z } from 'zod';
-import db from '../domain/models/db';
-import { authMiddleware } from '../infrastructure/auth/authMiddleware';
-import { ApiResponse } from '../shared/utils/api-response';
-import { TokenManager } from '../infrastructure/auth/TokenManager';
+import type { FastifyInstance } from 'fastify'
+import { z } from 'zod'
+import db from '../domain/models/db'
+import { authMiddleware } from '../infrastructure/auth/authMiddleware'
+import { TokenManager } from '../infrastructure/auth/TokenManager'
+import { ApiResponse } from '../shared/utils/api-response'
 
 function maskToken(token: string) {
-  if (!token) return '';
-  if (token.length <= 10) return `${token.slice(0, 2)}***${token.slice(-2)}`;
-  return `${token.slice(0, 6)}...${token.slice(-4)}`;
+  if (!token)
+    return ''
+  if (token.length <= 10)
+    return `${token.slice(0, 2)}***${token.slice(-2)}`
+  return `${token.slice(0, 6)}...${token.slice(-4)}`
 }
 
 /**
@@ -21,16 +23,16 @@ function maskToken(token: string) {
 export default async function (fastify: FastifyInstance) {
   const createSchema = z.object({
     token: z
-      .preprocess((v) => (typeof v === 'string' ? v.trim() : v), z.string().min(10).max(512).regex(/^\S+$/))
+      .preprocess(v => (typeof v === 'string' ? v.trim() : v), z.string().min(10).max(512).regex(/^\S+$/))
       .optional(),
     description: z.string().max(200).optional(),
     expiresAt: z
       .string()
       .datetime()
       .optional()
-      .transform((v) => (v ? new Date(v) : undefined)),
+      .transform(v => (v ? new Date(v) : undefined)),
     expiresInDays: z.number().int().min(1).max(3650).optional(),
-  });
+  })
 
   fastify.get(
     '/api/admin/tokens',
@@ -50,16 +52,16 @@ export default async function (fastify: FastifyInstance) {
           createdBy: true,
           lastUsedAt: true,
         },
-      });
+      })
 
       return ApiResponse.success(
-        tokens.map((t) => ({
+        tokens.map(t => ({
           ...t,
           token: maskToken(t.token),
         })),
-      );
+      )
     },
-  );
+  )
 
   fastify.post(
     '/api/admin/tokens',
@@ -68,45 +70,46 @@ export default async function (fastify: FastifyInstance) {
     },
     async (request, reply) => {
       try {
-        const auth = (request as any).auth as { type: 'access' | 'session' | 'env'; userId?: number };
+        const auth = (request as any).auth as { type: 'access' | 'session' | 'env', userId?: number }
         if (auth.type === 'access') {
-          return reply.code(403).send(ApiResponse.error('Access token cannot create more tokens'));
+          return reply.code(403).send(ApiResponse.error('Access token cannot create more tokens'))
         }
 
-        const body = createSchema.parse(request.body);
-        const expiresAt =
-          body.expiresAt ??
-          (body.expiresInDays ? new Date(Date.now() + body.expiresInDays * 24 * 60 * 60 * 1000) : undefined);
+        const body = createSchema.parse(request.body)
+        const expiresAt
+          = body.expiresAt
+            ?? (body.expiresInDays ? new Date(Date.now() + body.expiresInDays * 24 * 60 * 60 * 1000) : undefined)
 
         const token = body.token
           ? (
-            await db.accessToken.create({
-              data: {
-                token: body.token,
-                description: body.description,
-                createdBy: auth.userId ?? null,
-                expiresAt,
-                isActive: true,
-              },
-            })
-          ).token
-          : await TokenManager.createAccessToken(body.description, auth.userId, expiresAt);
-        return ApiResponse.success({ token }, 'Token created');
-      } catch (error: any) {
+              await db.accessToken.create({
+                data: {
+                  token: body.token,
+                  description: body.description,
+                  createdBy: auth.userId ?? null,
+                  expiresAt,
+                  isActive: true,
+                },
+              })
+            ).token
+          : await TokenManager.createAccessToken(body.description, auth.userId, expiresAt)
+        return ApiResponse.success({ token }, 'Token created')
+      }
+      catch (error: any) {
         if (error instanceof z.ZodError) {
           return reply.code(400).send({
             success: false,
             error: 'Invalid request',
             details: error.issues,
-          });
+          })
         }
         if (error.code === 'P2002') {
-          return reply.code(409).send(ApiResponse.error('Token already exists'));
+          return reply.code(409).send(ApiResponse.error('Token already exists'))
         }
-        throw error;
+        throw error
       }
     },
-  );
+  )
 
   fastify.delete(
     '/api/admin/tokens/:id',
@@ -115,29 +118,30 @@ export default async function (fastify: FastifyInstance) {
     },
     async (request, reply) => {
       try {
-        const auth = (request as any).auth as { type: 'access' | 'session' | 'env'; userId?: number };
+        const auth = (request as any).auth as { type: 'access' | 'session' | 'env', userId?: number }
         if (auth.type === 'access') {
-          return reply.code(403).send(ApiResponse.error('Access token cannot revoke tokens'));
+          return reply.code(403).send(ApiResponse.error('Access token cannot revoke tokens'))
         }
 
-        const { id } = request.params as { id: string };
-        const tokenId = Number(id);
+        const { id } = request.params as { id: string }
+        const tokenId = Number(id)
         if (!Number.isFinite(tokenId)) {
-          return reply.code(400).send(ApiResponse.error('Invalid token id'));
+          return reply.code(400).send(ApiResponse.error('Invalid token id'))
         }
 
         await db.accessToken.update({
           where: { id: tokenId },
           data: { isActive: false },
-        });
+        })
 
-        return ApiResponse.success(undefined, 'Token revoked');
-      } catch (error: any) {
+        return ApiResponse.success(undefined, 'Token revoked')
+      }
+      catch (error: any) {
         if (error.code === 'P2025') {
-          return reply.code(404).send(ApiResponse.error('Token not found'));
+          return reply.code(404).send(ApiResponse.error('Token not found'))
         }
-        throw error;
+        throw error
       }
     },
-  );
+  )
 }
