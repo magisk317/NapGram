@@ -16,3 +16,5 @@ updates:
       all-deps:
         patterns:
           - "*"
+    ignore:
+      - dependency-name: "@naplink/naplink"
