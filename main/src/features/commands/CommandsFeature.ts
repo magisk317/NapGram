@@ -952,7 +952,7 @@ export class CommandsFeature {
     // 1. 优先从命令参数获取（显式指定）
     const arg = args[1]
     if (arg && /^\d+$/.test(arg)) {
-      logger.info(`[extractThreadId] From arg: ${arg}`)
+      logger.debug(`[extractThreadId] From arg: ${arg}`)
       return Number(arg)
     }
 
@@ -960,13 +960,13 @@ export class CommandsFeature {
     const raw = (msg.metadata as any)?.raw
     if (raw) {
       const threadId = new ThreadIdExtractor().extractFromRaw(raw)
-      logger.info(`[extractThreadId] From raw: ${threadId}, raw keys: ${Object.keys(raw).join(',')}`)
+      logger.debug(`[extractThreadId] From raw: ${threadId}, raw keys: ${Object.keys(raw).join(',')}`)
       if (threadId)
         return threadId
     }
 
     // 3. 回退：无 thread
-    logger.info(`[extractThreadId] No thread ID found`)
+    logger.debug(`[extractThreadId] No thread ID found`)
     return undefined
   }
 
