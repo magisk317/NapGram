@@ -10,7 +10,6 @@
   <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-5.0+-blue.svg" alt="TypeScript" /></a>
   <a href="https://github.com/NapGram/NapGram/actions/workflows/docker-release.yml"><img src="https://img.shields.io/github/actions/workflow/status/NapGram/NapGram/docker-release.yml?branch=main&label=Release%20Build&logo=githubactions" alt="CI/CD" /></a>
   <a href="https://github.com/NapGram/NapGram/releases"><img src="https://img.shields.io/github/v/release/NapGram/NapGram?display_name=tag&include_prereleases&logo=git&label=Latest" alt="Release" /></a>
-  <a href="https://github.com/NapGram/NapGram/pkgs/container/napgram"><img src="https://ghcr-badge.egpl.dev/napgram/napgram/downloads?color=blue&tag=latest&label=Container%20Downloads&logo=docker" alt="Downloads" /></a>
   <a href="https://github.com/NapGram/NapGram/pkgs/container/napgram"><img src="https://ghcr-badge.egpl.dev/napgram/napgram/latest_tag?color=blue&ignore=*-*&label=Container&logo=docker" alt="GHCR Image" /></a>
   <a href="https://github.com/NapGram/NapGram/commits/main"><img src="https://img.shields.io/github/last-commit/NapGram/NapGram/main?logo=github&label=Last%20Commit" alt="Last Commit" /></a>
   <a href="https://github.com/NapGram/NapGram/pulse"><img src="https://img.shields.io/github/commit-activity/m/NapGram/NapGram?logo=github&label=Commit%20Activity" alt="Commit Activity" /></a>
