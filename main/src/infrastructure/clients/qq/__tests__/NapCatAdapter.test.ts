@@ -952,5 +952,60 @@ describe('NapCatAdapter', () => {
       expect(mockNapLinkInstance.callApi).toHaveBeenCalledWith('check_url_safely', { url: 'https://example.com' })
       mockNapLinkInstance.api.checkUrlSafely = vi.fn()
     })
+
+    it('should fallback for canSendRecord', async () => {
+      mockNapLinkInstance.api.canSendRecord = undefined
+      await adapter.canSendRecord()
+      expect(mockNapLinkInstance.callApi).toHaveBeenCalledWith('can_send_record')
+      mockNapLinkInstance.api.canSendRecord = vi.fn()
+    })
+
+    it('should fallback for getCookies', async () => {
+      mockNapLinkInstance.api.getCookies = undefined
+      await adapter.getCookies('example.com')
+      expect(mockNapLinkInstance.callApi).toHaveBeenCalledWith('get_cookies', { domain: 'example.com' })
+      mockNapLinkInstance.api.getCookies = vi.fn()
+    })
+
+    it('should fallback for getCsrfToken', async () => {
+      mockNapLinkInstance.api.getCsrfToken = undefined
+      await adapter.getCsrfToken()
+      expect(mockNapLinkInstance.callApi).toHaveBeenCalledWith('get_csrf_token')
+      mockNapLinkInstance.api.getCsrfToken = vi.fn()
+    })
+
+    it('should fallback for getCredentials', async () => {
+      mockNapLinkInstance.api.getCredentials = undefined
+      await adapter.getCredentials('example.com')
+      expect(mockNapLinkInstance.callApi).toHaveBeenCalledWith('get_credentials', { domain: 'example.com' })
+      mockNapLinkInstance.api.getCredentials = vi.fn()
+    })
+
+    it('should fallback for getOnlineClients', async () => {
+      mockNapLinkInstance.api.getOnlineClients = undefined
+      await adapter.getOnlineClients(true)
+      expect(mockNapLinkInstance.callApi).toHaveBeenCalledWith('get_online_clients', { no_cache: true })
+      mockNapLinkInstance.api.getOnlineClients = vi.fn()
+    })
+
+    it('should fallback for getRobotUinRange', async () => {
+      mockNapLinkInstance.api.getRobotUinRange = undefined
+      await adapter.getRobotUinRange()
+      expect(mockNapLinkInstance.callApi).toHaveBeenCalledWith('get_robot_uin_range')
+      mockNapLinkInstance.api.getRobotUinRange = vi.fn()
+    })
+
+    it('should fallback for canSendImage', async () => {
+      mockNapLinkInstance.api.canSendImage = undefined
+      await adapter.canSendImage()
+      expect(mockNapLinkInstance.callApi).toHaveBeenCalledWith('can_send_image')
+      mockNapLinkInstance.api.canSendImage = vi.fn()
+    })
+
+    it('should throw error for cleanStreamTempFile when not available', async () => {
+      mockNapLinkInstance.api.cleanStreamTempFile = undefined
+      await expect(adapter.cleanStreamTempFile()).rejects.toThrow('cleanStreamTempFile is not available')
+      mockNapLinkInstance.api.cleanStreamTempFile = vi.fn()
+    })
   })
 })
