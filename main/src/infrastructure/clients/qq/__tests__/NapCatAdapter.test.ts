@@ -826,5 +826,75 @@ describe('NapCatAdapter', () => {
       expect(mockNapLinkInstance.callApi).toHaveBeenCalledWith('set_diy_online_status', { face_id: 1, wording: 'w', face_type: 2 })
       mockNapLinkInstance.api.setDiyOnlineStatus = vi.fn()
     })
+
+    it('should fallback for setGroupRemark', async () => {
+      mockNapLinkInstance.api.setGroupRemark = undefined
+      await adapter.setGroupRemark('g', 'remark')
+      expect(mockNapLinkInstance.callApi).toHaveBeenCalledWith('set_group_remark', { group_id: 'g', remark: 'remark' })
+      mockNapLinkInstance.api.setGroupRemark = vi.fn()
+    })
+
+    it('should fallback for getGroupInfoEx', async () => {
+      mockNapLinkInstance.api.getGroupInfoEx = undefined
+      await adapter.getGroupInfoEx('g')
+      expect(mockNapLinkInstance.callApi).toHaveBeenCalledWith('get_group_info_ex', { group_id: 'g' })
+      mockNapLinkInstance.api.getGroupInfoEx = vi.fn()
+    })
+
+    it('should fallback for getGroupDetailInfo', async () => {
+      mockNapLinkInstance.api.getGroupDetailInfo = undefined
+      await adapter.getGroupDetailInfo('g')
+      expect(mockNapLinkInstance.callApi).toHaveBeenCalledWith('get_group_detail_info', { group_id: 'g' })
+      mockNapLinkInstance.api.getGroupDetailInfo = vi.fn()
+    })
+
+    it('should fallback for getGroupIgnoredNotifies', async () => {
+      mockNapLinkInstance.api.getGroupIgnoredNotifies = undefined
+      await adapter.getGroupIgnoredNotifies()
+      expect(mockNapLinkInstance.callApi).toHaveBeenCalledWith('get_group_ignored_notifies')
+      mockNapLinkInstance.api.getGroupIgnoredNotifies = vi.fn()
+    })
+
+    it('should fallback for getRkeyEx', async () => {
+      mockNapLinkInstance.api.getRkeyEx = undefined
+      await adapter.getRkeyEx()
+      expect(mockNapLinkInstance.callApi).toHaveBeenCalledWith('get_rkey')
+      mockNapLinkInstance.api.getRkeyEx = vi.fn()
+    })
+
+    it('should fallback for getRkeyServer', async () => {
+      mockNapLinkInstance.api.getRkeyServer = undefined
+      await adapter.getRkeyServer()
+      expect(mockNapLinkInstance.callApi).toHaveBeenCalledWith('get_rkey_server')
+      mockNapLinkInstance.api.getRkeyServer = vi.fn()
+    })
+
+    it('should fallback for getRkey', async () => {
+      mockNapLinkInstance.api.getRkey = undefined
+      await adapter.getRkey()
+      expect(mockNapLinkInstance.callApi).toHaveBeenCalledWith('nc_get_rkey')
+      mockNapLinkInstance.api.getRkey = vi.fn()
+    })
+
+    it('should fallback for setFriendRemark', async () => {
+      mockNapLinkInstance.api.setFriendRemark = undefined
+      await adapter.setFriendRemark('u', 'remark')
+      expect(mockNapLinkInstance.callApi).toHaveBeenCalledWith('set_friend_remark', { user_id: 'u', remark: 'remark' })
+      mockNapLinkInstance.api.setFriendRemark = vi.fn()
+    })
+
+    it('should fallback for deleteFriend', async () => {
+      mockNapLinkInstance.api.deleteFriend = undefined
+      await adapter.deleteFriend('u')
+      expect(mockNapLinkInstance.callApi).toHaveBeenCalledWith('delete_friend', { user_id: 'u' })
+      mockNapLinkInstance.api.deleteFriend = vi.fn()
+    })
+
+    it('should fallback for getUnidirectionalFriendList', async () => {
+      mockNapLinkInstance.api.getUnidirectionalFriendList = undefined
+      await adapter.getUnidirectionalFriendList()
+      expect(mockNapLinkInstance.callApi).toHaveBeenCalledWith('get_unidirectional_friend_list')
+      mockNapLinkInstance.api.getUnidirectionalFriendList = vi.fn()
+    })
   })
 })
