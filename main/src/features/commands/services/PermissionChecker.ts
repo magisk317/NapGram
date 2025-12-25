@@ -14,7 +14,7 @@ export class PermissionChecker {
     const envAdminQQ = env.ADMIN_QQ ? String(env.ADMIN_QQ) : null
     const envAdminTG = env.ADMIN_TG ? String(env.ADMIN_TG) : null
     return userId === String(this.instance.owner)
-      || (envAdminQQ && userId === envAdminQQ)
-      || (envAdminTG && userId === envAdminTG)
+      || (envAdminQQ !== null && userId === envAdminQQ)
+      || (envAdminTG !== null && userId === envAdminTG)
   }
 }
