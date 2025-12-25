@@ -117,6 +117,7 @@ function createMockContext(qqClient: IQQClient, tgBot: any): CommandContext {
       forwardPairs: {} as any,
     } as any,
     replyTG: vi.fn().mockResolvedValue(undefined),
+    replyBoth: vi.fn().mockResolvedValue(undefined),
     extractThreadId: vi.fn().mockReturnValue(undefined),
   } as any
 }
@@ -164,10 +165,10 @@ describe('helpCommandHandler', () => {
       await handler.execute(msg, [])
 
       expect(mockContext.registry.getAll).toHaveBeenCalled()
-      expect(mockContext.replyTG).toHaveBeenCalledWith(
-        '777777',
+      expect(mockContext.replyBoth).toHaveBeenCalledWith(
+        msg,
         expect.stringContaining('可用命令'),
-        undefined,
+        'help',
       )
     })
 
@@ -175,7 +176,7 @@ describe('helpCommandHandler', () => {
       const msg = createMessage('/help', '999999', '777777')
       await handler.execute(msg, [])
 
-      const callArg = vi.mocked(mockContext.replyTG).mock.calls[0][1]
+      const callArg = vi.mocked(mockContext.replyBoth).mock.calls[0][1]
       expect(callArg).toContain('/bind')
       expect(callArg).toContain('/unbind')
       expect(callArg).toContain('/status')
@@ -185,7 +186,7 @@ describe('helpCommandHandler', () => {
       const msg = createMessage('/help', '999999', '777777')
       await handler.execute(msg, [])
 
-      const callArg = vi.mocked(mockContext.replyTG).mock.calls[0][1]
+      const callArg = vi.mocked(mockContext.replyBoth).mock.calls[0][1]
       expect(callArg).toContain('绑定 QQ 群与 TG 聊天')
       expect(callArg).toContain('解绑绑定关系')
       expect(callArg).toContain('查看机器人状态')
@@ -195,7 +196,7 @@ describe('helpCommandHandler', () => {
       const msg = createMessage('/help', '999999', '777777')
       await handler.execute(msg, [])
 
-      const callArg = vi.mocked(mockContext.replyTG).mock.calls[0][1]
+      const callArg = vi.mocked(mockContext.replyBoth).mock.calls[0][1]
       // Admin commands should be marked with [管理员]
       expect(callArg).toContain('/ban')
       expect(callArg).toContain('[管理员]')
@@ -209,7 +210,7 @@ describe('helpCommandHandler', () => {
       const msg = createMessage('/help', '999999', '777777')
       await handler.execute(msg, [])
 
-      expect(mockContext.replyTG).toHaveBeenCalled()
+      expect(mockContext.replyBoth).toHaveBeenCalled()
     })
 
     it('should handle commands with no description', async () => {
@@ -231,7 +232,51 @@ describe('helpCommandHandler', () => {
       const msg = createMessage('/help', '999999', '777777')
       await handler.execute(msg, [])
 
-      expect(mockContext.replyTG).toHaveBeenCalled()
+      expect(mockContext.replyBoth).toHaveBeenCalled()
+    })
+
+    it('should skip duplicate commands (line 22)', async () => {
+      // Set up registry with commands where the same command object appears under different keys
+      const sharedCommand = {
+        name: 'test1',
+        description: 'Test command 1',
+        handler: vi.fn(),
+        aliases: ['t1'],
+        adminOnly: false,
+      }
+
+      mockContext.registry.getAll = vi.fn().mockReturnValue(
+        new Map([
+          ['test1', sharedCommand],      // First entry - will be processed
+          ['another', {                   // Different command
+            name: 'another',
+            description: 'Another command',
+            handler: vi.fn(),
+            aliases: [],
+            adminOnly: false,
+          }],
+          ['test1-shouldskip', sharedCommand],  // Same command object, should hit line 22
+        ]),
+      )
+
+      const msg = createMessage('/help', '999999', '777777')
+      await handler.execute(msg, [])
+
+      const callArg = vi.mocked(mockContext.replyBoth).mock.calls[0][1]
+      // Should only contain test1 once and another once
+      const test1Count = (callArg.match(/\/test1[^-]/g) || []).length
+      const anotherCount = (callArg.match(/\/another/g) || []).length
+
+      expect(test1Count).toBe(1)  // Only once despite appearing twice in registry
+      expect(anotherCount).toBe(1)
+    })
+
+    it('should handle error when sending help message (line 44)', async () => {
+      mockContext.replyBoth = vi.fn().mockRejectedValue(new Error('Send failed'))
+
+      const msg = createMessage('/help', '999999', '777777')
+      // Should not throw, just log the error
+      await expect(handler.execute(msg, [])).resolves.toBeUndefined()
     })
   })
 
@@ -240,14 +285,14 @@ describe('helpCommandHandler', () => {
       const msg = createMessage('/help', '999999', '777777')
       await handler.execute(msg, [])
 
-      expect(mockContext.replyTG).toHaveBeenCalled()
+      expect(mockContext.replyBoth).toHaveBeenCalled()
     })
 
     it('should ignore extra arguments', async () => {
       const msg = createMessage('/help something', '999999', '777777')
       await handler.execute(msg, ['something'])
 
-      expect(mockContext.replyTG).toHaveBeenCalled()
+      expect(mockContext.replyBoth).toHaveBeenCalled()
     })
   })
 
@@ -276,7 +321,7 @@ describe('helpCommandHandler', () => {
 
       await handler.execute(msg, [])
 
-      expect(mockContext.replyTG).toHaveBeenCalled()
+      expect(mockContext.replyBoth).toHaveBeenCalled()
     })
   })
 })

@@ -173,13 +173,13 @@ describe('refreshCommandHandler', () => {
         )
       })
 
-      it('should mention incomplete features in success message', async () => {
+      it('should include success indicator in success message', async () => {
         const msg = createMessage('/refresh', '999999', '777777')
         await handler.execute(msg, [], 'refresh')
 
         expect(mockContext.replyTG).toHaveBeenCalledWith(
           '777777',
-          expect.stringContaining('头像和描述刷新功能待完善'),
+          expect.stringContaining('✅'),
           undefined,
         )
       })

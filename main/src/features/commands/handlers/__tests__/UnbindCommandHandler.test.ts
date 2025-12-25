@@ -103,6 +103,21 @@ describe('unbindCommandHandler', () => {
     handler = new UnbindCommandHandler(mockContext)
   })
 
+  describe('platform Filtering', () => {
+    it('should ignore non-telegram platforms', async () => {
+      const msg: UnifiedMessage = {
+        ...createMessage('/unbind', '999999', '777777'),
+        platform: 'qq',
+      }
+
+      await handler.execute(msg, [])
+
+      expect(mockContext.instance.forwardPairs.findByTG).not.toHaveBeenCalled()
+      expect(mockContext.instance.forwardPairs.findByQQ).not.toHaveBeenCalled()
+      expect(mockContext.replyTG).not.toHaveBeenCalled()
+    })
+  })
+
   describe('unbind by QQ Group ID', () => {
     it('should successfully unbind when QQ group ID is provided', async () => {
       const mockBinding = {

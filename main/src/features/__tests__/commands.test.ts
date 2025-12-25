@@ -67,7 +67,7 @@ describe('commandsFeature', () => {
   let mockInstance: any
   let mockTgBot: any
 
-  beforeEach(() => {
+  beforeEach(async () => {
     mockQQClient = createMockQQClient()
     mockInstance = createMockInstance()
     mockTgBot = createMockTgBot()
@@ -77,6 +77,8 @@ describe('commandsFeature', () => {
       mockTgBot,
       mockQQClient,
     )
+
+    await commandsFeature.reloadCommands()
   })
 
   describe('command Registration', () => {
