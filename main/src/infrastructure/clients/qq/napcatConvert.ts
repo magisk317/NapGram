@@ -55,7 +55,7 @@ function napCatReceiveToMessageElem(data: Receive[keyof Receive]): any {
       return {
         ...(anyData.data || {}),
         type,
-        asface: 'sub_type' in anyData.data && Number.parseInt(String(anyData.data.sub_type)) > 0,
+        asface: anyData.data && 'sub_type' in anyData.data && Number.parseInt(String(anyData.data.sub_type)) > 0,
       }
     case 'sface':
     case 'image':
@@ -65,7 +65,7 @@ function napCatReceiveToMessageElem(data: Receive[keyof Receive]): any {
       return {
         ...(anyData.data || {}),
         type,
-        asface: 'sub_type' in anyData.data && Number.parseInt(String(anyData.data.sub_type)) > 0,
+        asface: anyData.data && 'sub_type' in anyData.data && Number.parseInt(String(anyData.data.sub_type)) > 0,
       }
     case 'mface':
       return {
