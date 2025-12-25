@@ -183,6 +183,28 @@ describe('refreshCommandHandler', () => {
           undefined,
         )
       })
+
+      it('should update TG chat description from QQ notice', async () => {
+        (mockQQClient as any).getGroupNotice = vi.fn().mockResolvedValue({
+          data: {
+            notices: [{ text: 'Group description from notice' }],
+          },
+        })
+
+        const msg = createMessage('/refresh', '999999', '777777')
+        await handler.execute(msg, [], 'refresh')
+
+        expect(mockTgChat.editAbout).toHaveBeenCalledWith('Group description from notice')
+      })
+
+      it('should skip description update when notice is empty', async () => {
+        (mockQQClient as any).getGroupNotice = vi.fn().mockResolvedValue(null)
+
+        const msg = createMessage('/refresh', '999999', '777777')
+        await handler.execute(msg, [], 'refresh')
+
+        expect(mockTgChat.editAbout).not.toHaveBeenCalled()
+      })
     })
 
     describe('error Scenarios', () => {
@@ -220,6 +242,42 @@ describe('refreshCommandHandler', () => {
         await handler.execute(msg, [], 'refresh')
 
         // Should still complete and send success message
+        expect(mockContext.replyTG).toHaveBeenCalledWith(
+          '777777',
+          expect.stringContaining('已刷新群组信息'),
+          undefined,
+        )
+      })
+
+      it('should handle avatar fetch failure gracefully', async () => {
+        const originalFetch = globalThis.fetch
+        globalThis.fetch = vi.fn().mockResolvedValue({
+          ok: false,
+          status: 500,
+          statusText: 'Server Error',
+          arrayBuffer: vi.fn(),
+        }) as any
+
+        try {
+          const msg = createMessage('/refresh', '999999', '777777')
+          await handler.execute(msg, [], 'refresh')
+        }
+        finally {
+          globalThis.fetch = originalFetch
+        }
+
+        expect(mockTgChat.setProfilePhoto).not.toHaveBeenCalled()
+      })
+
+      it('should handle description update failure gracefully', async () => {
+        (mockQQClient as any).getGroupNotice = vi.fn().mockResolvedValue({
+          notices: [{ content: 'Notice description' }],
+        })
+        mockTgChat.editAbout.mockRejectedValue(new Error('Edit failed'))
+
+        const msg = createMessage('/refresh', '999999', '777777')
+        await handler.execute(msg, [], 'refresh')
+
         expect(mockContext.replyTG).toHaveBeenCalledWith(
           '777777',
           expect.stringContaining('已刷新群组信息'),

@@ -71,46 +71,31 @@ export default class TelegramChat {
    * 使用 mtcute 的底层 call 方法调用 channels.editAdmin
    */
   public async setAdmin(user: InputPeerLike, rights?: any) {
-    try {
-      // 默认管理员权限
-      const _adminRights = rights || {
-        changeInfo: true,
-        postMessages: true,
-        editMessages: true,
-        deleteMessages: true,
-        banUsers: true,
-        inviteUsers: true,
-        pinMessages: true,
-        manageCall: true,
-        anonymous: false,
-        manageTopics: false,
-      }
-
-      // TODO: 使用 mtcute 的底层 MTProto API
-      // 当前暂不实现，标记为待完善
-      // await this.client.call({
-      //     _: 'channels.editAdmin',
-      //     channel: this.id,
-      //     userId: user,
-      //     adminRights: adminRights,
-      //     rank: '',
-      // });
-
-      throw new Error('setAdmin 功能待完善：需要使用 mtcute 的 call() 方法调用 channels.editAdmin API')
+    // 默认管理员权限
+    const _adminRights = rights || {
+      changeInfo: true,
+      postMessages: true,
+      editMessages: true,
+      deleteMessages: true,
+      banUsers: true,
+      inviteUsers: true,
+      pinMessages: true,
+      manageCall: true,
+      anonymous: false,
+      manageTopics: false,
     }
-    catch (error: any) {
-      // 处理常见错误
-      if (error.message?.includes('CHAT_ADMIN_REQUIRED')) {
-        throw new Error('机器人需要管理员权限才能提升其他用户')
-      }
-      else if (error.message?.includes('USER_NOT_PARTICIPANT')) {
-        throw new Error('目标用户不在群组中')
-      }
-      else if (error.message?.includes('CHAT_NOT_MODIFIED')) {
-        throw new Error('用户已经是管理员')
-      }
-      throw error
-    }
+
+    // TODO: 使用 mtcute 的底层 MTProto API
+    // 当前暂不实现，标记为待完善
+    // await this.client.call({
+    //     _: 'channels.editAdmin',
+    //     channel: this.id,
+    //     userId: user,
+    //     adminRights: adminRights,
+    //     rank: '',
+    // });
+
+    throw new Error('setAdmin 功能待完善：需要使用 mtcute 的 call() 方法调用 channels.editAdmin API')
   }
 
   public async editAbout(about: string) {

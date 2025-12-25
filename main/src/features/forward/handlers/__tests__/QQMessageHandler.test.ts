@@ -1,6 +1,10 @@
 import type { UnifiedMessage } from '../../../../domain/message'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { QQMessageHandler } from '../QQMessageHandler'
+import * as eventPublisher from '../../../../plugins/core/event-publisher'
+
+const publishMessageMock = vi.fn()
+
+let QQMessageHandler: typeof import('../QQMessageHandler').QQMessageHandler
 
 function createMessage(): UnifiedMessage {
   return {
@@ -35,8 +39,14 @@ describe('qqMessageHandler', () => {
     sendToTelegram: vi.fn(),
   }
 
-  beforeEach(() => {
+  beforeEach(async () => {
     vi.clearAllMocks()
+    vi.spyOn(eventPublisher, 'getEventPublisher').mockReturnValue({
+      publishMessage: publishMessageMock,
+    } as any)
+    if (!QQMessageHandler) {
+      ({ QQMessageHandler } = await import('../QQMessageHandler'))
+    }
   })
 
   it('returns early when QQ->TG forwarding is disabled', async () => {
@@ -109,6 +119,40 @@ describe('qqMessageHandler', () => {
     )
   })
 
+  it('publishes QQ message events and supports reply/send/recall', async () => {
+    modeService.isQQToTGEnabled.mockReturnValue(true)
+    forwardMap.findByQQ.mockReturnValue({
+      instanceId: 1,
+      qqRoomId: '222',
+      tgChatId: '333',
+      tgThreadId: null,
+    })
+    instance.tgBot.getChat.mockResolvedValue({ id: 333 })
+    replyResolver.resolveQQReply.mockResolvedValue(undefined)
+    telegramSender.sendToTelegram.mockResolvedValue({ id: 999 })
+    instance.qqClient.sendMessage.mockResolvedValue({ messageId: 'm1' })
+
+    const handler = new QQMessageHandler(
+      instance as any,
+      forwardMap as any,
+      modeService as any,
+      mapper as any,
+      replyResolver as any,
+      telegramSender as any,
+    )
+
+    await handler.handle(createMessage())
+
+    expect(publishMessageMock).toHaveBeenCalledTimes(1)
+    const event = publishMessageMock.mock.calls[0][0]
+
+    await event.reply([{ type: 'text', data: { text: 'reply' } }])
+    await event.send([{ type: 'text', data: { text: 'send' } }])
+    await event.recall()
+
+    expect(instance.qqClient.sendMessage).toHaveBeenCalledTimes(2)
+  })
+
   it('handles error during forwarding gracefully', async () => {
     modeService.isQQToTGEnabled.mockReturnValue(true)
     forwardMap.findByQQ.mockReturnValue({
@@ -156,5 +200,39 @@ describe('qqMessageHandler', () => {
     await handler.handle(createMessage())
 
     expect(mapper.saveMessage).not.toHaveBeenCalled()
+  })
+
+  it('handles missing QQ client when publishing events', async () => {
+    modeService.isQQToTGEnabled.mockReturnValue(true)
+    forwardMap.findByQQ.mockReturnValue({
+      instanceId: 1,
+      qqRoomId: '222',
+      tgChatId: '333',
+      tgThreadId: null,
+    })
+    instance.tgBot.getChat.mockResolvedValue({ id: 333 })
+    replyResolver.resolveQQReply.mockResolvedValue(undefined)
+    telegramSender.sendToTelegram.mockResolvedValue({ id: 999 })
+
+    const originalClient = instance.qqClient
+    instance.qqClient = undefined as any
+
+    try {
+      const handler = new QQMessageHandler(
+        instance as any,
+        forwardMap as any,
+        modeService as any,
+        mapper as any,
+        replyResolver as any,
+        telegramSender as any,
+      )
+
+      await handler.handle(createMessage())
+    }
+    finally {
+      instance.qqClient = originalClient
+    }
+
+    expect(publishMessageMock).not.toHaveBeenCalled()
   })
 })

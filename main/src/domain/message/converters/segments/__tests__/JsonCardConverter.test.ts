@@ -10,6 +10,10 @@ describe('JsonCardConverter', () => {
     expect(converter.convertJsonCard({})).toBeNull()
   })
 
+  it('returns null for empty card payload', () => {
+    expect(converter.convertJsonCard({ data: {} })).toBeNull()
+  })
+
   it('converts location cards and preview', () => {
     const payload = {
       meta: {
@@ -45,6 +49,22 @@ describe('JsonCardConverter', () => {
     })
   })
 
+  it('accepts object payloads directly', () => {
+    const payload = {
+      meta: {
+        detail: {
+          title: 'Obj',
+          desc: 'Desc',
+          url: 'https://example.com',
+        },
+      },
+    }
+    const result = converter.convertJsonCard({ data: payload })
+
+    expect(result).toHaveLength(1)
+    expect(result?.[0].type).toBe('text')
+  })
+
   it('converts miniapp cards to text and image', () => {
     const payload = {
       meta: {
@@ -68,5 +88,15 @@ describe('JsonCardConverter', () => {
       type: 'image',
       data: { url: 'https://qq.ugcimg.cn/abc.png' },
     })
+  })
+
+  it('handles url normalization and text truncation helpers', () => {
+    const anyConverter = converter as any
+
+    expect(anyConverter.normalizeUrl(123)).toBeUndefined()
+    expect(anyConverter.normalizeUrl('   ')).toBeUndefined()
+    expect(anyConverter.normalizeUrl('example.com')).toBeUndefined()
+    expect(anyConverter.truncateText('')).toBe('')
+    expect(anyConverter.truncateText('abcdefgh', 5)).toBe('ab...')
   })
 })

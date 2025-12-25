@@ -49,8 +49,11 @@ export class JsonCardConverter {
       || detail?.icon,
     )
 
+    const hasCardInfo = Boolean(locationMeta || appName || source || desc || url || preview)
     const lines: string[] = []
-    lines.push(appName ? `[QQ小程序] ${appName}` : '[QQ小程序]')
+    if (hasCardInfo) {
+      lines.push(appName ? `[QQ小程序] ${appName}` : '[QQ小程序]')
+    }
     if (source) {
       lines.push(`来源：${source}`)
     }

@@ -95,6 +95,20 @@ describe('flagsCommandHandler', () => {
     )
   })
 
+  it('falls back to empty flags when query fails', async () => {
+    vi.mocked(db.$queryRaw).mockRejectedValueOnce(new Error('db error'))
+    vi.mocked(mockContext.permissionChecker.isAdmin).mockReturnValue(true)
+
+    const msg = createMessage('telegram')
+    await handler.execute(msg, [])
+
+    expect(mockContext.replyTG).toHaveBeenCalledWith(
+      '777777',
+      expect.stringContaining('当前没有启用任何实验性功能'),
+      undefined,
+    )
+  })
+
   it('shows usage when enabling without flag name', async () => {
     vi.mocked(mockContext.permissionChecker.isAdmin).mockReturnValue(true)
 
@@ -104,6 +118,19 @@ describe('flagsCommandHandler', () => {
     expect(mockContext.replyTG).toHaveBeenCalledWith(
       '777777',
       expect.stringContaining('用法: /flags enable'),
+      undefined,
+    )
+  })
+
+  it('shows usage when disabling without flag name', async () => {
+    vi.mocked(mockContext.permissionChecker.isAdmin).mockReturnValue(true)
+
+    const msg = createMessage('telegram')
+    await handler.execute(msg, ['disable'])
+
+    expect(mockContext.replyTG).toHaveBeenCalledWith(
+      '777777',
+      expect.stringContaining('用法: /flags disable'),
       undefined,
     )
   })
@@ -120,5 +147,86 @@ describe('flagsCommandHandler', () => {
       expect.stringContaining('已启用'),
       undefined,
     )
+  })
+
+  it('disables flag and stores it in memory', async () => {
+    vi.mocked(mockContext.permissionChecker.isAdmin).mockReturnValue(true)
+
+    const msg = createMessage('telegram')
+    await handler.execute(msg, ['disable', 'debug_mode'])
+
+    expect(FlagsCommandHandler.isEnabled(mockContext.instance as any, 'debug_mode')).toBe(false)
+    expect(mockContext.replyTG).toHaveBeenCalledWith(
+      '777777',
+      expect.stringContaining('已禁用'),
+      undefined,
+    )
+  })
+
+  it('lists flags when using list command', async () => {
+    vi.mocked(db.$queryRaw).mockResolvedValueOnce([
+      { key: 'flag_a', value: true },
+      { key: 'flag_b', value: false },
+    ])
+    vi.mocked(mockContext.permissionChecker.isAdmin).mockReturnValue(true)
+
+    const msg = createMessage('telegram')
+    await handler.execute(msg, ['list'])
+
+    expect(mockContext.replyTG).toHaveBeenCalledWith(
+      '777777',
+      expect.stringContaining('flag_a'),
+      undefined,
+    )
+  })
+
+  it('shows help for unknown action', async () => {
+    vi.mocked(mockContext.permissionChecker.isAdmin).mockReturnValue(true)
+
+    const msg = createMessage('telegram')
+    await handler.execute(msg, ['unknown'])
+
+    expect(mockContext.replyTG).toHaveBeenCalledWith(
+      '777777',
+      expect.stringContaining('实验性功能标志管理'),
+      undefined,
+    )
+  })
+
+  it('handles list flags reply failure', async () => {
+    vi.mocked(db.$queryRaw).mockResolvedValueOnce([])
+    vi.mocked(mockContext.permissionChecker.isAdmin).mockReturnValue(true)
+    vi.mocked(mockContext.replyTG)
+      .mockRejectedValueOnce(new Error('send failed'))
+      .mockResolvedValueOnce(undefined)
+
+    const msg = createMessage('telegram')
+    await handler.execute(msg, [])
+
+    expect(mockContext.replyTG).toHaveBeenCalledWith(
+      '777777',
+      expect.stringContaining('获取功能标志失败'),
+      undefined,
+    )
+  })
+
+  it('handles setFlag reply failure', async () => {
+    vi.mocked(mockContext.permissionChecker.isAdmin).mockReturnValue(true)
+    vi.mocked(mockContext.replyTG)
+      .mockRejectedValueOnce(new Error('send failed'))
+      .mockResolvedValueOnce(undefined)
+
+    const msg = createMessage('telegram')
+    await handler.execute(msg, ['enable', 'debug_mode'])
+
+    expect(mockContext.replyTG).toHaveBeenCalledWith(
+      '777777',
+      expect.stringContaining('设置功能标志失败'),
+      undefined,
+    )
+  })
+
+  it('returns false when flag store is missing', () => {
+    expect(FlagsCommandHandler.isEnabled({} as any, 'debug_mode')).toBe(false)
   })
 })

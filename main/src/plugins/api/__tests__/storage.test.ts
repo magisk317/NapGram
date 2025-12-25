@@ -71,12 +71,31 @@ describe('plugin storage', () => {
     await expect(storage.get('missing')).resolves.toBeNull()
   })
 
+  it('logs and throws when create directory fails', async () => {
+    const storage = createPluginStorage('plugin#1')
+    const error = new Error('mkdir fail')
+    fsMocks.mkdir.mockRejectedValueOnce(error)
+
+    await expect(storage.set('bad', { ok: true })).rejects.toThrow('mkdir fail')
+    expect(loggerMocks.error).toHaveBeenCalled()
+  })
+
   it('logs and throws on read errors', async () => {
     const storage = createPluginStorage('plugin#1')
     const error = new Error('fail')
     fsMocks.readFile.mockRejectedValueOnce(error)
 
     await expect(storage.get('bad')).rejects.toThrow('fail')
+    expect(loggerMocks.error).toHaveBeenCalled()
+  })
+
+  it('logs and throws on write errors', async () => {
+    const storage = createPluginStorage('plugin#1')
+    const error = new Error('write fail')
+    fsMocks.mkdir.mockResolvedValueOnce(undefined)
+    fsMocks.writeFile.mockRejectedValueOnce(error)
+
+    await expect(storage.set('bad', { ok: true })).rejects.toThrow('write fail')
     expect(loggerMocks.error).toHaveBeenCalled()
   })
 
@@ -92,11 +111,30 @@ describe('plugin storage', () => {
     expect(fsMocks.unlink).toHaveBeenCalledWith('/data/plugins-data/plugin-1/a.json')
   })
 
+  it('logs and throws on delete errors', async () => {
+    const storage = createPluginStorage('plugin#1')
+    const error = new Error('unlink fail')
+    fsMocks.unlink.mockRejectedValueOnce(error)
+
+    await expect(storage.delete('bad')).rejects.toThrow('unlink fail')
+    expect(loggerMocks.error).toHaveBeenCalled()
+  })
+
   it('ignores delete when file is missing', async () => {
     const storage = createPluginStorage('plugin#1')
     fsMocks.unlink.mockRejectedValueOnce({ code: 'ENOENT' })
 
     await expect(storage.delete('missing')).resolves.toBeUndefined()
+  })
+
+  it('logs and throws on keys errors', async () => {
+    const storage = createPluginStorage('plugin#1')
+    const error = new Error('readdir fail')
+    fsMocks.mkdir.mockResolvedValueOnce(undefined)
+    fsMocks.readdir.mockRejectedValueOnce(error)
+
+    await expect(storage.keys()).rejects.toThrow('readdir fail')
+    expect(loggerMocks.error).toHaveBeenCalled()
   })
 
   it('clears all keys', async () => {
@@ -108,5 +146,16 @@ describe('plugin storage', () => {
     await storage.clear()
 
     expect(fsMocks.unlink).toHaveBeenCalledTimes(2)
+  })
+
+  it('logs and throws on clear errors', async () => {
+    const storage = createPluginStorage('plugin#1')
+    const error = new Error('unlink fail')
+    fsMocks.mkdir.mockResolvedValueOnce(undefined)
+    fsMocks.readdir.mockResolvedValueOnce(['a.json'])
+    fsMocks.unlink.mockRejectedValueOnce(error)
+
+    await expect(storage.clear()).rejects.toThrow('unlink fail')
+    expect(loggerMocks.error).toHaveBeenCalled()
   })
 })

@@ -102,6 +102,50 @@ describe('PluginRuntime', () => {
     expect(runtimeStub.reload).toHaveBeenCalled()
   })
 
+  test('should reload commands for instances and continue on failures', async () => {
+    const runtimeStub = createRuntimeStub()
+    vi.spyOn(coreRuntime, 'getGlobalRuntime').mockReturnValue(runtimeStub as any)
+    vi.spyOn(config, 'loadPluginSpecs').mockResolvedValue([])
+
+    const reloadOk = vi.fn().mockResolvedValue(undefined)
+    const reloadFail = vi.fn().mockRejectedValue(new Error('reload fail'))
+
+    vi.mocked(Instance.instances).push(
+      { id: 1, featureManager: { commands: { reloadCommands: reloadOk } } } as any,
+      { id: 2, featureManager: { commands: { reloadCommands: reloadFail } } } as any,
+    )
+
+    await expect(PluginRuntime.reload()).resolves.toBeDefined()
+    expect(reloadOk).toHaveBeenCalled()
+    expect(reloadFail).toHaveBeenCalled()
+  })
+
+  test('should surface start failures', async () => {
+    const runtimeStub = createRuntimeStub()
+    runtimeStub.start.mockRejectedValue(new Error('start fail'))
+    vi.spyOn(coreRuntime, 'getGlobalRuntime').mockReturnValue(runtimeStub as any)
+    vi.spyOn(config, 'loadPluginSpecs').mockResolvedValue([])
+
+    await expect(PluginRuntime.start()).rejects.toThrow('start fail')
+  })
+
+  test('should surface stop failures', async () => {
+    const runtimeStub = createRuntimeStub()
+    runtimeStub.stop.mockRejectedValue(new Error('stop fail'))
+    vi.spyOn(coreRuntime, 'getGlobalRuntime').mockReturnValue(runtimeStub as any)
+
+    await expect(PluginRuntime.stop()).rejects.toThrow('stop fail')
+  })
+
+  test('should surface reload failures', async () => {
+    const runtimeStub = createRuntimeStub()
+    runtimeStub.reload.mockRejectedValue(new Error('reload fail'))
+    vi.spyOn(coreRuntime, 'getGlobalRuntime').mockReturnValue(runtimeStub as any)
+    vi.spyOn(config, 'loadPluginSpecs').mockResolvedValue([])
+
+    await expect(PluginRuntime.reload()).rejects.toThrow('reload fail')
+  })
+
   test('should handle plugin reload correctly', async () => {
     const runtimeStub = createRuntimeStub()
     vi.spyOn(coreRuntime, 'getGlobalRuntime').mockReturnValue(runtimeStub as any)

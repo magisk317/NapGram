@@ -353,6 +353,43 @@ describe('groupManagementCommandHandler', () => {
         undefined,
       )
     })
+
+    it('should reject unban when target is missing', async () => {
+      const msg = createMessage('/unban', '999999', '888888')
+      await handler.execute(msg, [], 'unban')
+
+      expect(mockQQClient.unbanUser).not.toHaveBeenCalled()
+      expect(mockContext.replyTG).toHaveBeenCalledWith(
+        '888888',
+        expect.stringContaining('无法识别目标用户'),
+        undefined,
+      )
+    })
+
+    it('should handle unban errors', async () => {
+      vi.mocked(mockQQClient.getGroupMemberInfo)
+        .mockResolvedValueOnce({
+          uin: '123456',
+          nickname: 'BotAdmin',
+          role: 'admin',
+        } as any)
+        .mockResolvedValueOnce({
+          uin: '111111',
+          nickname: 'Target',
+          role: 'member',
+        } as any)
+
+      vi.mocked(mockQQClient.unbanUser).mockRejectedValue(new Error('Unban error'))
+
+      const msg = createMessage('/unban 111111', '999999', '888888')
+      await handler.execute(msg, ['111111'], 'unban')
+
+      expect(mockContext.replyTG).toHaveBeenCalledWith(
+        '888888',
+        expect.stringContaining('操作失败'),
+        undefined,
+      )
+    })
   })
 
   describe('/kick command', () => {
@@ -419,6 +456,43 @@ describe('groupManagementCommandHandler', () => {
       expect(mockContext.replyTG).toHaveBeenCalledWith(
         '888888',
         expect.stringContaining('权限不足：无法管理群主或其他管理员'),
+        undefined,
+      )
+    })
+
+    it('should reject kick when target is missing', async () => {
+      const msg = createMessage('/kick', '999999', '888888')
+      await handler.execute(msg, [], 'kick')
+
+      expect(mockQQClient.kickUser).not.toHaveBeenCalled()
+      expect(mockContext.replyTG).toHaveBeenCalledWith(
+        '888888',
+        expect.stringContaining('无法识别目标用户'),
+        undefined,
+      )
+    })
+
+    it('should handle kick errors', async () => {
+      vi.mocked(mockQQClient.getGroupMemberInfo)
+        .mockResolvedValueOnce({
+          uin: '123456',
+          nickname: 'BotAdmin',
+          role: 'admin',
+        } as any)
+        .mockResolvedValueOnce({
+          uin: '111111',
+          nickname: 'Target',
+          role: 'member',
+        } as any)
+
+      vi.mocked(mockQQClient.kickUser).mockRejectedValue(new Error('Kick error'))
+
+      const msg = createMessage('/kick 111111', '999999', '888888')
+      await handler.execute(msg, ['111111'], 'kick')
+
+      expect(mockContext.replyTG).toHaveBeenCalledWith(
+        '888888',
+        expect.stringContaining('操作失败'),
         undefined,
       )
     })
@@ -521,6 +595,37 @@ describe('groupManagementCommandHandler', () => {
       expect(mockContext.replyTG).toHaveBeenCalledWith(
         '888888',
         expect.stringContaining('请输入新的群名片'),
+        undefined,
+      )
+    })
+
+    it('should reject card when target is missing', async () => {
+      const msg = createMessage('/card NewCard', '999999', '888888')
+      await handler.execute(msg, ['NewCard'], 'card')
+
+      expect(mockQQClient.setGroupCard).not.toHaveBeenCalled()
+      expect(mockContext.replyTG).toHaveBeenCalledWith(
+        '888888',
+        expect.stringContaining('无法识别目标用户'),
+        undefined,
+      )
+    })
+
+    it('should handle card errors', async () => {
+      vi.mocked(mockQQClient.getGroupMemberInfo).mockResolvedValueOnce({
+        uin: '123456',
+        nickname: 'BotAdmin',
+        role: 'admin',
+      } as any)
+
+      vi.mocked(mockQQClient.setGroupCard).mockRejectedValue(new Error('Card error'))
+
+      const msg = createMessage('/card 111111 NewCard', '999999', '888888')
+      await handler.execute(msg, ['111111', 'NewCard'], 'card')
+
+      expect(mockContext.replyTG).toHaveBeenCalledWith(
+        '888888',
+        expect.stringContaining('操作失败'),
         undefined,
       )
     })
@@ -940,6 +1045,53 @@ describe('groupManagementCommandHandler', () => {
       await handler.execute(msg, [], 'ban')
 
       expect(mockQQClient.banUser).toHaveBeenCalledWith('888888', '111111', 1800)
+    })
+  })
+
+  describe('reply Helper', () => {
+    it('should detect reply via raw.replyToMessage', () => {
+      const msg: UnifiedMessage = {
+        id: '1',
+        platform: 'telegram',
+        sender: { id: '1', name: 'User' },
+        chat: { id: '888888', type: 'group' },
+        content: [{ type: 'text', data: { text: '/ban' } }],
+        timestamp: Date.now(),
+        metadata: { raw: { replyToMessage: { senderId: '111111' } } },
+      }
+
+      expect((handler as any).hasReplyMessage(msg)).toBe(true)
+    })
+
+    it('should detect reply via reply content', () => {
+      const msg: UnifiedMessage = {
+        id: '1',
+        platform: 'telegram',
+        sender: { id: '1', name: 'User' },
+        chat: { id: '888888', type: 'group' },
+        content: [
+          { type: 'text', data: { text: '/ban' } },
+          { type: 'reply', data: { senderId: '111111' } },
+        ],
+        timestamp: Date.now(),
+        metadata: {},
+      }
+
+      expect((handler as any).hasReplyMessage(msg)).toBe(true)
+    })
+
+    it('should return false when no reply data is present', () => {
+      const msg: UnifiedMessage = {
+        id: '1',
+        platform: 'telegram',
+        sender: { id: '1', name: 'User' },
+        chat: { id: '888888', type: 'group' },
+        content: [{ type: 'text', data: { text: '/ban' } }],
+        timestamp: Date.now(),
+        metadata: {},
+      }
+
+      expect((handler as any).hasReplyMessage(msg)).toBe(false)
     })
   })
 

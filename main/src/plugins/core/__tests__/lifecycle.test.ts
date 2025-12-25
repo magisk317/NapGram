@@ -57,6 +57,23 @@ describe('PluginLifecycleManager', () => {
     expect(mockPlugin.install).toHaveBeenCalled()
   })
 
+  test('should fail install when already installed', async () => {
+    const pluginContext = createMockPluginContext()
+    const pluginInstance: PluginInstance = {
+      id: 'test-plugin',
+      plugin: mockPlugin,
+      context: pluginContext,
+      config: {},
+      state: PluginState.Installed,
+    }
+
+    const result = await lifecycleManager.install(pluginInstance)
+
+    expect(result.success).toBe(false)
+    expect(result.error?.message).toContain('already installed')
+    expect(pluginInstance.state).toBe(PluginState.Error)
+  })
+
   test('should handle install failure', async () => {
     const failingPlugin = {
       ...mockPlugin,
@@ -96,6 +113,24 @@ describe('PluginLifecycleManager', () => {
     expect(pluginContext.triggerUnload).toHaveBeenCalled()
   })
 
+  test('should return early when plugin is already uninstalled', async () => {
+    const pluginContext = createMockPluginContext()
+    const pluginInstance: PluginInstance = {
+      id: 'test-plugin',
+      plugin: { ...mockPlugin, uninstall: vi.fn() },
+      context: pluginContext,
+      config: {},
+      state: PluginState.Uninstalled,
+    }
+
+    const result = await lifecycleManager.uninstall(pluginInstance)
+
+    expect(result.success).toBe(true)
+    expect(result.duration).toBe(0)
+    expect(pluginInstance.state).toBe(PluginState.Uninstalled)
+    expect(pluginContext.triggerUnload).not.toHaveBeenCalled()
+  })
+
   test('should handle uninstall failure', async () => {
     const pluginContext = {
       ...createMockPluginContext(),
@@ -132,6 +167,37 @@ describe('PluginLifecycleManager', () => {
     expect(result.success).toBe(true)
     expect(pluginInstance.config).toEqual({ newConfig: true })
     expect(pluginContext.triggerReload).toHaveBeenCalled()
+  })
+
+  test('should reload plugin via uninstall/install when no reload hook', async () => {
+    const pluginContext = createMockPluginContext()
+    const pluginInstance: PluginInstance = {
+      id: 'test-plugin',
+      plugin: { ...mockPlugin, reload: undefined },
+      context: pluginContext,
+      config: { oldConfig: true },
+      state: PluginState.Installed,
+    }
+
+    const uninstallSpy = vi.spyOn(lifecycleManager, 'uninstall').mockResolvedValue({
+      success: true,
+      duration: 1,
+    })
+    const installSpy = vi.spyOn(lifecycleManager, 'install').mockResolvedValue({
+      success: true,
+      duration: 1,
+    })
+
+    const newConfig = { newConfig: true }
+    const result = await lifecycleManager.reload(pluginInstance, newConfig)
+
+    expect(result.success).toBe(true)
+    expect(uninstallSpy).toHaveBeenCalledTimes(1)
+    expect(installSpy).toHaveBeenCalledTimes(1)
+    expect(pluginContext.triggerReload).toHaveBeenCalled()
+    expect(pluginInstance.config).toEqual(newConfig)
+    expect((pluginInstance.context as any).config).toEqual(newConfig)
+    expect(pluginInstance.state).toBe(PluginState.Uninitialized)
   })
 
   test('should handle reload failure', async () => {
@@ -279,5 +345,41 @@ describe('PluginLifecycleManager', () => {
     expect(result.failed[0].id).toBe('plugin-2')
     expect(pluginInstances[0].state).toBe(PluginState.Uninstalled)
     expect(pluginInstances[1].state).toBe(PluginState.Error)
+  })
+
+  test('should report health and stats', () => {
+    const healthyInstance: PluginInstance = {
+      id: 'healthy',
+      plugin: mockPlugin,
+      context: createMockPluginContext(),
+      config: {},
+      state: PluginState.Installed,
+    }
+    const errorInstance: PluginInstance = {
+      id: 'error',
+      plugin: mockPlugin,
+      context: createMockPluginContext(),
+      config: {},
+      state: PluginState.Error,
+      error: new Error('fail'),
+    }
+    const uninstalledInstance: PluginInstance = {
+      id: 'uninstalled',
+      plugin: mockPlugin,
+      context: createMockPluginContext(),
+      config: {},
+      state: PluginState.Uninstalled,
+    }
+
+    expect(lifecycleManager.isHealthy(healthyInstance)).toBe(true)
+    expect(lifecycleManager.isHealthy(errorInstance)).toBe(false)
+
+    const stats = lifecycleManager.getStats([healthyInstance, errorInstance, uninstalledInstance])
+    expect(stats).toEqual({
+      total: 3,
+      installed: 1,
+      error: 1,
+      uninstalled: 1,
+    })
   })
 })

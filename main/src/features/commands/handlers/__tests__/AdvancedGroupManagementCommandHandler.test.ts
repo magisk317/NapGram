@@ -217,6 +217,24 @@ describe('advancedGroupManagementCommandHandler', () => {
         undefined,
       )
     })
+
+    it('should default to disable for unmuteall without args', async () => {
+      vi.mocked(mockQQClient.getGroupMemberInfo).mockResolvedValueOnce({
+        uin: '123456',
+        nickname: 'BotOwner',
+        role: 'owner',
+      } as any)
+
+      const msg = createMessage('/unmuteall', '999999', '888888')
+      await handler.execute(msg, [], 'unmuteall')
+
+      expect(mockQQClient.setGroupWholeBan).toHaveBeenCalledWith('888888', false)
+      expect(mockContext.replyTG).toHaveBeenCalledWith(
+        '888888',
+        expect.stringContaining('已关闭全员禁言'),
+        undefined,
+      )
+    })
   })
 
   describe('/admin command', () => {
@@ -322,6 +340,65 @@ describe('advancedGroupManagementCommandHandler', () => {
         undefined,
       )
     })
+
+    it('should reject toggle action for admin', async () => {
+      vi.mocked(mockQQClient.getGroupMemberInfo).mockResolvedValueOnce({
+        uin: '123456',
+        nickname: 'BotOwner',
+        role: 'owner',
+      } as any)
+
+      const msg = createMessage('/admin', '999999', '888888', { senderId: '111111' })
+      await handler.execute(msg, [], 'admin')
+
+      expect(mockQQClient.setGroupAdmin).not.toHaveBeenCalled()
+      expect(mockContext.replyTG).toHaveBeenCalledWith(
+        '888888',
+        expect.stringContaining('暂不支持状态切换'),
+        undefined,
+      )
+    })
+
+    it('should reject when setGroupAdmin is unsupported', async () => {
+      const mockQQClientWithoutAdmin = createMockQQClient()
+      ;(mockQQClientWithoutAdmin as any).setGroupAdmin = undefined
+      const contextWithoutAdmin = createMockContext(mockQQClientWithoutAdmin, mockTgBot)
+      const handlerWithoutAdmin = new AdvancedGroupManagementCommandHandler(contextWithoutAdmin)
+
+      vi.mocked(mockQQClientWithoutAdmin.getGroupMemberInfo).mockResolvedValueOnce({
+        uin: '123456',
+        nickname: 'BotOwner',
+        role: 'owner',
+      } as any)
+
+      const msg = createMessage('/admin 111111 on', '999999', '888888')
+      await handlerWithoutAdmin.execute(msg, ['111111', 'on'], 'admin')
+
+      expect(contextWithoutAdmin.replyTG).toHaveBeenCalledWith(
+        '888888',
+        expect.stringContaining('不支持设置管理员功能'),
+        undefined,
+      )
+    })
+
+    it('should handle admin errors gracefully', async () => {
+      vi.mocked(mockQQClient.getGroupMemberInfo).mockResolvedValueOnce({
+        uin: '123456',
+        nickname: 'BotOwner',
+        role: 'owner',
+      } as any)
+
+      vi.mocked(mockQQClient.setGroupAdmin).mockRejectedValueOnce(new Error('Admin error'))
+
+      const msg = createMessage('/admin 111111 on', '999999', '888888')
+      await handler.execute(msg, ['111111', 'on'], 'admin')
+
+      expect(mockContext.replyTG).toHaveBeenCalledWith(
+        '888888',
+        expect.stringContaining('设置管理员失败'),
+        undefined,
+      )
+    })
   })
 
   describe('/groupname command', () => {
@@ -401,6 +478,47 @@ describe('advancedGroupManagementCommandHandler', () => {
       expect(mockContext.replyTG).toHaveBeenCalledWith(
         '888888',
         expect.stringContaining('请输入新的群名称'),
+        undefined,
+      )
+    })
+
+    it('should reject when setGroupName is unsupported', async () => {
+      const mockQQClientWithoutName = createMockQQClient()
+      ;(mockQQClientWithoutName as any).setGroupName = undefined
+      const contextWithoutName = createMockContext(mockQQClientWithoutName, mockTgBot)
+      const handlerWithoutName = new AdvancedGroupManagementCommandHandler(contextWithoutName)
+
+      vi.mocked(mockQQClientWithoutName.getGroupMemberInfo).mockResolvedValueOnce({
+        uin: '123456',
+        nickname: 'BotAdmin',
+        role: 'admin',
+      } as any)
+
+      const msg = createMessage('/groupname NewName', '999999', '888888')
+      await handlerWithoutName.execute(msg, ['NewName'], 'groupname')
+
+      expect(contextWithoutName.replyTG).toHaveBeenCalledWith(
+        '888888',
+        expect.stringContaining('不支持修改群名功能'),
+        undefined,
+      )
+    })
+
+    it('should handle groupname errors gracefully', async () => {
+      vi.mocked(mockQQClient.getGroupMemberInfo).mockResolvedValueOnce({
+        uin: '123456',
+        nickname: 'BotAdmin',
+        role: 'admin',
+      } as any)
+
+      vi.mocked(mockQQClient.setGroupName).mockRejectedValueOnce(new Error('Name error'))
+
+      const msg = createMessage('/groupname NewName', '999999', '888888')
+      await handler.execute(msg, ['NewName'], 'groupname')
+
+      expect(mockContext.replyTG).toHaveBeenCalledWith(
+        '888888',
+        expect.stringContaining('修改群名失败'),
         undefined,
       )
     })
@@ -529,6 +647,65 @@ describe('advancedGroupManagementCommandHandler', () => {
         undefined,
       )
     })
+
+    it('should reject when target user is missing', async () => {
+      vi.mocked(mockQQClient.getGroupMemberInfo).mockResolvedValueOnce({
+        uin: '123456',
+        nickname: 'BotOwner',
+        role: 'owner',
+      } as any)
+
+      const msg = createMessage('/title 头衔内容', '999999', '888888')
+      await handler.execute(msg, ['头衔内容'], 'title')
+
+      expect(mockQQClient.setGroupSpecialTitle).not.toHaveBeenCalled()
+      expect(mockContext.replyTG).toHaveBeenCalledWith(
+        '888888',
+        expect.stringContaining('无法识别目标用户'),
+        undefined,
+      )
+    })
+
+    it('should reject when setGroupSpecialTitle is unsupported', async () => {
+      const mockQQClientWithoutTitle = createMockQQClient()
+      ;(mockQQClientWithoutTitle as any).setGroupSpecialTitle = undefined
+      const contextWithoutTitle = createMockContext(mockQQClientWithoutTitle, mockTgBot)
+      const handlerWithoutTitle = new AdvancedGroupManagementCommandHandler(contextWithoutTitle)
+
+      vi.mocked(mockQQClientWithoutTitle.getGroupMemberInfo).mockResolvedValueOnce({
+        uin: '123456',
+        nickname: 'BotOwner',
+        role: 'owner',
+      } as any)
+
+      const msg = createMessage('/title 111111 头衔内容', '999999', '888888')
+      await handlerWithoutTitle.execute(msg, ['111111', '头衔内容'], 'title')
+
+      expect(contextWithoutTitle.replyTG).toHaveBeenCalledWith(
+        '888888',
+        expect.stringContaining('不支持设置专属头衔功能'),
+        undefined,
+      )
+    })
+
+    it('should handle title errors gracefully', async () => {
+      vi.mocked(mockQQClient.getGroupMemberInfo).mockResolvedValueOnce({
+        uin: '123456',
+        nickname: 'BotOwner',
+        role: 'owner',
+      } as any)
+
+      vi.mocked(mockQQClient.setGroupSpecialTitle).mockRejectedValueOnce(new Error('Title error'))
+
+      const msg = createMessage('/title 111111 头衔内容', '999999', '888888')
+      await handler.execute(msg, ['111111', '头衔内容'], 'title')
+
+      expect(mockContext.replyTG).toHaveBeenCalledWith(
+        '888888',
+        expect.stringContaining('设置头衔失败'),
+        undefined,
+      )
+    })
   })
 
   describe('error Handling', () => {
@@ -619,6 +796,51 @@ describe('advancedGroupManagementCommandHandler', () => {
         expect.stringContaining('不支持全员禁言功能'),
         undefined,
       )
+    })
+  })
+
+  describe('internal helpers', () => {
+    it('should resolve target user from reply metadata', async () => {
+      const msg = createMessage('/admin on', '999999', '888888')
+      msg.metadata = {
+        raw: {
+          replyToMessage: { senderId: 555555 },
+        },
+      } as any
+
+      await expect((handler as any).resolveTargetUser(msg, [], 0)).resolves.toBe('555555')
+    })
+
+    it('should resolve target user from reply content', async () => {
+      const msg = createMessage('/admin on', '999999', '888888', { senderId: '666666' })
+
+      await expect((handler as any).resolveTargetUser(msg, [], 0)).resolves.toBe('666666')
+    })
+
+    it('should resolve target user from args', async () => {
+      const msg = createMessage('/admin 777777 on', '999999', '888888')
+
+      await expect((handler as any).resolveTargetUser(msg, ['777777'], 0)).resolves.toBe('777777')
+    })
+
+    it('should return null when target user cannot be resolved', async () => {
+      const msg = createMessage('/admin on', '999999', '888888')
+
+      await expect((handler as any).resolveTargetUser(msg, ['not-a-number'], 0)).resolves.toBeNull()
+    })
+
+    it('should detect reply messages', () => {
+      const withRawReply = createMessage('/admin on', '999999', '888888')
+      withRawReply.metadata = {
+        raw: { replyTo: { id: 1 } },
+      } as any
+
+      const withContentReply = createMessage('/admin on', '999999', '888888', { senderId: '123' })
+      const withoutReply = createMessage('/admin on', '999999', '888888')
+
+      expect((handler as any).hasReplyMessage(withRawReply)).toBe(true)
+      expect((handler as any).hasReplyMessage(withContentReply)).toBe(true)
+      expect((handler as any).hasReplyMessage(withoutReply)).toBe(false)
     })
   })
 })

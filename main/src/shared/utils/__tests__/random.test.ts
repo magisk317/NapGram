@@ -75,4 +75,15 @@ describe('random utility', () => {
         expect(imei).toBeTruthy()
         random.int = originalInt
     })
+
+    it('should cover a > 9999 branch in imei', () => {
+        const originalInt = random.int
+        // Use a UIN value where the first 16 bits (big-endian) > 9999
+        // 0xFFFF0000 -> buf.readUInt16BE() = 0xFFFF = 65535 > 9999
+        random.int = () => 0xFFFF0000
+        const imei = random.imei()
+        expect(imei).toBeTruthy()
+        expect(imei).toMatch(/^\d+$/)
+        random.int = originalInt
+    })
 })

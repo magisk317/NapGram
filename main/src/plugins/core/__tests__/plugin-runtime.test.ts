@@ -82,6 +82,69 @@ describe('PluginRuntime Core', () => {
     expect(pluginRuntime.isActive()).toBe(false)
   })
 
+  test('should return last report when already running', async () => {
+    const specs = [{
+      id: 'test-plugin',
+      module: './test-plugin',
+      enabled: true,
+      config: {},
+    }]
+
+    const loadSpy = vi.spyOn(pluginRuntime['loader'], 'load').mockResolvedValue({
+      plugin: mockPlugin,
+      type: 'native' as const,
+    })
+
+    vi.spyOn(pluginRuntime['lifecycleManager'], 'installAll').mockResolvedValue({
+      succeeded: [],
+      failed: [],
+    })
+
+    const firstReport = await pluginRuntime.start(specs)
+    const secondReport = await pluginRuntime.start(specs)
+
+    expect(secondReport).toBe(firstReport)
+    expect(loadSpy).toHaveBeenCalledTimes(1)
+  })
+
+  test('should skip disabled plugins', async () => {
+    const specs = [{
+      id: 'disabled-plugin',
+      module: './disabled-plugin',
+      enabled: false,
+      config: {},
+    }]
+
+    const loadSpy = vi.spyOn(pluginRuntime['loader'], 'load')
+    vi.spyOn(pluginRuntime['lifecycleManager'], 'installAll').mockResolvedValue({
+      succeeded: [],
+      failed: [],
+    })
+
+    const report = await pluginRuntime.start(specs)
+
+    expect(loadSpy).not.toHaveBeenCalled()
+    expect(report.loaded).toHaveLength(0)
+  })
+
+  test('should surface start failures from installAll', async () => {
+    const specs = [{
+      id: 'test-plugin',
+      module: './test-plugin',
+      enabled: true,
+      config: {},
+    }]
+
+    vi.spyOn(pluginRuntime['loader'], 'load').mockResolvedValue({
+      plugin: mockPlugin,
+      type: 'native' as const,
+    })
+
+    vi.spyOn(pluginRuntime['lifecycleManager'], 'installAll').mockRejectedValue(new Error('install failed'))
+
+    await expect(pluginRuntime.start(specs)).rejects.toThrow('install failed')
+  })
+
   test('should handle plugin loading failure gracefully', async () => {
     const specs = [
       {
@@ -184,6 +247,35 @@ describe('PluginRuntime Core', () => {
     expect(result).toEqual({ id: 'test-plugin', success: true })
   })
 
+  test('should return error when reload fails', async () => {
+    const specs = [{
+      id: 'test-plugin',
+      module: './test-plugin',
+      enabled: true,
+      config: {},
+    }]
+
+    vi.spyOn(pluginRuntime['loader'], 'load').mockResolvedValue({
+      plugin: mockPlugin,
+      type: 'native' as const,
+    })
+
+    vi.spyOn(pluginRuntime['lifecycleManager'], 'installAll').mockResolvedValue({
+      succeeded: [],
+      failed: [],
+    })
+
+    vi.spyOn(pluginRuntime['lifecycleManager'], 'reload').mockResolvedValue({
+      success: false,
+      error: new Error('Reload failed'),
+    })
+
+    await pluginRuntime.start(specs)
+
+    const result = await pluginRuntime.reloadPlugin('test-plugin')
+    expect(result).toEqual({ id: 'test-plugin', success: false, error: 'Reload failed' })
+  })
+
   test('should handle reload plugin failure when runtime is not active', async () => {
     const result = await pluginRuntime.reloadPlugin('test-plugin', { newConfig: true })
     expect(result).toEqual({ 
@@ -265,6 +357,38 @@ describe('PluginRuntime Core', () => {
     expect(stats.native).toBe(1)
   })
 
+  test('should warn when stopping a non-running runtime', async () => {
+    const uninstallSpy = vi.spyOn(pluginRuntime['lifecycleManager'], 'uninstallAll')
+
+    await expect(pluginRuntime.stop()).resolves.toBeUndefined()
+    expect(uninstallSpy).not.toHaveBeenCalled()
+  })
+
+  test('should throw when stop fails', async () => {
+    const specs = [{
+      id: 'test-plugin',
+      module: './test-plugin',
+      enabled: true,
+      config: {},
+    }]
+
+    vi.spyOn(pluginRuntime['loader'], 'load').mockResolvedValue({
+      plugin: mockPlugin,
+      type: 'native' as const,
+    })
+
+    vi.spyOn(pluginRuntime['lifecycleManager'], 'installAll').mockResolvedValue({
+      succeeded: [],
+      failed: [],
+    })
+
+    vi.spyOn(pluginRuntime['lifecycleManager'], 'uninstallAll').mockRejectedValue(new Error('stop failed'))
+
+    await pluginRuntime.start(specs)
+
+    await expect(pluginRuntime.stop()).rejects.toThrow('stop failed')
+  })
+
   test('should unload plugin correctly', async () => {
     const specs = [{
       id: 'test-plugin',
@@ -301,6 +425,57 @@ describe('PluginRuntime Core', () => {
 
   test('should handle unload failure for non-existent plugin', async () => {
     await expect(pluginRuntime.unloadPlugin('non-existent')).rejects.toThrow('Plugin non-existent not found')
+  })
+
+  test('should report missing plugin id', async () => {
+    const specs = [{
+      module: './no-id-plugin',
+      enabled: true,
+      config: {},
+    }] as any
+
+    vi.spyOn(pluginRuntime['loader'], 'load').mockResolvedValue({
+      plugin: { name: 'NoIdPlugin' },
+      type: 'native' as const,
+    })
+
+    vi.spyOn(pluginRuntime['lifecycleManager'], 'installAll').mockResolvedValue({
+      succeeded: [],
+      failed: [],
+    })
+
+    const report = await pluginRuntime.start(specs)
+    expect(report.failed[0].error).toContain('Plugin id is required')
+  })
+
+  test('should report duplicate plugin ids', async () => {
+    const specs = [
+      {
+        id: 'dup-plugin',
+        module: './dup-plugin',
+        enabled: true,
+        config: {},
+      },
+      {
+        id: 'dup-plugin',
+        module: './dup-plugin-2',
+        enabled: true,
+        config: {},
+      },
+    ]
+
+    vi.spyOn(pluginRuntime['loader'], 'load').mockResolvedValue({
+      plugin: { ...mockPlugin, id: 'dup-plugin' },
+      type: 'native' as const,
+    })
+
+    vi.spyOn(pluginRuntime['lifecycleManager'], 'installAll').mockResolvedValue({
+      succeeded: [],
+      failed: [],
+    })
+
+    const report = await pluginRuntime.start(specs)
+    expect(report.failed[0].error).toContain('already loaded')
   })
 
   test('should get last report', () => {

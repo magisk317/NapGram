@@ -168,6 +168,7 @@ vi.mock('../napcatConvert', () => ({
 
 import { messageConverter } from '../../../../domain/message/converter'
 import { napCatForwardMultiple } from '../napcatConvert'
+import { NapLink } from '@naplink/naplink'
 
 describe('NapCatAdapter', () => {
   let adapter: NapCatAdapter
@@ -227,6 +228,15 @@ describe('NapCatAdapter', () => {
     expect(mockNapLinkInstance.on).toHaveBeenCalledWith('connect', expect.any(Function))
     expect(mockNapLinkInstance.on).toHaveBeenCalledWith('disconnect', expect.any(Function))
     expect(mockNapLinkInstance.on).toHaveBeenCalledWith('message', expect.any(Function))
+  })
+
+  it('should forward NapLink warn/error logs', () => {
+    const [config] = (NapLink as any).mock.calls[0]
+    config.logging.logger.warn('warn-msg', { detail: 'w' })
+    config.logging.logger.error('error-msg', new Error('boom'))
+
+    expect(mockLogger.warn).toHaveBeenCalledWith('warn-msg', { detail: 'w' })
+    expect(mockLogger.error).toHaveBeenCalledWith('error-msg', expect.any(Error))
   })
 
   it('should handle connect event', () => {
@@ -318,7 +328,9 @@ describe('NapCatAdapter', () => {
         message: [
           { type: 'image', data: { file: '/img.png' } },
           { type: 'file', data: { file_id: '/file.doc' } },
-          { type: 'video', data: { file: 'path/clean.mp4' } } // already clean
+          { type: 'video', data: { file: 'path/clean.mp4' } }, // already clean
+          { type: 'image', data: null },
+          { type: 'file', data: { file: '/tmp/nested/file.bin' } }
         ]
       }
       triggerClientEvent('message', rawMsg)
@@ -328,6 +340,7 @@ describe('NapCatAdapter', () => {
       expect(rawMsg.message[0].data.file).toBe('img.png')
       expect(rawMsg.message[1].data.file_id).toBe('file.doc')
       expect(rawMsg.message[2].data.file).toBe('path/clean.mp4')
+      expect(rawMsg.message[4].data.file).toBe('/tmp/nested/file.bin')
     })
 
     it('should handle message processing error', async () => {
@@ -1032,5 +1045,79 @@ describe('NapCatAdapter', () => {
       await expect(adapter.downloadFileRecordStreamToFile('rec123')).rejects.toThrow('downloadFileRecordStreamToFile is not available')
       mockNapLinkInstance.api.downloadFileRecordStreamToFile = vi.fn()
     })
+
+    it('should fallback for markPrivateMsgAsRead', async () => {
+      mockNapLinkInstance.api.markPrivateMsgAsRead = undefined
+      await adapter.markPrivateMsgAsRead('u123')
+      expect(mockNapLinkInstance.callApi).toHaveBeenCalledWith('mark_private_msg_as_read', { user_id: 'u123' })
+      mockNapLinkInstance.api.markPrivateMsgAsRead = vi.fn()
+    })
+
+    it('should fallback for markAllMsgAsRead', async () => {
+      mockNapLinkInstance.api.markAllMsgAsRead = undefined
+      await adapter.markAllMsgAsRead()
+      expect(mockNapLinkInstance.callApi).toHaveBeenCalledWith('_mark_all_as_read')
+      mockNapLinkInstance.api.markAllMsgAsRead = vi.fn()
+    })
+
+    it('should fallback for getGroupMsgHistory', async () => {
+      mockNapLinkInstance.api.getGroupMsgHistory = undefined
+      const params = { group_id: 'g123', message_seq: 100, count: 20 }
+      await adapter.getGroupMsgHistory(params)
+      expect(mockNapLinkInstance.callApi).toHaveBeenCalledWith('get_group_msg_history', params)
+      mockNapLinkInstance.api.getGroupMsgHistory = vi.fn()
+    })
+
+    it('should fallback for getFriendMsgHistory', async () => {
+      mockNapLinkInstance.api.getFriendMsgHistory = undefined
+      const params = { user_id: 'u123', message_seq: 100, count: 20 }
+      await adapter.getFriendMsgHistory(params)
+      expect(mockNapLinkInstance.callApi).toHaveBeenCalledWith('get_friend_msg_history', params)
+      mockNapLinkInstance.api.getFriendMsgHistory = vi.fn()
+    })
+
+    it('should fallback for sendGroupPoke', async () => {
+      mockNapLinkInstance.api.sendGroupPoke = undefined
+      await adapter.sendGroupPoke('g123', 'u456')
+      expect(mockNapLinkInstance.callApi).toHaveBeenCalledWith('group_poke', { group_id: 'g123', user_id: 'u456' })
+      mockNapLinkInstance.api.sendGroupPoke = vi.fn()
+    })
+
+    it('should fallback for sendFriendPoke', async () => {
+      mockNapLinkInstance.api.sendFriendPoke = undefined
+      await adapter.sendFriendPoke('u123')
+      expect(mockNapLinkInstance.callApi).toHaveBeenCalledWith('friend_poke', { user_id: 'u123' })
+      mockNapLinkInstance.api.sendFriendPoke = vi.fn()
+    })
+
+    it('should fallback for sendPoke with groupId', async () => {
+      mockNapLinkInstance.api.sendPoke = undefined
+      await adapter.sendPoke('u123', 'g456')
+      expect(mockNapLinkInstance.callApi).toHaveBeenCalledWith('send_poke', { group_id: 'g456', target_id: 'u123' })
+      mockNapLinkInstance.api.sendPoke = vi.fn()
+    })
+
+    it('should fallback for markGroupMsgAsRead', async () => {
+      mockNapLinkInstance.api.markGroupMsgAsRead = undefined
+      await adapter.markGroupMsgAsRead('g123')
+      expect(mockNapLinkInstance.callApi).toHaveBeenCalledWith('mark_group_msg_as_read', { group_id: 'g123' })
+      mockNapLinkInstance.api.markGroupMsgAsRead = vi.fn()
+    })
+  })
+
+  describe('Edge Cases', () => {
+    it('should handle getGroupMemberInfo error', async () => {
+      mockNapLinkInstance.getGroupMemberInfo.mockRejectedValueOnce(new Error('Not found'))
+      const result = await adapter.getGroupMemberInfo('g123', 'u456')
+      expect(result).toBeNull()
+    })
+
+    it('should handle getUserInfo error', async () => {
+      mockNapLinkInstance.getStrangerInfo.mockRejectedValueOnce(new Error('Not found'))
+      const result = await adapter.getUserInfo('u123')
+      expect(result).toBeNull()
+    })
+
+
   })
 })

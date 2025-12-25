@@ -247,6 +247,42 @@ describe('Telegram client', () => {
     expect(bot.sessionId).toBe(2)
   })
 
+  it('reports online status based on me', async () => {
+    const bot = await Telegram.connect(10)
+
+    expect(bot.isOnline).toBe(true)
+    bot.me = undefined
+    expect(bot.isOnline).toBe(false)
+  })
+
+  it('creates data dir when missing', async () => {
+    fsMocks.existsSync.mockReturnValueOnce(false)
+
+    await Telegram.create({ botToken: 'bot' })
+
+    expect(fsMocks.mkdirSync).toHaveBeenCalledWith('/data', { recursive: true })
+  })
+
+  it('rethrows when create login fails', async () => {
+    mtcuteNodeMocks.start.mockRejectedValueOnce(new Error('login fail'))
+
+    await expect(Telegram.create({ botToken: 'bot' })).rejects.toThrow('login fail')
+  })
+
+  it('imports session when connecting with session string', async () => {
+    sessionMocks.mockSessionString = 'stored'
+
+    await Telegram.connect(11)
+
+    expect(mtcuteNodeMocks.importSession).toHaveBeenCalledWith('stored', true)
+  })
+
+  it('rethrows when connect login fails', async () => {
+    mtcuteNodeMocks.start.mockRejectedValueOnce(new Error('connect fail'))
+
+    await expect(Telegram.connect(12)).rejects.toThrow('connect fail')
+  })
+
   it('initializes proxy transport when configured', async () => {
     envMock.PROXY_IP = '127.0.0.1'
     envMock.PROXY_PORT = 8080
@@ -332,6 +368,63 @@ describe('Telegram client', () => {
     expect(buffer).toBeInstanceOf(Buffer)
   })
 
+  it('returns null when profile photo download fails', async () => {
+    const bot = await Telegram.connect(12)
+    mtcuteNodeMocks.getChat.mockRejectedValueOnce(new Error('chat error'))
+
+    await expect(bot.downloadProfilePhoto(1)).resolves.toBeNull()
+  })
+
+  it('dispatches new message handlers until handled', async () => {
+    const bot = await Telegram.connect(13)
+    const handler1 = vi.fn().mockResolvedValue(true)
+    const handler2 = vi.fn().mockResolvedValue(undefined)
+
+    bot.addNewMessageEventHandler(handler1)
+    bot.addNewMessageEventHandler(handler2)
+
+    await (bot as any).onMessage(new Message({ id: 1, chat: { id: 1 } }))
+
+    expect(handler1).toHaveBeenCalled()
+    expect(handler2).not.toHaveBeenCalled()
+  })
+
+  it('removes new message handlers', async () => {
+    const bot = await Telegram.connect(14)
+    const handler = vi.fn().mockResolvedValue(undefined)
+
+    bot.addNewMessageEventHandler(handler)
+    bot.removeNewMessageEventHandler(handler)
+
+    await (bot as any).onMessage(new Message({ id: 2, chat: { id: 2 } }))
+
+    expect(handler).not.toHaveBeenCalled()
+  })
+
+  it('dispatches edited message handlers and supports removal', async () => {
+    const bot = await Telegram.connect(15)
+    const handler = vi.fn().mockResolvedValue(undefined)
+
+    bot.addEditedMessageEventHandler(handler)
+    await (bot as any).onEditedMessage(new Message({ id: 3, chat: { id: 3 } }))
+    bot.removeEditedMessageEventHandler(handler)
+    await (bot as any).onEditedMessage(new Message({ id: 4, chat: { id: 4 } }))
+
+    expect(handler).toHaveBeenCalledTimes(1)
+  })
+
+  it('dispatches deleted message handlers and supports removal', async () => {
+    const bot = await Telegram.connect(16)
+    const handler = vi.fn().mockResolvedValue(undefined)
+
+    bot.addDeletedMessageEventHandler(handler)
+    await (bot as any).onDeleteMessage({ channelId: 1, messageIds: [1, 2] })
+    bot.removeDeletedMessageEventHandler(handler)
+    await (bot as any).onDeleteMessage({ chatId: 2, messages: [3] })
+
+    expect(handler).toHaveBeenCalledTimes(1)
+  })
+
   it('disconnects client and clears me', async () => {
     const bot = await Telegram.connect(9)
     bot.me = { id: 1 } as any
@@ -340,5 +433,12 @@ describe('Telegram client', () => {
 
     expect(mtcuteNodeMocks.disconnect).toHaveBeenCalled()
     expect(bot.me).toBeUndefined()
+  })
+
+  it('rethrows when disconnect fails', async () => {
+    const bot = await Telegram.connect(17)
+    mtcuteNodeMocks.disconnect.mockRejectedValueOnce(new Error('disconnect fail'))
+
+    await expect(bot.disconnect()).rejects.toThrow('disconnect fail')
   })
 })

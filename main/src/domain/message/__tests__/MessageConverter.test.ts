@@ -78,6 +78,24 @@ describe('MessageConverter', () => {
     fsMocks.existsSync.mockReturnValue(true)
   })
 
+  const buildTelegram = (overrides: Record<string, any> = {}) => ({
+    id: 1,
+    text: '',
+    sender: { id: 1, displayName: 'User' },
+    chat: { id: 2, type: 'group', title: 'Group' },
+    date: new Date('2020-01-01T00:00:00Z'),
+    ...overrides,
+  })
+
+  const buildUnified = (content: any[]) => ({
+    id: '1',
+    platform: 'telegram',
+    sender: { id: '1', name: 'User' },
+    chat: { id: '2', type: 'group' },
+    content,
+    timestamp: 1,
+  })
+
   it('converts Telegram gif document and reply', () => {
     const converter = new MessageConverter()
     const tgMsg: any = {
@@ -166,6 +184,135 @@ describe('MessageConverter', () => {
         },
       },
     ])
+  })
+
+  it.each([
+    {
+      label: 'photo',
+      media: { type: 'photo' },
+      assert: (item: any, media: any) => {
+        expect(item.type).toBe('image')
+        expect(item.data.file).toBe(media)
+      },
+    },
+    {
+      label: 'voice',
+      media: { type: 'voice', duration: 12 },
+      assert: (item: any, media: any) => {
+        expect(item.type).toBe('audio')
+        expect(item.data.duration).toBe(12)
+        expect(item.data.file).toBe(media)
+      },
+    },
+    {
+      label: 'audio',
+      media: { type: 'audio', duration: 8 },
+      assert: (item: any, media: any) => {
+        expect(item.type).toBe('audio')
+        expect(item.data.duration).toBe(8)
+        expect(item.data.file).toBe(media)
+      },
+    },
+    {
+      label: 'document',
+      media: { type: 'document', mimeType: 'application/pdf', fileSize: 22 },
+      assert: (item: any, media: any) => {
+        expect(item.type).toBe('file')
+        expect(item.data.file).toBe(media)
+        expect(item.data.filename).toBe('file')
+        expect(item.data.size).toBe(22)
+      },
+    },
+    {
+      label: 'sticker',
+      media: { type: 'sticker', mimeType: 'image/webp' },
+      assert: (item: any, media: any) => {
+        expect(item.type).toBe('image')
+        expect(item.data.file).toBe(media)
+        expect(item.data.mimeType).toBe('image/webp')
+        expect(item.data.isSticker).toBe(true)
+      },
+    },
+    {
+      label: 'dice',
+      media: { type: 'dice', value: 6 },
+      assert: (item: any) => {
+        expect(item.type).toBe('dice')
+        expect(item.data.value).toBe(6)
+        expect(item.data.emoji).toBe('🎲')
+      },
+    },
+  ])('converts Telegram $label media', ({ media, assert }) => {
+    const converter = new MessageConverter()
+    const tgMsg = buildTelegram({ media })
+
+    const result = converter.fromTelegram(tgMsg)
+
+    expect(result.content).toHaveLength(1)
+    assert(result.content[0], media)
+  })
+
+  it('converts Telegram location payload without media', () => {
+    const converter = new MessageConverter()
+    const tgMsg = buildTelegram({
+      location: {
+        latitude: 30,
+        longitude: 120,
+        title: 'Spot',
+        address: 'Addr',
+      },
+    })
+
+    const result = converter.fromTelegram(tgMsg)
+
+    expect(result.content).toEqual([
+      {
+        type: 'location',
+        data: {
+          latitude: 30,
+          longitude: 120,
+          title: 'Spot',
+          address: 'Addr',
+        },
+      },
+    ])
+  })
+
+  it('uses replied message override when provided', () => {
+    const converter = new MessageConverter()
+    const tgMsg = buildTelegram({ text: 'Hi' })
+    const replied = {
+      id: 9,
+      sender: { id: 7, displayName: 'Bob' },
+      chat: { id: 2, title: 'Group' },
+      text: 'Reply',
+    }
+
+    const result = converter.fromTelegram(tgMsg, replied as any)
+
+    expect(result.content.map(item => item.type)).toEqual(['text', 'reply'])
+    expect(result.content[1].data.messageId).toBe('9')
+    expect(result.content[1].data.senderName).toBe('Bob')
+  })
+
+  it('handles replyTo id without reply message', () => {
+    const converter = new MessageConverter()
+    const tgMsg = buildTelegram({ text: 'Hello', replyTo: 123 })
+
+    const result = converter.fromTelegram(tgMsg)
+
+    expect(result.content).toEqual([{ type: 'text', data: { text: 'Hello' } }])
+  })
+
+  it('converts unified message to Telegram payload', () => {
+    const converter = new MessageConverter()
+    const payload = converter.toTelegram(buildUnified([
+      { type: 'text', data: { text: 'Hello' } },
+      { type: 'image', data: { url: 'https://example.com/a.jpg' } },
+    ]))
+
+    expect(payload.message).toBe('Hello')
+    expect(payload.media).toEqual([{ type: 'image', data: { url: 'https://example.com/a.jpg' } }])
   })
 
   it('adds fallback text when sticker media needs instance', async () => {
@@ -262,6 +409,212 @@ describe('MessageConverter', () => {
         data: { file: `http://internal/temp/${expectedName}` },
       },
     ])
+  })
+
+  it('falls back to temp url when shared dir write fails', async () => {
+    const converter = new MessageConverter()
+    fsMocks.mkdir.mockRejectedValueOnce(new Error('mkdir fail')).mockResolvedValueOnce(undefined)
+    vi.spyOn(Date, 'now').mockReturnValue(1700000000000)
+    vi.spyOn(Math, 'random').mockReturnValue(0.4)
+
+    const result = await converter.toNapCat(buildUnified([
+      {
+        type: 'audio',
+        data: { file: Buffer.from('audio') },
+      },
+    ]))
+
+    const expectedName = `audio-${Date.now()}-${Math.random().toString(16).slice(2)}.ogg`
+    expect(fsMocks.writeFile).toHaveBeenCalledWith(`/data/temp/${expectedName}`, expect.any(Buffer))
+    expect(result).toEqual([
+      {
+        type: 'record',
+        data: { file: `http://internal/temp/${expectedName}` },
+      },
+    ])
+  })
+
+  it('downloads sticker media when instance is available', async () => {
+    const converter = new MessageConverter()
+    const downloadMedia = vi.fn().mockResolvedValue(Buffer.from([0x11, 0x22]))
+    converter.setInstance({ tgBot: { downloadMedia } } as any)
+    fileTypeMock.fileTypeFromBuffer.mockResolvedValue({ ext: 'webp' })
+    jimpMocks.read.mockResolvedValue({
+      getBuffer: vi.fn().mockResolvedValue(Buffer.from('png')),
+    })
+
+    const result = await converter.toNapCat(buildUnified([
+      {
+        type: 'image',
+        data: {
+          file: { type: 'sticker' },
+          isSticker: true,
+        },
+      },
+    ]))
+
+    expect(downloadMedia).toHaveBeenCalled()
+    expect(result[0].type).toBe('image')
+  })
+
+  it('handles empty sticker download buffer', async () => {
+    const converter = new MessageConverter()
+    converter.setInstance({ tgBot: { downloadMedia: vi.fn().mockResolvedValue(Buffer.alloc(0)) } } as any)
+
+    const result = await converter.toNapCat(buildUnified([
+      {
+        type: 'image',
+        data: {
+          file: { type: 'sticker' },
+          isSticker: true,
+        },
+      },
+    ]))
+
+    expect(result).toEqual([{ type: 'text', data: { text: '[贴纸下载为空]' } }])
+  })
+
+  it('handles sticker download failure', async () => {
+    const converter = new MessageConverter()
+    converter.setInstance({ tgBot: { downloadMedia: vi.fn().mockRejectedValue(new Error('fail')) } } as any)
+
+    const result = await converter.toNapCat(buildUnified([
+      {
+        type: 'image',
+        data: {
+          file: { type: 'sticker' },
+          isSticker: true,
+        },
+      },
+    ]))
+
+    expect(result).toEqual([{ type: 'text', data: { text: '[贴纸下载失败]' } }])
+  })
+
+  it('handles fileTypeFromBuffer errors for non-sticker images', async () => {
+    const converter = new MessageConverter()
+    fileTypeMock.fileTypeFromBuffer.mockRejectedValueOnce(new Error('bad'))
+    vi.spyOn(Date, 'now').mockReturnValue(1700000000000)
+    vi.spyOn(Math, 'random').mockReturnValue(0.2)
+
+    const result = await converter.toNapCat(buildUnified([
+      {
+        type: 'image',
+        data: {
+          file: Buffer.from([0x01, 0x02]),
+        },
+      },
+    ]))
+
+    expect(result[0].data.file.endsWith('.jpg')).toBe(true)
+  })
+
+  it.each([
+    { mimeType: 'image/webp', ext: '.webp' },
+    { mimeType: 'image/png', ext: '.png' },
+  ])('uses mimeType extension for %s images', async ({ mimeType, ext }) => {
+    const converter = new MessageConverter()
+    fileTypeMock.fileTypeFromBuffer.mockResolvedValue({ ext: 'jpg' })
+
+    const result = await converter.toNapCat(buildUnified([
+      {
+        type: 'image',
+        data: {
+          file: Buffer.from([0x01, 0x02]),
+          mimeType,
+        },
+      },
+    ]))
+
+    expect(result[0].data.file.endsWith(ext)).toBe(true)
+  })
+
+  it('uses detected extension when mimeType is missing', async () => {
+    const converter = new MessageConverter()
+    fileTypeMock.fileTypeFromBuffer.mockResolvedValue({ ext: 'gif' })
+
+    const result = await converter.toNapCat(buildUnified([
+      {
+        type: 'image',
+        data: {
+          file: Buffer.from([0x01, 0x02]),
+        },
+      },
+    ]))
+
+    expect(result[0].data.file.endsWith('.gif')).toBe(true)
+  })
+
+  it('converts TGS sticker buffers to GIF', async () => {
+    const converter = new MessageConverter()
+    convertMocks.tgs2gif.mockResolvedValue('/tmp/sticker.gif')
+    fsMocks.readFile.mockResolvedValue(Buffer.from('gif'))
+    vi.spyOn(Date, 'now').mockReturnValue(1700000000000)
+    vi.spyOn(Math, 'random').mockReturnValue(0.3)
+
+    const result = await converter.toNapCat(buildUnified([
+      {
+        type: 'image',
+        data: {
+          file: Buffer.from([0x1f, 0x8b, 0x08]),
+          isSticker: true,
+        },
+      },
+    ]))
+
+    expect(convertMocks.tgs2gif).toHaveBeenCalled()
+    expect(fsMocks.readFile).toHaveBeenCalledWith('/tmp/sticker.gif')
+    expect(result[0].data.file.endsWith('.gif')).toBe(true)
+  })
+
+  it('handles TGS conversion failure', async () => {
+    const converter = new MessageConverter()
+    convertMocks.tgs2gif.mockRejectedValue(new Error('boom'))
+
+    const result = await converter.toNapCat(buildUnified([
+      {
+        type: 'image',
+        data: {
+          file: Buffer.from([0x1f, 0x8b, 0x08]),
+          isSticker: true,
+        },
+      },
+    ]))
+
+    expect(result).toEqual([{ type: 'text', data: { text: '[动画贴纸转换失败]' } }])
+  })
+
+  it('falls back to text when sticker conversion fails', async () => {
+    const converter = new MessageConverter()
+    jimpMocks.read.mockRejectedValue(new Error('bad'))
+
+    const result = await converter.toNapCat(buildUnified([
+      {
+        type: 'image',
+        data: {
+          file: Buffer.from([0x01, 0x02]),
+          isSticker: true,
+        },
+      },
+    ]))
+
+    expect(result).toEqual([{ type: 'text', data: { text: '[贴纸]' } }])
+  })
+
+  it('converts video buffers to napcat segments', async () => {
+    const converter = new MessageConverter()
+
+    const result = await converter.toNapCat(buildUnified([
+      {
+        type: 'video',
+        data: {
+          file: Buffer.from('video'),
+        },
+      },
+    ]))
+
+    expect(result[0].type).toBe('video')
+    expect(result[0].data.file.endsWith('.mp4')).toBe(true)
   })
 
   it('converts file buffer into napcat file segment', async () => {

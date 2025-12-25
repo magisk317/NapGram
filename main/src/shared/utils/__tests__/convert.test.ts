@@ -155,6 +155,16 @@ describe('convert', () => {
     expect(cleanup).toHaveBeenCalled()
   })
 
+  it('converts video to gif with default codec', async () => {
+    const cleanup = vi.fn().mockResolvedValue(undefined)
+    tempMocks.file.mockResolvedValue({ path: '/tmp/video-default', cleanup })
+
+    const result = await convert.video2gif('video-default', async () => Buffer.from('webm'), false)
+
+    expect(result).toBe('/cache/video-default.gif')
+    expect(ffmpegMocks.convertWithFfmpeg).toHaveBeenCalledWith('/tmp/video-default', '/cache/video-default.gif', 'gif', undefined)
+    expect(cleanup).toHaveBeenCalled()
+  })
   it('converts TGS buffer to gif and cleans up temp file', async () => {
     vi.spyOn(Date, 'now').mockReturnValue(1700000000000)
     vi.spyOn(Math, 'random').mockReturnValue(0.123456)
@@ -189,7 +199,10 @@ describe('convert', () => {
 
   it('chooses png conversion for non-gif input', async () => {
     const cachedSpy = vi.spyOn(convert, 'cachedBuffer').mockResolvedValue('/cache/key')
-    const webpSpy = vi.spyOn(convert, 'webp').mockResolvedValue('/cache/key.png')
+    const webpSpy = vi.spyOn(convert, 'webp').mockImplementation(async (_key, imageData) => {
+      await imageData()
+      return '/cache/key.png'
+    })
     fileTypeMocks.fileTypeFromBuffer.mockResolvedValue({ mime: 'image/png' })
 
     const result = await convert.webpOrWebm('key', async () => Buffer.from('png'))
@@ -216,6 +229,16 @@ describe('convert', () => {
     expect(loggerSpy).toHaveBeenCalled()
   })
 
+  it('tgs2gif logs non-error failures', async () => {
+    vi.mocked(tgsMocks.tgsToGif).mockRejectedValueOnce('bad')
+
+    await expect(convert.tgs2gif('fail-str', async () => Buffer.from('tgs'))).rejects.toBe('bad')
+
+    expect(loggerMocks.error).toHaveBeenCalledWith(
+      expect.stringContaining('[tgs2gif] Error details:'),
+    )
+  })
+
   it('tgs2gif throws if output file missing', async () => {
     // fs stat fails (default mock return value is {size: 10}, need to override)
     fsPromMocks.stat.mockRejectedValueOnce(new Error('no ent'))
@@ -238,6 +261,35 @@ describe('convert', () => {
     const res = await convert.customEmoji('e1', async () => Buffer.from('png'), true)
     expect(res).toBe('/cache/e1@50.png')
     expect(image.resize).toHaveBeenCalledWith({ w: 50 })
+  })
+
+  it('customEmoji returns original size when not using small size', async () => {
+    fileTypeMocks.fileTypeFromBuffer.mockResolvedValue({ mime: 'image/png' })
+    const image = { write: vi.fn().mockResolvedValue(undefined) }
+    jimpMocks.read.mockResolvedValue(image)
+
+    const res = await convert.customEmoji('e_full', async () => Buffer.from('png'), false)
+
+    expect(res).toBe('/cache/e_full.png')
+    expect(jimpMocks.read).toHaveBeenCalled()
+  })
+
+  it('customEmoji falls back to default image type when fileType is missing', async () => {
+    fileTypeMocks.fileTypeFromBuffer.mockResolvedValue(undefined)
+    const image = { write: vi.fn().mockResolvedValue(undefined) }
+    jimpMocks.read.mockResolvedValue(image)
+
+    const res = await convert.customEmoji('e_fallback', async () => Buffer.from('png'), false)
+
+    expect(res).toBe('/cache/e_fallback.png')
+  })
+
+  it('customEmoji returns gif when non-image and not using small size', async () => {
+    fileTypeMocks.fileTypeFromBuffer.mockResolvedValue({ mime: 'application/octet-stream' })
+
+    const res = await convert.customEmoji('e_full_gif', async () => Buffer.from('tgs'), false)
+
+    expect(res).toBe('/cache/e_full_gif.gif')
   })
 
   it('customEmoji generates small size from gif (tgs fallback)', async () => {
