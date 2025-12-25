@@ -24,7 +24,7 @@ export async function editFlags(params: string[], target: Pair | Instance) {
   if (Number.isNaN(operand)) {
     operand = flags[params[1].toUpperCase()]
   }
-  if (Number.isNaN(operand))
+  if (Number.isNaN(operand) || operand === undefined)
     return 'flag 格式错误'
 
   switch (params[0]) {
