@@ -196,4 +196,19 @@ describe('commandArgsParser', () => {
             expect(CommandArgsParser.hasReplyMessage(msg)).toBe(false)
         })
     })
+
+    describe('extractUinFromReply (via parseUserAction)', () => {
+        it('extracts UIN from QQ reply content structure', () => {
+            const msg: any = {
+                content: [
+                    { type: 'reply', data: { senderId: '88888888' } },
+                ],
+                metadata: {},
+            }
+
+            const result = CommandArgsParser.parseUserAction(['on'], msg, true)
+            expect(result.uin).toBe('88888888')
+            expect(result.action).toBe('on')
+        })
+    })
 })
