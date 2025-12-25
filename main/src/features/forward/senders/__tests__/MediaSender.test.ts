@@ -137,4 +137,208 @@ describe('mediaSender', () => {
 
     expect(chat.client.sendMedia).toHaveBeenCalled()
   })
+
+  it('sends rich header before media group', async () => {
+    const sender = new MediaSender(fileNormalizer as any, richHeaderBuilder as any)
+    const chat = {
+      id: 100,
+      client: { sendMediaGroup: vi.fn().mockResolvedValue([{ id: 10 }]) },
+      sendMessage: vi.fn().mockResolvedValue({ id: 5 }),
+    }
+
+    fileNormalizer.normalizeInputFile.mockResolvedValue({ data: 'file', fileName: 'a.jpg' })
+    fileNormalizer.isGifMedia.mockReturnValue(false)
+    richHeaderBuilder.buildReplyTo.mockReturnValue(77)
+    richHeaderBuilder.applyRichHeader.mockReturnValue({ text: 'rich header', params: {} })
+
+    await sender.sendMediaGroup(
+      chat,
+      [{ type: 'image', data: { file: 'file-a' } }] as any,
+      'caption',
+      55,
+      { tgThreadId: 1 },
+      'header:',
+      true,
+      'http://example.com',
+      'qq3',
+    )
+
+    expect(chat.sendMessage).toHaveBeenCalledWith('rich header', expect.objectContaining({ replyTo: 77, messageThreadId: 1 }))
+    expect(chat.client.sendMediaGroup).toHaveBeenCalled()
+  })
+
+  it('handles rich header send failure gracefully', async () => {
+    const sender = new MediaSender(fileNormalizer as any, richHeaderBuilder as any)
+    const chat = {
+      id: 100,
+      client: { sendMediaGroup: vi.fn().mockResolvedValue([{ id: 10 }]) },
+      sendMessage: vi.fn().mockRejectedValue(new Error('Send failed')),
+    }
+
+    fileNormalizer.normalizeInputFile.mockResolvedValue({ data: 'file', fileName: 'a.jpg' })
+    fileNormalizer.isGifMedia.mockReturnValue(false)
+    richHeaderBuilder.buildReplyTo.mockReturnValue(77)
+    richHeaderBuilder.applyRichHeader.mockReturnValue({ text: 'rich header', params: {} })
+
+    await sender.sendMediaGroup(
+      chat,
+      [{ type: 'image', data: { file: 'file-a' } }] as any,
+      'caption',
+      55,
+      {},
+      'header:',
+      true,
+      'http://example.com',
+      'qq4',
+    )
+
+    // Should still send media group despite rich header failure
+    expect(chat.client.sendMediaGroup).toHaveBeenCalled()
+  })
+
+  it('returns null when all media normalization fails', async () => {
+    const sender = new MediaSender(fileNormalizer as any, richHeaderBuilder as any)
+    const chat = { id: 100, client: { sendMediaGroup: vi.fn() } }
+
+    fileNormalizer.normalizeInputFile.mockResolvedValue(null)
+    richHeaderBuilder.buildReplyTo.mockReturnValue(undefined)
+
+    const result = await sender.sendMediaGroup(
+      chat,
+      [{ type: 'image', data: { file: 'file-a' } }] as any,
+      '',
+    )
+
+    expect(result).toBeNull()
+    expect(chat.client.sendMediaGroup).not.toHaveBeenCalled()
+  })
+
+  it('skips failed media items but sends valid ones', async () => {
+    const sender = new MediaSender(fileNormalizer as any, richHeaderBuilder as any)
+    const chat = {
+      id: 100,
+      client: { sendMediaGroup: vi.fn().mockResolvedValue([{ id: 10 }]) },
+    }
+
+    fileNormalizer.normalizeInputFile
+      .mockResolvedValueOnce(null) // First fails
+      .mockResolvedValueOnce({ data: 'file2', fileName: 'b.jpg' }) // Second succeeds
+    fileNormalizer.isGifMedia.mockReturnValue(false)
+    richHeaderBuilder.buildReplyTo.mockReturnValue(undefined)
+
+    const result = await sender.sendMediaGroup(
+      chat,
+      [
+        { type: 'image', data: { file: 'file-a' } },
+        { type: 'image', data: { file: 'file-b' } },
+      ] as any,
+      '',
+    )
+
+    expect(chat.client.sendMediaGroup).toHaveBeenCalled()
+    const mediaInputs = vi.mocked(chat.client.sendMediaGroup).mock.calls[0][1] as any[]
+    expect(mediaInputs.length).toBe(1)
+    expect(result).toEqual({ id: 10 })
+  })
+
+  it('returns null when sendMediaGroup fails completely', async () => {
+    const sender = new MediaSender(fileNormalizer as any, richHeaderBuilder as any)
+    const chat = {
+      id: 100,
+      client: { sendMediaGroup: vi.fn().mockRejectedValue(new Error('Complete failure')) },
+    }
+
+    fileNormalizer.normalizeInputFile.mockResolvedValue({ data: 'file', fileName: 'a.jpg' })
+    fileNormalizer.isGifMedia.mockReturnValue(false)
+    richHeaderBuilder.buildReplyTo.mockReturnValue(undefined)
+
+    const result = await sender.sendMediaGroup(
+      chat,
+      [{ type: 'image', data: { file: 'file-a' } }] as any,
+      '',
+    )
+
+    expect(result).toBeNull()
+  })
+
+  it('handles GIF media type correctly', async () => {
+    const sender = new MediaSender(fileNormalizer as any, richHeaderBuilder as any)
+    const chat = {
+      id: 100,
+      client: { sendMediaGroup: vi.fn().mockResolvedValue([{ id: 10 }]) },
+    }
+
+    fileNormalizer.normalizeInputFile.mockResolvedValue({ data: 'file', fileName: 'a.gif' })
+    fileNormalizer.isGifMedia.mockReturnValue(true)
+    richHeaderBuilder.buildReplyTo.mockReturnValue(undefined)
+
+    await sender.sendMediaGroup(
+      chat,
+      [{ type: 'image', data: { file: 'file-a.gif' } }] as any,
+      '',
+    )
+
+    const mediaInputs = vi.mocked(chat.client.sendMediaGroup).mock.calls[0][1] as any[]
+    expect(mediaInputs[0].type).toBe('animation')
+  })
+
+  it('returns null for location without coordinates', async () => {
+    const sender = new MediaSender(fileNormalizer as any, richHeaderBuilder as any)
+    const chat = { id: 200, client: { sendMedia: vi.fn() } }
+
+    const invalidContent = { type: 'location', data: {} }
+    const result = await sender.sendLocationToTG(chat as any, invalidContent as any)
+
+    expect(result).toBeNull()
+    expect(chat.client.sendMedia).not.toHaveBeenCalled()
+  })
+
+  it('handles location with header and thread', async () => {
+    const sender = new MediaSender(fileNormalizer as any, richHeaderBuilder as any)
+    const chat = {
+      id: 200,
+      client: { sendMedia: vi.fn().mockResolvedValue({ id: 20 }) },
+    }
+
+    const content = { type: 'location', data: { latitude: 1, longitude: 2 } }
+    await sender.sendLocationToTG(chat as any, content as any, 10, 5, 'User: ')
+
+    const sendParams = vi.mocked(chat.client.sendMedia).mock.calls[0][2]
+    expect(sendParams.caption).toBe('User: ')
+    expect(sendParams.messageThreadId).toBe(5)
+    expect(sendParams.replyTo).toBe(10)
+  })
+
+  it('handles dice with RPS mapping', async () => {
+    const sender = new MediaSender(fileNormalizer as any, richHeaderBuilder as any)
+    const chat = {
+      id: 300,
+      client: { sendMedia: vi.fn() },
+      sendMessage: vi.fn().mockResolvedValue({ id: 30 }),
+    }
+
+    richHeaderBuilder.applyRichHeader.mockReturnValue({ text: 'msg', params: {} })
+
+    // Test all RPS values
+    for (const [value, expected] of [[1, '✋ 布'], [2, '✌️ 剪刀'], [3, '✊ 石头']]) {
+      const content = { type: 'dice', data: { emoji: '🪨', value } }
+      await sender.sendDiceToTG(chat as any, content as any, undefined, undefined, '')
+    }
+
+    expect(chat.sendMessage).toHaveBeenCalledTimes(3)
+  })
+
+  it('handles dice with messageThreadId', async () => {
+    const sender = new MediaSender(fileNormalizer as any, richHeaderBuilder as any)
+    const chat = {
+      id: 400,
+      client: { sendMedia: vi.fn().mockResolvedValue({ id: 40 }) },
+    }
+
+    const content = { type: 'dice', data: { emoji: '🎲' } }
+    await sender.sendDiceToTG(chat as any, content as any, undefined, 7)
+
+    const sendParams = vi.mocked(chat.client.sendMedia).mock.calls[0][2]
+    expect(sendParams.messageThreadId).toBe(7)
+  })
 })
