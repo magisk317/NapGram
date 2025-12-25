@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { getEventPublisher } from '../../../plugins/core/event-publisher'
 import Instance from '../Instance'
 
 const envMock = vi.hoisted(() => ({
@@ -255,7 +256,7 @@ describe('Instance', () => {
 
   it('updates instance fields via setters', () => {
     const instance = new (Instance as any)(3)
-    ;(instance as any)._qq = {}
+      ; (instance as any)._qq = {}
 
     instance.owner = 10
     instance.isSetup = true
@@ -271,5 +272,180 @@ describe('Instance', () => {
     expect(dbMocks.instance.update).toHaveBeenCalledWith({ data: { qqBotId: 88 }, where: { id: 3 } })
     expect(dbMocks.instance.update).toHaveBeenCalledWith({ data: { flags: 5 }, where: { id: 3 } })
     expect((instance as any)._qq.id).toBe(88)
+  })
+
+  it('validates getters', async () => {
+    dbMocks.instance.findFirst.mockResolvedValue({
+      owner: 99,
+      qqBot: { id: 10, wsUrl: 'ws://' },
+      botSessionId: 88,
+      isSetup: true,
+      workMode: 'personal',
+      flags: 1,
+    })
+    const instance = await Instance.start(4, 'token')
+    // Mock qqClient.uin getter
+    Object.defineProperty(qqMocks.client, 'uin', { value: '123456' })
+
+    expect(instance.owner).toBe(99)
+    expect(instance.qq).toEqual({ id: 10, wsUrl: 'ws://' })
+    expect(instance.qqUin).toBe('123456')
+    expect(instance.isSetup).toBe(true)
+    expect(instance.workMode).toBe('personal')
+    expect(instance.botMe).toEqual({ id: 1 }) // from mocks
+    expect(instance.ownerChat).toBeUndefined()
+    expect(instance.botSessionId).toBe(88)
+    expect(instance.flags).toBe(1)
+    expect(instance.qqBotId).toBe(10)
+  })
+
+  it('handles group and friend increase/decrease events', async () => {
+    // Setup instance to register handlers
+    dbMocks.instance.findFirst.mockResolvedValue({})
+    await Instance.start(5, 'token')
+
+    const groupIncrease = qqMocks.handlers.get('group.increase')
+    const groupDecrease = qqMocks.handlers.get('group.decrease')
+    const friendIncrease = qqMocks.handlers.get('friend.increase')
+
+    await groupIncrease('100', { id: '200' })
+    await groupDecrease('100', '200')
+    await friendIncrease({ id: '300' })
+
+    const calls = eventPublisherMocks.publishNotice.mock.calls.map(c => c[0])
+
+    expect(calls).toEqual(expect.arrayContaining([
+      expect.objectContaining({ noticeType: 'group-member-increase', groupId: '100', userId: '200' }),
+      expect.objectContaining({ noticeType: 'group-member-decrease', groupId: '100', userId: '200' }),
+      expect.objectContaining({ noticeType: 'friend-add', userId: '300' })
+    ]))
+  })
+
+  it('creates new instance via createNew', async () => {
+    dbMocks.instance.create.mockResolvedValue({ id: 999 })
+    dbMocks.instance.findFirst.mockResolvedValue({})
+
+    const instance = await Instance.createNew('newtoken')
+
+    expect(dbMocks.instance.create).toHaveBeenCalled()
+    expect(telegramMocks.create).toHaveBeenCalledWith({ botAuthToken: 'newtoken' })
+    expect(instance.id).toBe(999)
+  })
+
+  it('ignores invalid request events', async () => {
+    dbMocks.instance.findFirst.mockResolvedValue({})
+    await Instance.start(6, 'token')
+
+    const friendHandler = qqMocks.handlers.get('request.friend')
+    const groupHandler = qqMocks.handlers.get('request.group')
+
+    // Empty events should return early
+    await friendHandler({})
+    await groupHandler({})
+
+    expect(eventPublisherMocks.publishFriendRequest).not.toHaveBeenCalled()
+    expect(eventPublisherMocks.publishGroupRequest).not.toHaveBeenCalled()
+  })
+
+  it('handles group request add subType', async () => {
+    dbMocks.instance.findFirst.mockResolvedValue({})
+    await Instance.start(7, 'token')
+    const groupHandler = qqMocks.handlers.get('request.group')
+
+    await groupHandler({ flag: 'g2', subType: 'add', groupId: '1' })
+
+    const args = eventPublisherMocks.publishGroupRequest.mock.calls[0][0]
+    expect(args.requestId).toBe('g2')
+    // Verification of approve calls
+    await args.approve()
+    expect(qqMocks.client.handleGroupRequest).toHaveBeenCalledWith('g2', 'add', true)
+  })
+
+  it('handles missing handleFriendRequest/handleGroupRequest methods', async () => {
+    // Remove the mocked methods from client
+    const client = await qqMocks.factory.create({})
+    // Wait, factory returns the hoisted `client` object. I modify it.
+    const originalFriend = qqMocks.client.handleFriendRequest
+    const originalGroup = qqMocks.client.handleGroupRequest
+
+      // Set to undefined
+      ; (qqMocks.client as any).handleFriendRequest = undefined
+      ; (qqMocks.client as any).handleGroupRequest = undefined
+
+    dbMocks.instance.findFirst.mockResolvedValue({})
+    await Instance.start(8, 'token')
+
+    const friendHandler = qqMocks.handlers.get('request.friend')
+    await friendHandler({ flag: 'f1', userId: 'u1' })
+    const friendArgs = eventPublisherMocks.publishFriendRequest.mock.calls[0][0]
+
+    await expect(friendArgs.approve()).rejects.toThrow(TypeError)
+    await expect(friendArgs.reject()).rejects.toThrow(TypeError)
+
+    const groupHandler = qqMocks.handlers.get('request.group')
+    await groupHandler({ flag: 'g1', groupId: 'g1' })
+    const groupArgs = eventPublisherMocks.publishGroupRequest.mock.calls[0][0]
+
+    await expect(groupArgs.approve()).rejects.toThrow(TypeError)
+    await expect(groupArgs.reject()).rejects.toThrow(TypeError)
+
+    // Restore
+    qqMocks.client.handleFriendRequest = originalFriend
+    qqMocks.client.handleGroupRequest = originalGroup
+  })
+
+  it('handles plugin bridge init failure', async () => {
+    const error = new Error('Bus Init Failed')
+    // Mock getEventPublisher to throw ONCE
+    vi.mocked(getEventPublisher).mockImplementationOnce(() => { throw error })
+
+    dbMocks.instance.findFirst.mockResolvedValue({})
+    await Instance.start(9, 'token')
+
+    // Should warn but not fail instance start
+    expect(loggerMocks.warn).toHaveBeenCalledWith('Plugin event bridge init failed:', error)
+    expect(Instance.instances).toHaveLength(1)
+  })
+
+  it('handles notification service failures', async () => {
+    envMock.ENABLE_OFFLINE_NOTIFICATION = true
+    dbMocks.instance.findFirst.mockResolvedValue({ isSetup: true })
+    const notifyError = new Error('Notify Failed')
+    notificationMocks.notifyDisconnection.mockRejectedValueOnce(notifyError)
+    notificationMocks.notifyReconnection.mockRejectedValueOnce(notifyError)
+
+    const instance = await Instance.start(10, 'token')
+
+    const lostHandler = qqMocks.handlers.get('connection:lost')
+    await lostHandler({})
+    expect(loggerMocks.error).toHaveBeenCalledWith(notifyError, 'Failed to send disconnection notification:')
+
+    const restoreHandler = qqMocks.handlers.get('connection:restored')
+    await restoreHandler({})
+    expect(loggerMocks.error).toHaveBeenCalledWith(notifyError, 'Failed to send reconnection notification:')
+  })
+
+  it('reuses existing init promise', async () => {
+    dbMocks.instance.findFirst.mockResolvedValue({ botSessionId: 123 })
+    const instance = new (Instance as any)(11)
+    await (instance as any).load()
+
+    const p1 = (instance as any).init('token')
+    const p2 = (instance as any).init('token')
+
+    await Promise.all([p1, p2])
+    // Verify side effects happened only once
+    expect(telegramMocks.connect).toHaveBeenCalledTimes(1)
+  })
+
+  it('throws if WS URL is missing', async () => {
+    envMock.NAPCAT_WS_URL = ''
+    dbMocks.instance.findFirst.mockResolvedValue({ qqBot: null })
+    const instance = new (Instance as any)(12)
+    await (instance as any).load()
+
+    await expect((instance as any).init('token')).rejects.toThrow('NapCat WebSocket 地址未配置')
+    // Reset env
+    envMock.NAPCAT_WS_URL = 'ws://napcat'
   })
 })
