@@ -129,4 +129,62 @@ describe('recallCommandHandler', () => {
       expect.stringContaining('无权限撤回'),
     )
   })
+
+  it('recalls a telegram message when authorized', async () => {
+    vi.mocked(mockContext.permissionChecker.isAdmin).mockReturnValue(true)
+    vi.mocked(db.message.findFirst).mockResolvedValueOnce({
+      tgSenderId: '999999',
+      tgMsgId: 42,
+      tgChatId: '777777',
+      seq: 777,
+    } as any)
+
+    const chat = { deleteMessages: vi.fn().mockResolvedValue(undefined) }
+    vi.mocked(mockContext.tgBot.getChat).mockResolvedValue(chat as any)
+
+    const msg = createMessage('telegram', { replyTo: { replyToMsgId: 42 } })
+    await handler.execute(msg, [])
+
+    expect(chat.deleteMessages).toHaveBeenCalledWith([42])
+    expect(mockContext.qqClient.recallMessage).toHaveBeenCalledWith('777')
+  })
+
+  it('handles batch recall success path', async () => {
+    vi.mocked(mockContext.permissionChecker.isAdmin).mockReturnValue(true)
+    vi.mocked(db.message.findMany).mockResolvedValueOnce([
+      { tgMsgId: 40, seq: '111', tgChatId: '777777' },
+      { tgMsgId: 39, seq: '222', tgChatId: '777777' },
+    ] as any)
+
+    const chat = { deleteMessages: vi.fn().mockResolvedValue(undefined) }
+    vi.mocked(mockContext.tgBot.getChat).mockResolvedValue(chat as any)
+
+    const msg = createMessage('telegram', { id: 50 })
+    await handler.execute(msg, ['2'])
+
+    expect(mockContext.qqClient.recallMessage).toHaveBeenCalledWith('111')
+    expect(mockContext.qqClient.recallMessage).toHaveBeenCalledWith('222')
+    expect(chat.deleteMessages).toHaveBeenCalledWith([40])
+    expect(chat.deleteMessages).toHaveBeenCalledWith([39])
+  })
+
+  it('recalls from QQ platform and removes TG mapping', async () => {
+    vi.mocked(db.message.findFirst).mockResolvedValueOnce({
+      tgSenderId: '999999',
+      tgMsgId: 88,
+      tgChatId: '777777',
+      seq: 55,
+    } as any)
+
+    const chat = { deleteMessages: vi.fn().mockResolvedValue(undefined) }
+    vi.mocked(mockContext.tgBot.getChat).mockResolvedValue(chat as any)
+
+    const msg = createMessage('qq')
+    msg.content.push({ type: 'reply', data: { messageId: '55' } } as any)
+
+    await handler.execute(msg, [])
+
+    expect(mockContext.qqClient.recallMessage).toHaveBeenCalledWith('55')
+    expect(chat.deleteMessages).toHaveBeenCalledWith([88])
+  })
 })

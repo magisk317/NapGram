@@ -107,6 +107,30 @@ describe('requestManagementCommandHandler', () => {
     expect(replyText).toContain('/reject req-1')
   })
 
+  it('filters pending group requests', async () => {
+    vi.mocked(db.qQRequest.findMany).mockResolvedValueOnce([
+      {
+        id: 2,
+        flag: 'req-2',
+        type: 'group',
+        userId: '20002',
+        groupId: '1000',
+        subType: 'invite',
+        comment: null,
+        instanceId: 1,
+        status: 'pending',
+        createdAt: new Date('2025-02-01T00:00:00Z'),
+      },
+    ] as any)
+
+    const msg = createMessage()
+    await handler.execute(msg, ['group'], 'pending')
+
+    const replyText = vi.mocked(mockContext.replyTG).mock.calls.at(-1)?.[1] as string
+    expect(replyText).toContain('加群')
+    expect(replyText).toContain('req-2')
+  })
+
   it('requires flag for approve', async () => {
     const msg = createMessage()
     await handler.execute(msg, [], 'approve')
@@ -114,6 +138,39 @@ describe('requestManagementCommandHandler', () => {
     expect(mockContext.replyTG).toHaveBeenCalledWith(
       '777777',
       expect.stringContaining('请指定请求flag'),
+      undefined,
+    )
+  })
+
+  it('reports missing request during approve', async () => {
+    vi.mocked(db.qQRequest.findUnique).mockResolvedValueOnce(null)
+
+    const msg = createMessage()
+    await handler.execute(msg, ['missing-flag'], 'approve')
+
+    expect(mockContext.replyTG).toHaveBeenCalledWith(
+      '777777',
+      expect.stringContaining('未找到请求'),
+      undefined,
+    )
+  })
+
+  it('rejects approve for non-pending request', async () => {
+    vi.mocked(db.qQRequest.findUnique).mockResolvedValueOnce({
+      id: 12,
+      flag: 'flag-done',
+      instanceId: 1,
+      status: 'approved',
+      type: 'friend',
+      userId: '20002',
+    } as any)
+
+    const msg = createMessage()
+    await handler.execute(msg, ['flag-done'], 'approve')
+
+    expect(mockContext.replyTG).toHaveBeenCalledWith(
+      '777777',
+      expect.stringContaining('已处理'),
       undefined,
     )
   })
@@ -137,6 +194,27 @@ describe('requestManagementCommandHandler', () => {
     expect(mockContext.replyTG).toHaveBeenCalledWith(
       '777777',
       expect.stringContaining('已同意好友申请'),
+      undefined,
+    )
+  })
+
+  it('handles group approve errors', async () => {
+    vi.mocked(db.qQRequest.findUnique).mockResolvedValueOnce({
+      id: 13,
+      flag: 'flag-group-missing',
+      instanceId: 1,
+      status: 'pending',
+      type: 'group',
+      userId: '20003',
+      subType: null,
+    } as any)
+
+    const msg = createMessage()
+    await handler.execute(msg, ['flag-group-missing'], 'approve')
+
+    expect(mockContext.replyTG).toHaveBeenCalledWith(
+      '777777',
+      expect.stringContaining('批准失败'),
       undefined,
     )
   })
@@ -170,6 +248,29 @@ describe('requestManagementCommandHandler', () => {
     )
   })
 
+  it('rejects a friend request with reason', async () => {
+    vi.mocked(db.qQRequest.findUnique).mockResolvedValueOnce({
+      id: 14,
+      flag: 'flag-friend-reject',
+      instanceId: 1,
+      status: 'pending',
+      type: 'friend',
+      userId: '30003',
+    } as any)
+    vi.mocked(db.qQRequest.update).mockResolvedValueOnce({} as any)
+
+    const msg = createMessage()
+    await handler.execute(msg, ['flag-friend-reject', 'nope'], 'reject')
+
+    expect(mockContext.qqClient.handleFriendRequest).toHaveBeenCalledWith('flag-friend-reject', false, 'nope')
+    expect(db.qQRequest.update).toHaveBeenCalled()
+    expect(mockContext.replyTG).toHaveBeenCalledWith(
+      '777777',
+      expect.stringContaining('理由：nope'),
+      undefined,
+    )
+  })
+
   it('shows empty request stats', async () => {
     vi.mocked(db.qQRequest.groupBy).mockResolvedValueOnce([] as any)
 
@@ -183,6 +284,21 @@ describe('requestManagementCommandHandler', () => {
     )
   })
 
+  it('shows request stats summary', async () => {
+    vi.mocked(db.qQRequest.groupBy).mockResolvedValueOnce([
+      { type: 'friend', status: 'approved', _count: { id: 2 } },
+      { type: 'friend', status: 'pending', _count: { id: 1 } },
+      { type: 'group', status: 'rejected', _count: { id: 3 } },
+    ] as any)
+
+    const msg = createMessage()
+    await handler.execute(msg, ['today'], 'reqstats')
+
+    const replyText = vi.mocked(mockContext.replyTG).mock.calls.at(-1)?.[1] as string
+    expect(replyText).toContain('好友申请')
+    expect(replyText).toContain('加群申请')
+  })
+
   it('handles approveall when no requests', async () => {
     vi.mocked(db.qQRequest.findMany).mockResolvedValueOnce([])
 
@@ -194,5 +310,34 @@ describe('requestManagementCommandHandler', () => {
       expect.stringContaining('没有待处理的请求'),
       undefined,
     )
+  })
+
+  it('approves pending requests in batch with failures', async () => {
+    vi.mocked(db.qQRequest.findMany).mockResolvedValueOnce([
+      { id: 20, flag: 'flag-friend', type: 'friend' },
+      { id: 21, flag: 'flag-group', type: 'group', subType: null },
+    ] as any)
+    vi.mocked(db.qQRequest.update).mockResolvedValue({} as any)
+
+    const msg = createMessage()
+    await handler.execute(msg, [], 'approveall')
+
+    const replyText = vi.mocked(mockContext.replyTG).mock.calls.at(-1)?.[1] as string
+    expect(replyText).toContain('成功：1')
+    expect(replyText).toContain('失败：1')
+  })
+
+  it('rejects pending requests in batch with default reason', async () => {
+    vi.mocked(db.qQRequest.findMany).mockResolvedValueOnce([
+      { id: 30, flag: 'flag-friend', type: 'friend' },
+    ] as any)
+    vi.mocked(db.qQRequest.update).mockResolvedValue({} as any)
+
+    const msg = createMessage()
+    await handler.execute(msg, [], 'rejectall')
+
+    expect(mockContext.qqClient.handleFriendRequest).toHaveBeenCalledWith('flag-friend', false, '批量拒绝')
+    const replyText = vi.mocked(mockContext.replyTG).mock.calls.at(-1)?.[1] as string
+    expect(replyText).toContain('理由：批量拒绝')
   })
 })

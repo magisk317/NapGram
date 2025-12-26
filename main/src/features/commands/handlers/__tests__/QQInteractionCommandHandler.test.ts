@@ -286,4 +286,123 @@ describe('qQInteractionCommandHandler', () => {
       )
     })
   })
+
+  describe('/poke command extras', () => {
+    it('prefers sendGroupPoke when available', async () => {
+      const qqClient = mockQQClient as any
+      qqClient.sendGroupPoke = vi.fn().mockResolvedValue(undefined)
+
+      const msg = createMessage('/poke 123456', '999999', '777777')
+      await handler.execute(msg, ['123456'], 'poke')
+
+      expect(qqClient.sendGroupPoke).toHaveBeenCalledWith('888888', '123456')
+      expect(mockQQClient.callApi).not.toHaveBeenCalled()
+    })
+
+    it('reports unsupported poke when no API is available', async () => {
+      const qqClient = mockQQClient as any
+      qqClient.callApi = undefined
+
+      const msg = createMessage('/poke 123456', '999999', '777777')
+      await handler.execute(msg, ['123456'], 'poke')
+
+      expect(mockContext.replyTG).toHaveBeenCalledWith(
+        '777777',
+        expect.stringContaining('不支持戳一戳'),
+        undefined,
+      )
+    })
+  })
+
+  describe('/like command', () => {
+    it('reports unsupported like', async () => {
+      const qqClient = mockQQClient as any
+      qqClient.sendLike = undefined
+
+      const msg = createMessage('/like 123456', '999999', '777777')
+      await handler.execute(msg, ['123456'], 'like')
+
+      expect(mockContext.replyTG).toHaveBeenCalledWith(
+        '777777',
+        expect.stringContaining('不支持点赞'),
+        undefined,
+      )
+    })
+
+    it('parses target and times in any order', async () => {
+      const qqClient = mockQQClient as any
+      qqClient.sendLike = vi.fn().mockResolvedValue(undefined)
+
+      const msg = createMessage('/like 3 123456', '999999', '777777')
+      await handler.execute(msg, ['3', '123456'], 'like')
+
+      expect(qqClient.sendLike).toHaveBeenCalledWith('123456', 3)
+      expect(mockContext.replyTG).toHaveBeenCalledWith(
+        '777777',
+        expect.stringContaining('点赞 x3'),
+        undefined,
+      )
+    })
+
+    it('parses times from reply message', async () => {
+      const qqClient = mockQQClient as any
+      qqClient.sendLike = vi.fn().mockResolvedValue(undefined)
+
+      const msg = createMessage('/like 2', '999999', '777777')
+      msg.content.push({
+        type: 'reply',
+        data: { senderId: '424242' },
+      })
+
+      await handler.execute(msg, ['2'], 'like')
+
+      expect(qqClient.sendLike).toHaveBeenCalledWith('424242', 2)
+    })
+  })
+
+  describe('/honor command', () => {
+    it('rejects invalid honor type', async () => {
+      const msg = createMessage('/honor nope', '999999', '777777')
+      await handler.execute(msg, ['nope'], 'honor')
+
+      expect(mockContext.replyTG).toHaveBeenCalledWith(
+        '777777',
+        expect.stringContaining('无效的类型'),
+        undefined,
+      )
+    })
+
+    it('reports unsupported honor API', async () => {
+      const qqClient = mockQQClient as any
+      qqClient.getGroupHonorInfo = undefined
+
+      const msg = createMessage('/honor', '999999', '777777')
+      await handler.execute(msg, [], 'honor')
+
+      expect(mockContext.replyTG).toHaveBeenCalledWith(
+        '777777',
+        expect.stringContaining('不支持群荣誉'),
+        undefined,
+      )
+    })
+
+    it('formats honor list for all types', async () => {
+      const qqClient = mockQQClient as any
+      qqClient.getGroupHonorInfo = vi.fn().mockResolvedValue({
+        talkative_list: [{ desc: 'TopUser', user_id: '10001' }],
+        performer_list: [],
+        legend_list: [],
+        strong_newbie_list: [],
+        emotion_list: [],
+      })
+
+      const msg = createMessage('/honor all', '999999', '777777')
+      await handler.execute(msg, ['all'], 'honor')
+
+      const replyText = vi.mocked(mockContext.replyTG).mock.calls.at(-1)?.[1]
+      expect(replyText).toContain('群荣誉榜单')
+      expect(replyText).toContain('龙王')
+      expect(replyText).toContain('TopUser')
+    })
+  })
 })
