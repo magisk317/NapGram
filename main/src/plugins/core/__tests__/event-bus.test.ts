@@ -26,6 +26,7 @@ describe('EventBus', () => {
         expect(eventBus.getSubscriptionCount('message')).toBe(1)
 
         subscription.unsubscribe()
+        subscription.unsubscribe()
         expect(eventBus.getSubscriptionCount('message')).toBe(0)
     })
 
@@ -85,6 +86,27 @@ describe('EventBus', () => {
         eventBus.publishSync('message', { id: '1' } as any)
         // publishSync is async internally but we can check the stats eventually or use a mock with delay
         expect(eventBus.getStats().published).toBe(1)
+    })
+
+    test('publishSync logs errors from publish', async () => {
+        vi.resetModules()
+        const loggerInstance = {
+            debug: vi.fn(),
+            info: vi.fn(),
+            error: vi.fn(),
+            warn: vi.fn(),
+        }
+        vi.mocked(getLogger).mockReturnValue(loggerInstance as any)
+
+        const { EventBus: FreshEventBus } = await import('../event-bus')
+        const freshBus = new FreshEventBus()
+        vi.spyOn(freshBus, 'publish').mockRejectedValueOnce(new Error('boom'))
+
+        freshBus.publishSync('message', { id: '1' } as any)
+
+        await Promise.resolve()
+
+        expect(loggerInstance.error).toHaveBeenCalled()
     })
 
     test('removePluginSubscriptions', () => {

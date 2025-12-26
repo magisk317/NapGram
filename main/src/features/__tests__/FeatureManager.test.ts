@@ -76,6 +76,20 @@ describe('FeatureManager', () => {
         expect(mockDestroy).toHaveBeenCalledTimes(4)
     })
 
+    it('should skip non-function destroy handlers', async () => {
+        const manager = new FeatureManager(mockInstance, mockTgBot, mockQqClient)
+        await manager.initialize()
+
+        const mockDestroy = vi.fn()
+        manager.media!.destroy = mockDestroy
+        manager.commands!.destroy = 'noop' as any
+        manager.forward!.destroy = undefined as any
+        manager.recall!.destroy = mockDestroy
+
+        await manager.destroy()
+        expect(mockDestroy).toHaveBeenCalledTimes(2)
+    })
+
     it('should handle errors during destroy', async () => {
         const manager = new FeatureManager(mockInstance, mockTgBot, mockQqClient)
         await manager.initialize()

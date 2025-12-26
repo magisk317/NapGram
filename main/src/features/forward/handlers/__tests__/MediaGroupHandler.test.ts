@@ -86,6 +86,53 @@ describe('mediaGroupHandler', () => {
     expect(texts.some(text => text.includes('caption here'))).toBe(true)
   })
 
+  it('flushes without nickname header when disabled', async () => {
+    const nicknameModeOff = vi.fn().mockReturnValue('00')
+    vi.mocked(messageConverter.fromTelegram).mockImplementation((msg: any) => ({
+      id: String(msg.id),
+      platform: 'telegram',
+      sender: { id: '1', name: msg.sender?.displayName || 'Alice' },
+      chat: { id: String(msg.chat.id), type: 'group' },
+      content: [{ type: 'image', data: { url: `img-${msg.id}` } }],
+      timestamp: 1,
+    }) as UnifiedMessage)
+    vi.mocked(messageConverter.toNapCat).mockImplementation(async (msg: any) => {
+      return msg.content.map((c: any) => ({ type: c.type, data: c.data }))
+    })
+
+    const handler = new MediaGroupHandler(qqClient as any, prepareMediaForQQ, nicknameModeOff)
+    const pair = { qqRoomId: '888' }
+
+    const msg1: any = {
+      id: 10,
+      text: '',
+      date: new Date('2025-01-01T00:00:00Z'),
+      sender: { id: 1, displayName: 'Alice' },
+      chat: { id: 100 },
+      mediaGroupId: 'g1',
+    }
+    const msg2: any = {
+      id: 11,
+      text: '',
+      date: new Date('2025-01-01T00:00:01Z'),
+      sender: { id: 1, displayName: 'Alice' },
+      chat: { id: 100 },
+      mediaGroupId: 'g1',
+    }
+
+    await handler.handleMediaGroup(msg1, pair)
+    await handler.handleMediaGroup(msg2, pair)
+
+    await vi.runAllTimersAsync()
+
+    const sentMsg = vi.mocked(qqClient.sendMessage).mock.calls[0][1] as any
+    const texts = (sentMsg.content as any[])
+      .filter(seg => seg.type === 'text')
+      .map(seg => seg.data.text)
+
+    expect(texts).toHaveLength(0)
+  })
+
   it('handles flush error gracefully', async () => {
     vi.mocked(messageConverter.fromTelegram).mockReturnValue({
       id: '1',

@@ -73,6 +73,13 @@ describe('AudioConverter', () => {
         expect(transcodeSpy).toHaveBeenCalledWith(file.data, file.fileName, true)
     })
 
+    it('convertAudioToOgg should return undefined when transcode fails', async () => {
+        const file = { fileName: 'test.mp3', data: Buffer.from('data') }
+        vi.spyOn(converter, 'transcodeToOgg').mockResolvedValueOnce(undefined)
+        const result = await converter.convertAudioToOgg(file)
+        expect(result).toBeUndefined()
+    })
+
     it('ensureOggFileName should work correctly', () => {
         expect(converter.ensureOggFileName('test.mp3')).toBe('test.ogg')
         expect(converter.ensureOggFileName('')).toBe('audio.ogg')

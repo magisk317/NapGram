@@ -153,6 +153,53 @@ describe('qqMessageHandler', () => {
     expect(instance.qqClient.sendMessage).toHaveBeenCalledTimes(2)
   })
 
+  it('publishes private channel events with trimmed text', async () => {
+    modeService.isQQToTGEnabled.mockReturnValue(true)
+    forwardMap.findByQQ.mockReturnValue({
+      instanceId: 1,
+      qqRoomId: '222',
+      tgChatId: '333',
+      tgThreadId: null,
+    })
+    instance.tgBot.getChat.mockResolvedValue({ id: 333 })
+    replyResolver.resolveQQReply.mockResolvedValue(undefined)
+    telegramSender.sendToTelegram.mockResolvedValue({ id: 999 })
+    instance.qqClient.sendMessage.mockResolvedValue({ messageId: 'm1' })
+
+    const handler = new QQMessageHandler(
+      instance as any,
+      forwardMap as any,
+      modeService as any,
+      mapper as any,
+      replyResolver as any,
+      telegramSender as any,
+    )
+
+    const msg: UnifiedMessage = {
+      id: '123',
+      platform: 'qq',
+      sender: { id: '111', name: 'Tester' },
+      chat: { id: '222', type: 'private' },
+      content: [
+        { type: 'text', data: { text: 'hello' } },
+        { type: 'image', data: { url: 'img' } },
+        { type: 'text', data: { text: 'world' } },
+      ],
+      timestamp: Date.now(),
+    }
+
+    await handler.handle(msg)
+
+    const event = publishMessageMock.mock.calls[0][0]
+    expect(event.channelType).toBe('private')
+    expect(event.message.text).toBe('hello world')
+
+    await event.reply('ok')
+    await event.send({ custom: true })
+
+    expect(instance.qqClient.sendMessage).toHaveBeenCalledTimes(2)
+  })
+
   it('handles error during forwarding gracefully', async () => {
     modeService.isQQToTGEnabled.mockReturnValue(true)
     forwardMap.findByQQ.mockReturnValue({

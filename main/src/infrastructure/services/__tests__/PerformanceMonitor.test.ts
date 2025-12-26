@@ -107,4 +107,19 @@ describe('PerformanceMonitor', () => {
         expect(performanceMonitor).toBeDefined()
         expect(performanceMonitor).toBeInstanceOf(PerformanceMonitor)
     })
+
+    test('interval updates memory usage and prints stats', async () => {
+        vi.resetModules()
+        const module = await import('../PerformanceMonitor')
+        const monitor = module.performanceMonitor
+
+        const updateSpy = vi.spyOn(monitor, 'updateMemoryUsage')
+        const printSpy = vi.spyOn(monitor, 'printStats')
+
+        await vi.advanceTimersByTimeAsync(300000)
+
+        expect(updateSpy).toHaveBeenCalled()
+        expect(printSpy).toHaveBeenCalled()
+        vi.clearAllTimers()
+    })
 })

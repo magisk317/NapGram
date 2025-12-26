@@ -90,6 +90,47 @@ describe('JsonCardConverter', () => {
     })
   })
 
+  it('uses generic miniapp label when app title is missing', () => {
+    const payload = {
+      meta: {
+        detail: {
+          desc: 'Desc',
+          url: 'https://example.com',
+        },
+      },
+    }
+    const result = converter.convertJsonCard({ data: JSON.stringify(payload) })
+
+    expect(result).toHaveLength(1)
+    expect(result?.[0].type).toBe('text')
+    expect(result?.[0].data.text).toContain('[QQ小程序]')
+  })
+
+  it('builds location content from lowercase location meta', () => {
+    const payload = {
+      meta: {
+        location: {
+          latitude: '30',
+          longitude: '120',
+          name: 'Place',
+          address: 'Addr',
+        },
+      },
+    }
+    const result = converter.convertJsonCard({ data: payload })
+
+    expect(result).toHaveLength(1)
+    expect(result?.[0]).toEqual({
+      type: 'location',
+      data: {
+        latitude: 30,
+        longitude: 120,
+        title: 'Place',
+        address: 'Addr',
+      },
+    })
+  })
+
   it('handles url normalization and text truncation helpers', () => {
     const anyConverter = converter as any
 

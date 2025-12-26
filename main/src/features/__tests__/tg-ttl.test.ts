@@ -1,10 +1,29 @@
 import { Buffer } from 'node:buffer'
 import { describe, expect, it, vi } from 'vitest'
 
+const envMock = vi.hoisted(() => ({
+  TG_MEDIA_TTL_SECONDS: 10,
+  WEB_ENDPOINT: 'http://example.test',
+}))
+
+const loggerMocks = vi.hoisted(() => ({
+  info: vi.fn(),
+  warn: vi.fn(),
+  debug: vi.fn(),
+  error: vi.fn(),
+}))
+
+vi.mock('../../domain/models/env', () => ({
+  default: envMock,
+}))
+
+vi.mock('../../shared/logger', () => ({
+  getLogger: vi.fn(() => loggerMocks),
+}))
+
 describe('telegram media TTL', () => {
   it('adds ttlSeconds to media-group items when configured', async () => {
-    process.env.TG_MEDIA_TTL_SECONDS = '10'
-    vi.resetModules()
+    envMock.TG_MEDIA_TTL_SECONDS = 10
 
     const { MediaSender } = await import('../forward/senders/MediaSender')
     const { FileNormalizer } = await import('../forward/senders/FileNormalizer')

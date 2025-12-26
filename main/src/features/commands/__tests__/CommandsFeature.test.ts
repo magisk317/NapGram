@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { ThreadIdExtractor } from '../services/ThreadIdExtractor'
 // import { CommandsFeature } from '../CommandsFeature' -> Removed
 
 // Mock dependencies
@@ -250,9 +251,51 @@ describe('CommandsFeature', () => {
 
     it('reloads commands', async () => {
         const registry = (commandsFeature as any).registry
+        ;(commandsFeature as any).loadPluginCommands = vi.fn().mockResolvedValue(new Set())
         await commandsFeature.reloadCommands()
         expect(registry.clear).toHaveBeenCalled()
         expect(registry.register).toHaveBeenCalled()
+    })
+
+    it('extracts mentioned bot usernames from parts and entities', () => {
+        const parts = ['@MyBot', 'hello@OtherBot', 'notbot', '@Alice', '', '@']
+        const tgMsg: any = {
+            entities: [
+                { kind: 'mention', text: '@ThirdBot' },
+                { kind: 'bot_command', text: '/help@FourthBot' },
+                { kind: 'mention', text: '@Alice' },
+            ],
+        }
+
+        const mentioned = (commandsFeature as any).extractMentionedBotUsernames(tgMsg, parts)
+
+        expect(Array.from(mentioned).sort()).toEqual(['fourthbot', 'mybot', 'otherbot', 'thirdbot'])
+    })
+
+    it('extracts thread id from args or raw metadata', () => {
+        const msgWithRaw: any = { metadata: { raw: { replyTo: { replyToTopId: 99 } } } }
+
+        const fromArgs = (commandsFeature as any).extractThreadId(msgWithRaw, ['cmd', '123'])
+        expect(fromArgs).toBe(123)
+
+        vi.mocked(ThreadIdExtractor).mockImplementationOnce(function () {
+            this.extractFromRaw = vi.fn().mockReturnValue(456)
+        } as any)
+        const fromRaw = (commandsFeature as any).extractThreadId(msgWithRaw, ['cmd'])
+        expect(fromRaw).toBe(456)
+
+        const noThread = (commandsFeature as any).extractThreadId({ metadata: {} }, ['cmd'])
+        expect(noThread).toBeUndefined()
+    })
+
+    it('destroys and clears listeners', () => {
+        const registry = (commandsFeature as any).registry
+
+        commandsFeature.destroy()
+
+        expect(mockTgBot.removeNewMessageEventHandler).toHaveBeenCalledWith(expect.any(Function))
+        expect(mockQqClient.off).toHaveBeenCalledWith('message', expect.any(Function))
+        expect(registry.clear).toHaveBeenCalled()
     })
 
     describe('TG command handling', () => {
@@ -288,6 +331,96 @@ describe('CommandsFeature', () => {
 
             expect(result).toBe(true)
             expect(mockCmd.handler).toHaveBeenCalled()
+        })
+
+        it('returns false when command handler throws', async () => {
+            const registry = (commandsFeature as any).registry
+            const checker = (commandsFeature as any).permissionChecker
+            const handler = mockTgBot.addNewMessageEventHandler.mock.calls[0][0]
+            const mockCmd = { name: 'help', handler: vi.fn().mockRejectedValue(new Error('boom')), adminOnly: false }
+
+            registry.get.mockReturnValue(mockCmd)
+            registry.prefix = '/'
+            checker.isAdmin.mockReturnValue(true)
+
+            const msg = {
+                id: 99999,
+                text: '/help',
+                chat: { id: 123 },
+                sender: { id: 456, displayName: 'User', isBot: false },
+            }
+            const result = await handler(msg)
+
+            expect(result).toBe(false)
+        })
+
+        it('publishes plugin event helpers for TG commands', async () => {
+            const registry = (commandsFeature as any).registry
+            const handler = mockTgBot.addNewMessageEventHandler.mock.calls[0][0]
+            const mockCmd = { name: 'help', handler: vi.fn(), adminOnly: false }
+            registry.get.mockReturnValue(mockCmd)
+            registry.prefix = '/'
+
+            let capturedEvent: any
+            const publishMessage = vi.fn((event) => {
+                capturedEvent = event
+            })
+            const eventPublisherModule = await import('../../../plugins/core/event-publisher')
+            vi.mocked(eventPublisherModule.getEventPublisher).mockReturnValue({ publishMessage })
+
+            const sendMessage = vi.fn().mockResolvedValue({ id: 321 })
+            const deleteMessages = vi.fn().mockResolvedValue(undefined)
+            mockTgBot.getChat.mockResolvedValue({ sendMessage, deleteMessages })
+
+            vi.mocked(ThreadIdExtractor).mockImplementationOnce(function () {
+                this.extractFromRaw = vi.fn().mockReturnValue(888)
+            } as any)
+
+            const result = await handler({
+                id: 99999,
+                text: '/help',
+                chat: { id: 123 },
+                sender: { id: 456, displayName: 'User', isBot: false },
+            })
+
+            expect(result).toBe(true)
+            expect(publishMessage).toHaveBeenCalled()
+
+            await capturedEvent.reply([
+                null,
+                { type: 'at', data: {} },
+                { type: 'text', data: { text: 'hi' } },
+                { type: 'unknown' },
+            ])
+            await capturedEvent.send('plain')
+            await capturedEvent.recall()
+
+            expect(sendMessage).toHaveBeenCalledWith('@hi', expect.objectContaining({ replyTo: 99999, messageThreadId: 888 }))
+            expect(sendMessage).toHaveBeenCalledWith('plain', expect.objectContaining({ messageThreadId: 888 }))
+            expect(deleteMessages).toHaveBeenCalledWith([99999])
+        })
+
+        it('swallows publishMessage failures', async () => {
+            const registry = (commandsFeature as any).registry
+            const handler = mockTgBot.addNewMessageEventHandler.mock.calls[0][0]
+            const mockCmd = { name: 'help', handler: vi.fn(), adminOnly: false }
+            registry.get.mockReturnValue(mockCmd)
+            registry.prefix = '/'
+
+            const publishMessage = vi.fn(() => {
+                throw new Error('boom')
+            })
+            const eventPublisherModule = await import('../../../plugins/core/event-publisher')
+            vi.mocked(eventPublisherModule.getEventPublisher).mockReturnValue({ publishMessage })
+
+            const result = await handler({
+                id: 99999,
+                text: '/help',
+                chat: { id: 123 },
+                sender: { id: 456, displayName: 'User', isBot: false },
+            })
+
+            expect(result).toBe(true)
         })
 
         it('denies admin command for non-admin', async () => {
@@ -439,6 +572,61 @@ describe('CommandsFeature', () => {
 
             expect(command.handler).toHaveBeenCalled()
             expect(mockQqClient.recallMessage).toHaveBeenCalledWith('qq-1')
+        })
+
+        it('logs when QQ recall fails', async () => {
+            const command = { name: 'rm', handler: vi.fn().mockResolvedValue(undefined) }
+            const registry = (commandsFeature as any).registry
+            registry.get.mockReturnValue(command)
+            registry.prefix = '/'
+            mockQqClient.recallMessage.mockRejectedValue(new Error('fail'))
+
+            await (commandsFeature as any).handleQqMessage({
+                id: 'qq-1',
+                platform: 'qq',
+                sender: { id: '123', name: 'User' },
+                chat: { id: '777', type: 'group' },
+                content: [{ type: 'text', data: { text: '/rm' } }],
+                timestamp: Date.now(),
+            })
+
+            expect(mockLogger.warn).toHaveBeenCalledWith(expect.any(Error), 'Failed to recall QQ command message')
+        })
+
+        it('ignores QQ messages without text content', async () => {
+            const registry = (commandsFeature as any).registry
+            registry.prefix = '/'
+
+            await (commandsFeature as any).handleQqMessage({
+                id: 'qq-2',
+                platform: 'qq',
+                sender: { id: '123', name: 'User' },
+                chat: { id: '777', type: 'group' },
+                content: [{ type: 'image', data: { url: 'u' } }],
+                timestamp: Date.now(),
+            })
+
+            expect(registry.get).not.toHaveBeenCalled()
+        })
+
+        it('logs and swallows errors from QQ command handlers', async () => {
+            const registry = (commandsFeature as any).registry
+            registry.prefix = '/'
+            registry.get.mockReturnValue({
+                name: 'help',
+                handler: vi.fn().mockRejectedValue(new Error('boom')),
+            })
+
+            await (commandsFeature as any).handleQqMessage({
+                id: 'qq-3',
+                platform: 'qq',
+                sender: { id: '123', name: 'User' },
+                chat: { id: '777', type: 'group' },
+                content: [{ type: 'text', data: { text: '/help' } }],
+                timestamp: Date.now(),
+            })
+
+            expect(registry.get).toHaveBeenCalled()
         })
     })
 
