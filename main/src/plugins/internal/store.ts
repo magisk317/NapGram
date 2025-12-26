@@ -215,3 +215,10 @@ export async function removePluginConfig(id: string) {
   await fs.writeFile(configPath, YAML.stringify({ plugins: config.plugins }), 'utf8')
   return { removed: true, id: pluginId, path: configPath }
 }
+
+export const __testing = {
+  resolveDataDir,
+  parseConfig,
+  inferIdFromModule,
+  sanitizeId,
+}

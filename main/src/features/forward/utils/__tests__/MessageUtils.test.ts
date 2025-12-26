@@ -61,6 +61,20 @@ describe('messageUtils', () => {
             expect(qqClient.getGroupMemberInfo).not.toHaveBeenCalled()
         })
 
+        it('skips at mentions with missing userId', async () => {
+            const msg: any = {
+                chat: { type: 'group', id: '456' },
+                content: [{ type: 'at', data: {} }],
+            }
+            const qqClient: any = {
+                getGroupMemberInfo: vi.fn(),
+            }
+
+            await MessageUtils.populateAtDisplayNames(msg, qqClient)
+
+            expect(qqClient.getGroupMemberInfo).not.toHaveBeenCalled()
+        })
+
         it('uses cached names for repeated mentions', async () => {
             const msg: any = {
                 chat: { type: 'group', id: '789' },
@@ -159,6 +173,20 @@ describe('messageUtils', () => {
             await MessageUtils.populateAtDisplayNames(msg, qqClient)
 
             expect(msg.content[0].data.userName).toBe('666')
+        })
+
+        it('falls back to userId when error occurs and userName is empty', async () => {
+            const msg: any = {
+                chat: { type: 'group', id: '789' },
+                content: [{ type: 'at', data: { userId: '777', userName: '   ' } }],
+            }
+            const qqClient: any = {
+                getGroupMemberInfo: vi.fn().mockRejectedValue(new Error('Network error')),
+            }
+
+            await MessageUtils.populateAtDisplayNames(msg, qqClient)
+
+            expect(msg.content[0].data.userName).toBe('777')
         })
     })
 

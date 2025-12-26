@@ -163,6 +163,18 @@ describe('flagsCommandHandler', () => {
     )
   })
 
+  it('reuses existing flag store when enabling', async () => {
+    vi.mocked(mockContext.permissionChecker.isAdmin).mockReturnValue(true)
+    const store = new Map<string, boolean>([['debug_mode', false]])
+    ;(mockContext.instance as any)._flagsStore = store
+
+    const msg = createMessage('telegram')
+    await handler.execute(msg, ['enable', 'debug_mode'])
+
+    expect((mockContext.instance as any)._flagsStore).toBe(store)
+    expect(store.get('debug_mode')).toBe(true)
+  })
+
   it('lists flags when using list command', async () => {
     vi.mocked(db.$queryRaw).mockResolvedValueOnce([
       { key: 'flag_a', value: true },

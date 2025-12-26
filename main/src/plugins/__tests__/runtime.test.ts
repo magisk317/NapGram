@@ -73,6 +73,27 @@ describe('PluginRuntime', () => {
     expect(config.loadPluginSpecs).toHaveBeenCalled()
   })
 
+  test('should resolve instances through API helpers', async () => {
+    const runtimeStub = createRuntimeStub()
+    let capturedApis: any
+    vi.spyOn(coreRuntime, 'getGlobalRuntime').mockImplementation((options?: any) => {
+      if (options?.apis) {
+        capturedApis = options.apis
+      }
+      return runtimeStub as any
+    })
+    vi.spyOn(config, 'loadPluginSpecs').mockResolvedValue([])
+
+    vi.mocked(Instance.instances).push({ id: 1, name: 'instance-1', qqClient: {}, tgBot: {} } as any)
+
+    await PluginRuntime.start()
+
+    const instances = await capturedApis.instance.list()
+    expect(instances).toHaveLength(1)
+
+    await expect(capturedApis.user.isFriend({ instanceId: 1, userId: 'qq:u:123' })).resolves.toBe(false)
+  })
+
   test('should start and stop correctly', async () => {
     const runtimeStub = createRuntimeStub()
     const getRuntimeSpy = vi.spyOn(coreRuntime, 'getGlobalRuntime').mockReturnValue(runtimeStub as any)
@@ -113,6 +134,7 @@ describe('PluginRuntime', () => {
     vi.mocked(Instance.instances).push(
       { id: 1, featureManager: { commands: { reloadCommands: reloadOk } } } as any,
       { id: 2, featureManager: { commands: { reloadCommands: reloadFail } } } as any,
+      { id: 3, featureManager: { commands: {} } } as any,
     )
 
     await expect(PluginRuntime.reload()).resolves.toBeDefined()
@@ -156,6 +178,11 @@ describe('PluginRuntime', () => {
         enabled: true,
         config: {},
       },
+      {
+        id: 'no-config',
+        module: './no-config',
+        enabled: true,
+      },
     ])
 
     await PluginRuntime.start()
@@ -165,6 +192,10 @@ describe('PluginRuntime', () => {
     const result = await PluginRuntime.reloadPlugin('test-plugin')
     expect(result).toEqual({ id: 'test-plugin', success: true })
     expect(runtimeStub.reloadPlugin).toHaveBeenCalledWith('test-plugin', {})
+
+    const noConfigResult = await PluginRuntime.reloadPlugin('no-config')
+    expect(noConfigResult).toEqual({ id: 'test-plugin', success: true })
+    expect(runtimeStub.reloadPlugin).toHaveBeenCalledWith('no-config', {})
 
     // Test with missing pluginId
     await expect(PluginRuntime.reloadPlugin('')).rejects.toThrow('Missing pluginId')
