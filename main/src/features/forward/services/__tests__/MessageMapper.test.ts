@@ -11,108 +11,130 @@ vi.mock('../../../../domain/models/db', () => ({
   },
 }))
 
-describe('forwardMapper', () => {
+describe('ForwardMapper', () => {
   let mapper: ForwardMapper
 
   beforeEach(() => {
     mapper = new ForwardMapper()
     vi.clearAllMocks()
+    vi.unstubAllEnvs()
+  })
+
+  describe('saveTgToQqMapping', () => {
+    it('skips persistence by default in tests', async () => {
+      const unified: any = { content: [] }
+      const tgMsg: any = { id: 100 }
+      const receipt: any = { messageId: 200 }
+      const pair: any = { qqRoomId: BigInt(1000), tgChatId: 2000, instanceId: 1 }
+
+      await mapper.saveTgToQqMapping(unified, tgMsg, receipt, pair)
+      const db = (await import('../../../../domain/models/db')).default
+      expect(db.message.create).not.toHaveBeenCalled()
+    })
+
+    it('saves mapping when stubbed env bypasses skip', async () => {
+      vi.stubEnv('NODE_ENV', 'production')
+      vi.stubEnv('VITEST', '')
+
+      const unified: any = { content: [{ type: 'text', data: { text: 'Hello' } }] }
+      const tgMsg: any = { id: 100, sender: { id: 123 } }
+      const receipt: any = { messageId: 200 }
+      const pair: any = { qqRoomId: BigInt(1000), tgChatId: 2000, instanceId: 1 }
+
+      await mapper.saveTgToQqMapping(unified, tgMsg, receipt, pair)
+      const db = (await import('../../../../domain/models/db')).default
+      expect(db.message.create).toHaveBeenCalledWith(expect.objectContaining({
+        data: expect.objectContaining({
+          seq: 200,
+          tgMsgId: 100,
+        })
+      }))
+    })
+
+    it('handles database error in saveTgToQqMapping', async () => {
+      vi.stubEnv('NODE_ENV', 'production')
+      vi.stubEnv('VITEST', '')
+      const db = (await import('../../../../domain/models/db')).default
+      db.message.create.mockRejectedValue(new Error('DB Error'))
+
+      const unified: any = { content: [] }
+      const tgMsg: any = { id: 100 }
+      const receipt: any = { messageId: 200 }
+      const pair: any = { qqRoomId: BigInt(1000), tgChatId: 2000, instanceId: 1 }
+
+      await mapper.saveTgToQqMapping(unified, tgMsg, receipt, pair)
+      // Should not throw
+    })
   })
 
   describe('saveMessage', () => {
-    it('saves QQ to TG message mapping', async () => {
+    it('saves message mapping when bypass enabled', async () => {
+      vi.stubEnv('NODE_ENV', 'production')
+      vi.stubEnv('VITEST', '')
+
       const qqMsg: any = {
         timestamp: Date.now(),
         sender: { id: '12345' },
-        metadata: { raw: { message_id: 1, seq: 100, rand: 200 } },
+        metadata: { raw: { message_id: 1 } },
         content: [{ type: 'text', data: { text: 'Hello' } }],
       }
       const tgMsg: any = { id: 500, sender: { id: '67890' } }
 
       await mapper.saveMessage(qqMsg, tgMsg, 1, BigInt(1000), BigInt(2000))
-
-      // In test environment, should not actually save due to shouldSkipPersistence
-      const db = await import('../../../../domain/models/db')
-      expect(db.default.message.create).not.toHaveBeenCalled()
-    })
-  })
-
-  describe('saveTgToQqMapping', () => {
-    it('handles missing messageId in receipt', async () => {
-      const unified: any = {
-        content: [{ type: 'text', data: { text: 'Test' } }],
-      }
-      const tgMsg: any = { id: 100 }
-      const receipt: any = {} // No messageId
-      const pair: any = { qqRoomId: BigInt(1000), tgChatId: 2000, instanceId: 1 }
-
-      await mapper.saveTgToQqMapping(unified, tgMsg, receipt, pair)
-
-      // Should not throw, just log a warning
-      const db = await import('../../../../domain/models/db')
-      expect(db.default.message.create).not.toHaveBeenCalled()
+      const db = (await import('../../../../domain/models/db')).default
+      expect(db.message.create).toHaveBeenCalled()
     })
 
-    it('extracts messageId from different receipt structures', async () => {
-      const unified: any = {
-        content: [{ type: 'text', data: { text: 'Test' } }],
-      }
-      const tgMsg: any = { id: 100, sender: { id: '123' } }
-      const pair: any = { qqRoomId: BigInt(1000), tgChatId: 2000, instanceId: 1 }
+    it('handles missing metadata in saveMessage', async () => {
+      vi.stubEnv('NODE_ENV', 'production')
+      vi.stubEnv('VITEST', '')
+      const qqMsg: any = { content: [], timestamp: Date.now() }
+      const tgMsg: any = { id: 500 }
 
-      // Test with receipt.messageId
-      await mapper.saveTgToQqMapping(unified, tgMsg, { messageId: 200 }, pair)
-
-      // Test with receipt.data.message_id
-      await mapper.saveTgToQqMapping(unified, tgMsg, { data: { message_id: 300 } }, pair)
-
-      // Test with receipt.id
-      await mapper.saveTgToQqMapping(unified, tgMsg, { id: 400 }, pair)
-
-      // In test env, should skip persistence
-      const db = await import('../../../../domain/models/db')
-      expect(db.default.message.create).not.toHaveBeenCalled()
+      await mapper.saveMessage(qqMsg, tgMsg, 1, BigInt(1000), BigInt(2000))
+      const db = (await import('../../../../domain/models/db')).default
+      expect(db.message.create).toHaveBeenCalledWith(expect.objectContaining({
+        data: expect.objectContaining({ seq: 0 })
+      }))
     })
   })
 
   describe('findTgMsgId', () => {
-    it('returns undefined for invalid qqMsgId', async () => {
-      const result = await mapper.findTgMsgId(1, BigInt(1000), 'invalid')
-
-      expect(result).toBeUndefined()
-    })
-
-    it('attempts to find by seq and then by sender', async () => {
-      const db = await import('../../../../domain/models/db')
-      vi.mocked(db.default.message.findFirst).mockResolvedValue(null)
+    it('returns found msgId by seq', async () => {
+      const db = (await import('../../../../domain/models/db')).default
+      db.message.findFirst.mockResolvedValue({ tgMsgId: 999 })
 
       const result = await mapper.findTgMsgId(1, BigInt(1000), '123')
+      expect(result).toBe(999)
+      expect(db.message.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({ seq: 123 })
+      }))
+    })
 
-      expect(result).toBeUndefined()
-      // In test mode, will attempt seq but skip sender lookup
+    it('returns found msgId by sender when bypass enabled', async () => {
+      vi.stubEnv('NODE_ENV', 'production')
+      vi.stubEnv('VITEST', '')
+      const db = (await import('../../../../domain/models/db')).default
+      db.message.findFirst
+        .mockResolvedValueOnce(null) // No match by seq
+        .mockResolvedValueOnce({ tgMsgId: 888 }) // Match by sender
+
+      const result = await mapper.findTgMsgId(1, BigInt(1000), '456')
+      expect(result).toBe(888)
+      expect(db.message.findFirst).toHaveBeenCalledTimes(2)
     })
   })
 
   describe('findQqSource', () => {
-    it('returns undefined in test environment', async () => {
-      const result = await mapper.findQqSource(1, 1000, 500)
+    it('finds QQ source mapping when bypass enabled', async () => {
+      vi.stubEnv('NODE_ENV', 'production')
+      vi.stubEnv('VITEST', '')
+      const db = (await import('../../../../domain/models/db')).default
+      const mockResult = { seq: 123 }
+      db.message.findFirst.mockResolvedValue(mockResult)
 
-      expect(result).toBeUndefined()
-    })
-  })
-
-  describe('constructor', () => {
-    it('accepts custom contentRenderer', () => {
-      const customRenderer = vi.fn((content: any) => `[${content.type}]`)
-      const customMapper = new ForwardMapper(customRenderer)
-
-      expect(customMapper).toBeInstanceOf(ForwardMapper)
-    })
-
-    it('uses default renderer when not provided', () => {
-      const mapper = new ForwardMapper()
-
-      expect(mapper).toBeInstanceOf(ForwardMapper)
+      const result = await mapper.findQqSource(1, 2000, 100)
+      expect(result).toEqual(mockResult)
     })
   })
 })
