@@ -17,7 +17,7 @@ vi.mock('../../shared/logger', () => ({
   })),
 }))
 
-vi.mock('../builtin/ping-pong', () => ({
+vi.mock('../../../../packages/plugin-ping-pong/src/index', () => ({
   default: { id: 'ping-pong' }
 }))
 

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { MessageEvent, PluginContext } from '../../core/interfaces'
-import plugin from '../ping-pong'
+import type { MessageEvent, PluginContext } from '../core/interfaces'
+import plugin from '../../../../packages/plugin-ping-pong/src/index'
 
 describe('pingPongPlugin', () => {
     let mockContext: PluginContext

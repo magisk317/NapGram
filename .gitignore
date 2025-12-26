@@ -245,6 +245,8 @@ PublishScripts/
 !packages/plugin-refresh/**
 !packages/plugin-flags/
 !packages/plugin-flags/**
+!packages/plugin-ping-pong/
+!packages/plugin-ping-pong/**
 # Uncomment if necessary however generally it will be regenerated when needed
 #!**/[Pp]ackages/repositories.config
 # NuGet v3's project.json files produces more ignorable files

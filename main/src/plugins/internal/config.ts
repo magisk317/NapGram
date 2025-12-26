@@ -6,7 +6,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 import YAML from 'yaml'
 import env from '../../domain/models/env'
 import { getLogger } from '../../shared/logger'
-import builtinPingPong from '../builtin/ping-pong'
+import builtinPingPong from '../../../../packages/plugin-ping-pong/src/index'
 import { readBoolEnv, readStringEnv } from './env'
 import { getManagedPluginsConfigPath } from './store'
 
