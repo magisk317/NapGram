@@ -76,8 +76,8 @@ jobs:
 
       - name: Build web dist
         run: |
-          pnpm -C web install --no-frozen-lockfile
-          pnpm -C web run build
+          pnpm -C web install --no-frozen-lockfile --ignore-workspace
+          pnpm -C web --ignore-workspace run build
 
       - name: Prepare tag date
         run: echo "DATE=$(date -u +%Y%m%d)" >> "$GITHUB_ENV"
