@@ -1,19 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { PerformanceMonitor, performanceMonitor } from '../PerformanceMonitor'
 
-const { mockLoggerInstance } = vi.hoisted(() => ({
-  mockLoggerInstance: {
-    info: vi.fn(),
-    debug: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-  },
-}))
-
-vi.mock('../../../shared/logger', () => ({
-  getLogger: vi.fn(() => mockLoggerInstance),
-}))
-
 describe('performanceMonitor', () => {
   let monitor: PerformanceMonitor
 
@@ -82,9 +69,11 @@ describe('performanceMonitor', () => {
   })
 
   it('printStats should log statistics', () => {
+    const infoSpy = vi.spyOn(console, 'info').mockImplementation(() => {})
     monitor.recordMessage(100)
     monitor.printStats()
-    expect(mockLoggerInstance.info).toHaveBeenCalledWith(expect.stringContaining('Performance Statistics'))
+    expect(infoSpy).toHaveBeenCalledWith('[PerformanceMonitor]', expect.stringContaining('Performance Statistics'))
+    infoSpy.mockRestore()
   })
 
   it('reset should clear all metrics', () => {

@@ -97,9 +97,11 @@ vi.mock('../ForwardMap', () => ({
 }))
 
 vi.mock('../../../features', () => ({
-  FeatureManager: vi.fn(() => ({
-    initialize: featureManagerMocks.initialize,
-  })),
+  FeatureManager: vi.fn(function FeatureManagerMock() {
+    return {
+      initialize: featureManagerMocks.initialize,
+    }
+  }),
 }))
 
 vi.mock('../../../infrastructure/clients/qq', () => ({

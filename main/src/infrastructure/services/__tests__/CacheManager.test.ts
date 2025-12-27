@@ -2,29 +2,12 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { CacheManager } from '../CacheManager'
 import * as performanceMonitorModule from '../PerformanceMonitor'
 
-// Mock performanceMonitor
-vi.mock('../PerformanceMonitor', () => ({
-  performanceMonitor: {
-    recordCacheHit: vi.fn(),
-    recordCacheMiss: vi.fn(),
-  },
-}))
-
-// Mock logger
-vi.mock('../../../shared/logger', () => ({
-  getLogger: () => ({
-    info: vi.fn(),
-    debug: vi.fn(),
-    trace: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-  }),
-}))
-
 describe('cacheManager', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.useFakeTimers()
+    vi.spyOn(performanceMonitorModule.performanceMonitor, 'recordCacheHit')
+    vi.spyOn(performanceMonitorModule.performanceMonitor, 'recordCacheMiss')
   })
 
   afterEach(() => {

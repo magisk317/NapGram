@@ -4,74 +4,96 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 // Mock dependencies
 vi.mock('../services/CommandRegistry', () => {
   return {
-    CommandRegistry: vi.fn().mockImplementation(() => ({
-      register: vi.fn(),
-      unregister: vi.fn(),
-      getCommand: vi.fn(),
-      get: vi.fn(),
-      clear: vi.fn(),
-      getAll: vi.fn().mockReturnValue(new Map()),
-      getUniqueCommandCount: vi.fn().mockReturnValue(0),
-      prefix: '/',
-    })),
+    CommandRegistry: vi.fn(function CommandRegistryMock() {
+      return {
+        register: vi.fn(),
+        unregister: vi.fn(),
+        getCommand: vi.fn(),
+        get: vi.fn(),
+        clear: vi.fn(),
+        getAll: vi.fn().mockReturnValue(new Map()),
+        getUniqueCommandCount: vi.fn().mockReturnValue(0),
+        prefix: '/',
+      }
+    }),
   }
 })
 
 vi.mock('../services/PermissionChecker', () => {
   return {
-    PermissionChecker: vi.fn().mockImplementation(() => ({
-      check: vi.fn().mockReturnValue(true),
-      isAdmin: vi.fn().mockReturnValue(true),
-    })),
+    PermissionChecker: vi.fn(function PermissionCheckerMock() {
+      return {
+        check: vi.fn().mockReturnValue(true),
+        isAdmin: vi.fn().mockReturnValue(true),
+      }
+    }),
   }
 })
 
 vi.mock('../services/InteractiveStateManager', () => {
   return {
-    InteractiveStateManager: vi.fn().mockImplementation(() => ({
-      get: vi.fn(),
-      set: vi.fn(),
-      delete: vi.fn(),
-      getBindingState: vi.fn(),
-      isTimeout: vi.fn(),
-      deleteBindingState: vi.fn(),
-    })),
+    InteractiveStateManager: vi.fn(function InteractiveStateManagerMock() {
+      return {
+        get: vi.fn(),
+        set: vi.fn(),
+        delete: vi.fn(),
+        getBindingState: vi.fn(),
+        isTimeout: vi.fn(),
+        deleteBindingState: vi.fn(),
+      }
+    }),
   }
 })
 
 vi.mock('../handlers/CommandContext', () => {
   return {
-    CommandContext: vi.fn().mockImplementation(() => ({
-      extractThreadId: vi.fn().mockReturnValue(undefined),
-      replyTG: vi.fn().mockResolvedValue({}),
-      replyQQ: vi.fn().mockResolvedValue({}),
-      replenish: vi.fn().mockImplementation(msg => msg),
-    })),
+    CommandContext: vi.fn(function CommandContextMock() {
+      return {
+        extractThreadId: vi.fn().mockReturnValue(undefined),
+        replyTG: vi.fn().mockResolvedValue({}),
+        replyQQ: vi.fn().mockResolvedValue({}),
+        replenish: vi.fn().mockImplementation(msg => msg),
+      }
+    }),
   }
 })
 
 // Mock all handlers
 const mockHandler = { execute: vi.fn() }
 vi.mock('../handlers/InfoCommandHandler', () => ({
-  InfoCommandHandler: vi.fn().mockImplementation(() => mockHandler),
+  InfoCommandHandler: vi.fn(function InfoCommandHandlerMock() {
+    return mockHandler
+  }),
 }))
 vi.mock('../handlers/HelpCommandHandler', () => ({
-  HelpCommandHandler: vi.fn().mockImplementation(() => mockHandler),
+  HelpCommandHandler: vi.fn(function HelpCommandHandlerMock() {
+    return mockHandler
+  }),
 }))
 vi.mock('../handlers/StatusCommandHandler', () => ({
-  StatusCommandHandler: vi.fn().mockImplementation(() => mockHandler),
+  StatusCommandHandler: vi.fn(function StatusCommandHandlerMock() {
+    return mockHandler
+  }),
 }))
 vi.mock('../handlers/BindCommandHandler', () => ({
-  BindCommandHandler: vi.fn().mockImplementation(() => mockHandler),
+  BindCommandHandler: vi.fn(function BindCommandHandlerMock() {
+    return mockHandler
+  }),
 }))
 vi.mock('../handlers/UnbindCommandHandler', () => ({
-  UnbindCommandHandler: vi.fn().mockImplementation(() => mockHandler),
+  UnbindCommandHandler: vi.fn(function UnbindCommandHandlerMock() {
+    return mockHandler
+  }),
 }))
 vi.mock('../handlers/RecallCommandHandler', () => ({
-  RecallCommandHandler: vi.fn().mockImplementation(() => mockHandler),
+  RecallCommandHandler: vi.fn(function RecallCommandHandlerMock() {
+    return mockHandler
+  }),
 }))
 vi.mock('../handlers/ForwardControlCommandHandler', () => ({
-  ForwardControlCommandHandler: vi.fn().mockImplementation(() => mockHandler),
+  ForwardControlCommandHandler: vi.fn(function ForwardControlCommandHandlerMock() {
+    return mockHandler
+  }),
 }))
 
 vi.mock('../../domain/message/converter.ts', () => {
@@ -96,9 +118,11 @@ vi.mock('../../plugins/core/event-publisher', () => ({
 }))
 
 vi.mock('../services/ThreadIdExtractor', () => ({
-  ThreadIdExtractor: vi.fn().mockImplementation(() => ({
-    extractFromRaw: vi.fn().mockReturnValue(undefined),
-  })),
+  ThreadIdExtractor: vi.fn(function ThreadIdExtractorMock() {
+    return {
+      extractFromRaw: vi.fn().mockReturnValue(undefined),
+    }
+  }),
 }))
 
 vi.mock('../../plugins/runtime.js', () => ({
@@ -134,55 +158,65 @@ describe('commandsFeature', () => {
     // Mock dependencies
     vi.doMock('../services/CommandRegistry', () => {
       return {
-        CommandRegistry: vi.fn().mockImplementation(() => ({
-          register: vi.fn(),
-          unregister: vi.fn(),
-          getCommand: vi.fn(),
-          get: vi.fn(),
-          clear: vi.fn(),
-          getAll: vi.fn().mockReturnValue(new Map()),
-          getUniqueCommandCount: vi.fn().mockReturnValue(0),
-          prefix: '/',
-        })),
+        CommandRegistry: vi.fn(function CommandRegistryMock() {
+          return {
+            register: vi.fn(),
+            unregister: vi.fn(),
+            getCommand: vi.fn(),
+            get: vi.fn(),
+            clear: vi.fn(),
+            getAll: vi.fn().mockReturnValue(new Map()),
+            getUniqueCommandCount: vi.fn().mockReturnValue(0),
+            prefix: '/',
+          }
+        }),
       }
     })
 
     vi.doMock('../services/PermissionChecker', () => {
       return {
-        PermissionChecker: vi.fn().mockImplementation(() => ({
-          check: vi.fn().mockReturnValue(true),
-          isAdmin: vi.fn().mockReturnValue(true),
-        })),
+        PermissionChecker: vi.fn(function PermissionCheckerMock() {
+          return {
+            check: vi.fn().mockReturnValue(true),
+            isAdmin: vi.fn().mockReturnValue(true),
+          }
+        }),
       }
     })
 
     vi.doMock('../services/InteractiveStateManager', () => {
       return {
-        InteractiveStateManager: vi.fn().mockImplementation(() => ({
-          get: vi.fn(),
-          set: vi.fn(),
-          delete: vi.fn(),
-          getBindingState: vi.fn(),
-          isTimeout: vi.fn(),
-          deleteBindingState: vi.fn(),
-        })),
+        InteractiveStateManager: vi.fn(function InteractiveStateManagerMock() {
+          return {
+            get: vi.fn(),
+            set: vi.fn(),
+            delete: vi.fn(),
+            getBindingState: vi.fn(),
+            isTimeout: vi.fn(),
+            deleteBindingState: vi.fn(),
+          }
+        }),
       }
     })
 
     vi.doMock('../handlers/CommandContext', () => {
       return {
-        CommandContext: vi.fn().mockImplementation(() => ({
-          extractThreadId: vi.fn().mockReturnValue(undefined),
-          replyTG: vi.fn().mockResolvedValue({}),
-          replyQQ: vi.fn().mockResolvedValue({}),
-          replenish: vi.fn().mockImplementation(msg => msg),
-        })),
+        CommandContext: vi.fn(function CommandContextMock() {
+          return {
+            extractThreadId: vi.fn().mockReturnValue(undefined),
+            replyTG: vi.fn().mockResolvedValue({}),
+            replyQQ: vi.fn().mockResolvedValue({}),
+            replenish: vi.fn().mockImplementation(msg => msg),
+          }
+        }),
       }
     })
 
     // Mock all handlers
     const mockHandler = { execute: vi.fn() }
-    const handlerMock = vi.fn().mockImplementation(() => mockHandler)
+    const handlerMock = vi.fn(function CommandHandlerMock() {
+      return mockHandler
+    })
     vi.doMock('../handlers/InfoCommandHandler', () => ({
       InfoCommandHandler: handlerMock,
     }))
@@ -226,9 +260,11 @@ describe('commandsFeature', () => {
     }))
 
     vi.doMock('../services/ThreadIdExtractor', () => ({
-      ThreadIdExtractor: vi.fn().mockImplementation(() => ({
-        extractFromRaw: vi.fn().mockReturnValue(undefined),
-      })),
+      ThreadIdExtractor: vi.fn(function ThreadIdExtractorMock() {
+        return {
+          extractFromRaw: vi.fn().mockReturnValue(undefined),
+        }
+      }),
     }))
 
     // Import module under test dynamically
@@ -299,9 +335,11 @@ describe('commandsFeature', () => {
     expect(fromArgs).toBe(123)
 
     const { ThreadIdExtractor } = await import('../services/ThreadIdExtractor')
-    vi.mocked(ThreadIdExtractor).mockImplementationOnce(() => ({
-      extractFromRaw: vi.fn().mockReturnValue(456),
-    }) as any)
+    vi.mocked(ThreadIdExtractor).mockImplementationOnce(function ThreadIdExtractorMock() {
+      return {
+        extractFromRaw: vi.fn().mockReturnValue(456),
+      } as any
+    })
     const fromRaw = (commandsFeature as any).extractThreadId(msgWithRaw, ['cmd'])
     expect(fromRaw).toBe(456)
 
@@ -394,9 +432,11 @@ describe('commandsFeature', () => {
       mockTgBot.getChat.mockResolvedValue({ sendMessage, deleteMessages })
 
       const { ThreadIdExtractor } = await import('../services/ThreadIdExtractor')
-      vi.mocked(ThreadIdExtractor).mockImplementationOnce(() => ({
-        extractFromRaw: vi.fn().mockReturnValue(888),
-      }) as any)
+      vi.mocked(ThreadIdExtractor).mockImplementationOnce(function ThreadIdExtractorMock() {
+        return {
+          extractFromRaw: vi.fn().mockReturnValue(888),
+        } as any
+      })
 
       const result = await handler({
         id: 99999,

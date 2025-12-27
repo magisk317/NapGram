@@ -3,25 +3,6 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MessageQueue } from '../MessageQueue'
 import * as performanceMonitorModule from '../PerformanceMonitor'
 
-// Mock performanceMonitor
-vi.mock('../PerformanceMonitor', () => ({
-  performanceMonitor: {
-    recordMessage: vi.fn(),
-    recordError: vi.fn(),
-  },
-}))
-
-// Mock logger
-vi.mock('../../../shared/logger', () => ({
-  getLogger: () => ({
-    info: vi.fn(),
-    debug: vi.fn(),
-    trace: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-  }),
-}))
-
 describe('messageQueue', () => {
   let mockHandler: vi.Mock
   let mockMessage: UnifiedMessage
@@ -29,6 +10,8 @@ describe('messageQueue', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.useFakeTimers()
+    vi.spyOn(performanceMonitorModule.performanceMonitor, 'recordMessage')
+    vi.spyOn(performanceMonitorModule.performanceMonitor, 'recordError')
 
     mockHandler = vi.fn().mockResolvedValue(undefined)
     mockMessage = {
