@@ -1,12 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { FeatureManager } from '../FeatureManager'
 import { CommandsFeature } from '../commands/CommandsFeature'
-import { ForwardFeature } from '../forward/ForwardFeature'
 import { MediaFeature } from '../MediaFeature'
 import { RecallFeature } from '../RecallFeature'
 
 vi.mock('../commands/CommandsFeature')
-vi.mock('../forward/ForwardFeature')
 vi.mock('../MediaFeature')
 vi.mock('../RecallFeature')
 vi.mock('../domain/message', () => ({
@@ -30,9 +28,24 @@ describe('FeatureManager', () => {
 
         expect(MediaFeature).toHaveBeenCalledWith(mockInstance, mockTgBot, mockQqClient)
         expect(CommandsFeature).toHaveBeenCalledWith(mockInstance, mockTgBot, mockQqClient)
-        expect(ForwardFeature).toHaveBeenCalled()
         expect(RecallFeature).toHaveBeenCalledWith(mockInstance, mockTgBot, mockQqClient)
 
+        const status = manager.getFeatureStatus()
+        expect(status).toEqual({
+            media: true,
+            commands: true,
+            recall: true,
+        })
+    })
+
+    it('should use plugin-provided forward feature', async () => {
+        const forwardFeature = { destroy: vi.fn() }
+        const instanceWithForward = { id: 1, forwardFeature } as any
+        const manager = new FeatureManager(instanceWithForward, mockTgBot, mockQqClient)
+
+        await manager.initialize()
+
+        expect(manager.forward).toBe(forwardFeature)
         const status = manager.getFeatureStatus()
         expect(status).toEqual({
             media: true,
@@ -69,11 +82,10 @@ describe('FeatureManager', () => {
         const mockDestroy = vi.fn()
         manager.media!.destroy = mockDestroy
         manager.commands!.destroy = mockDestroy
-        manager.forward!.destroy = mockDestroy
         manager.recall!.destroy = mockDestroy
 
         await manager.destroy()
-        expect(mockDestroy).toHaveBeenCalledTimes(4)
+        expect(mockDestroy).toHaveBeenCalledTimes(3)
     })
 
     it('should skip non-function destroy handlers', async () => {
@@ -83,7 +95,6 @@ describe('FeatureManager', () => {
         const mockDestroy = vi.fn()
         manager.media!.destroy = mockDestroy
         manager.commands!.destroy = 'noop' as any
-        manager.forward!.destroy = undefined as any
         manager.recall!.destroy = mockDestroy
 
         await manager.destroy()

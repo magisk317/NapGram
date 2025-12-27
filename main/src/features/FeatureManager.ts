@@ -3,7 +3,7 @@ import type { IQQClient } from '../infrastructure/clients/qq'
 import type Telegram from '../infrastructure/clients/telegram/client'
 import { getLogger } from '../shared/logger'
 import { CommandsFeature } from './commands/CommandsFeature'
-import { ForwardFeature } from './forward/ForwardFeature'
+import type { ForwardFeature } from './forward/ForwardFeature'
 import { MediaFeature } from './MediaFeature'
 import { RecallFeature } from './RecallFeature'
 
@@ -46,14 +46,11 @@ export class FeatureManager {
       this.features.set('commands', this.commands)
       logger.info('CommandsFeature ✓ 初始化完成')
 
-      logger.info('ForwardFeature 正在初始化...')
-      this.forward = this.instance.forwardFeature
-        ?? new ForwardFeature(this.instance, this.tgBot, this.qqClient, this.media, this.commands)
-      if (!this.instance.forwardFeature) {
-        this.instance.forwardFeature = this.forward
+      if (this.instance.forwardFeature) {
+        this.forward = this.instance.forwardFeature
+        this.features.set('forward', this.forward)
+        logger.info('ForwardFeature ✓ 已由插件注入')
       }
-      this.features.set('forward', this.forward)
-      logger.info('ForwardFeature ✓ 初始化完成')
 
       logger.info('RecallFeature 正在初始化...')
       this.recall = this.instance.recallFeature ?? new RecallFeature(this.instance, this.tgBot, this.qqClient)

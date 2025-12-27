@@ -1,0 +1,48 @@
+import type { NapGramPlugin, PluginContext, InstanceStatusEvent } from './types/napgram.js';
+import Instance from '../../../main/src/domain/models/Instance';
+import { ForwardFeature } from '../../../main/src/features/forward/ForwardFeature';
+
+const plugin: NapGramPlugin = {
+    id: 'forward',
+    name: 'Forward Feature',
+    version: '1.0.0',
+    author: 'NapGram Team',
+    description: 'Message forwarding feature for NapGram',
+
+    permissions: {
+        instances: [],
+    },
+
+    install: async (ctx: PluginContext) => {
+        ctx.logger.info('Forward feature plugin installed');
+
+        const attach = (instance: any) => {
+            if (!instance || !instance.qqClient || !instance.tgBot || !instance.forwardPairs) return;
+            if (instance.forwardFeature) return;
+            const media = instance.mediaFeature;
+            const commands = instance.commandsFeature;
+            instance.forwardFeature = new ForwardFeature(instance, instance.tgBot, instance.qqClient, media, commands);
+        };
+
+        const handleStatus = async (event: InstanceStatusEvent) => {
+            if (event.status !== 'running') return;
+            const instance = Instance.instances.find(i => i.id === event.instanceId);
+            if (!instance) return;
+            attach(instance);
+        };
+
+        Instance.instances.forEach(attach);
+        ctx.on('instance-status', handleStatus);
+    },
+
+    uninstall: async () => {
+        for (const instance of Instance.instances) {
+            if (instance.forwardFeature) {
+                instance.forwardFeature.destroy?.();
+                instance.forwardFeature = undefined;
+            }
+        }
+    },
+};
+
+export default plugin;

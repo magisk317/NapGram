@@ -14,6 +14,7 @@ import builtinRequestManagement from '../../../../packages/plugin-request-manage
 import builtinGroupManagement from '../../../../packages/plugin-group-management/src/index'
 import builtinMedia from '../../../../packages/plugin-media/src/index'
 import builtinRecall from '../../../../packages/plugin-recall/src/index'
+import builtinForward from '../../../../packages/plugin-forward/src/index'
 import { readBoolEnv, readStringEnv } from './env'
 import { getManagedPluginsConfigPath } from './store'
 
@@ -408,6 +409,12 @@ export async function loadPluginSpecs(): Promise<PluginSpec[]> {
         module: '@builtin/recall',
         enabled: true,
         load: async () => builtinRecall,
+      },
+      {
+        id: 'forward',
+        module: '@builtin/forward',
+        enabled: true,
+        load: async () => builtinForward,
       },
     ]
 
