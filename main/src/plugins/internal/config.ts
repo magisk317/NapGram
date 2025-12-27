@@ -18,9 +18,11 @@ import builtinAdminSuite from '../../../../packages/plugin-admin-suite/src/index
 import builtinCommands from '../../../../packages/plugin-commands/src/index'
 import builtinFlags from '../../../../packages/plugin-flags/src/index'
 import builtinForward from '../../../../packages/plugin-forward/src/index'
+import builtinGateway from '../../../../packages/plugin-gateway/src/index'
 import builtinGroupManagement from '../../../../packages/plugin-group-management/src/index'
 import builtinMedia from '../../../../packages/plugin-media/src/index'
 import builtinMonitoring from '../../../../packages/plugin-monitoring/src/index'
+import builtinNotifications from '../../../../packages/plugin-notifications/src/index'
 import builtinPingPong from '../../../../packages/plugin-ping-pong/src/index'
 import builtinQQInteraction from '../../../../packages/plugin-qq-interaction/src/index'
 import builtinRecall from '../../../../packages/plugin-recall/src/index'
@@ -468,6 +470,24 @@ export async function loadPluginSpecs(): Promise<PluginSpec[]> {
         module: '@builtin/statistics',
         enabled: true,
         load: async () => builtinStatistics,
+      },
+      {
+        id: 'gateway',
+        module: '@builtin/gateway',
+        enabled: false,
+        load: async () => builtinGateway,
+      },
+      {
+        id: 'notifications',
+        module: '@builtin/notifications',
+        enabled: Boolean(env.ENABLE_OFFLINE_NOTIFICATION),
+        config: {
+          enabled: Boolean(env.ENABLE_OFFLINE_NOTIFICATION),
+          adminQQ: env.ADMIN_QQ,
+          adminTG: env.ADMIN_TG,
+          cooldownMs: env.OFFLINE_NOTIFICATION_COOLDOWN,
+        },
+        load: async () => builtinNotifications,
       },
       {
         id: 'admin-auth',
