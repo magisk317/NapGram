@@ -1,7 +1,5 @@
-import type Instance from '../../domain/models/Instance'
-import type { IQQClient } from '../../infrastructure/clients/qq'
-import db from '../../domain/models/db'
-import { getLogger } from '../../shared/logger'
+import type { IQQClient, Instance } from './runtime'
+import { db, getLogger } from './runtime'
 
 const logger = getLogger('RequestAutomationService')
 

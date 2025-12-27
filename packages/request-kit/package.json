@@ -1,7 +1,7 @@
 {
-    "name": "@napgram/plugin-request-handler",
+    "name": "@napgram/request-kit",
     "version": "1.0.0",
-    "description": "NapGram request intake and automation plugin",
+    "description": "Request automation helpers for NapGram",
     "main": "./dist/index.js",
     "types": "./dist/index.d.ts",
     "type": "module",
@@ -18,16 +18,13 @@
     },
     "keywords": [
         "napgram",
-        "plugin",
-        "requests",
+        "request",
         "automation"
     ],
     "author": "NapGram Team",
     "license": "MIT",
     "devDependencies": {
         "@types/node": "^25.0.3",
-        "typescript": "^5.9.3",
-        "@napgram/sdk": "workspace:*",
-        "@napgram/request-kit": "workspace:*"
+        "typescript": "^5.9.3"
     }
 }

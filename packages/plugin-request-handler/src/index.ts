@@ -1,7 +1,5 @@
 import type { FriendRequestEvent, GroupRequestEvent, InstanceStatusEvent, NapGramPlugin, PluginContext } from '@napgram/sdk';
-import Instance from '../../../main/src/domain/models/Instance';
-import db from '../../../main/src/domain/models/db';
-import { RequestAutomationService } from '../../../main/src/features/requests/RequestAutomationService';
+import { db, Instance, RequestAutomationService } from '@napgram/request-kit';
 
 const automationServices = new Map<number, RequestAutomationService>();
 

@@ -1,5 +1,5 @@
 import type { NapGramPlugin, PluginContext, MessageEvent } from '@napgram/sdk';
-import db from '../../../main/src/domain/models/db';
+import { db } from '@napgram/request-kit';
 
 const plugin: NapGramPlugin = {
     id: 'request-management',
