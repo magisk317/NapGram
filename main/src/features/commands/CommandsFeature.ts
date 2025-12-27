@@ -12,14 +12,11 @@ import { getLogger } from '../../shared/logger'
 import { AdvancedGroupManagementCommandHandler } from './handlers/AdvancedGroupManagementCommandHandler'
 import { BindCommandHandler } from './handlers/BindCommandHandler'
 import { CommandContext } from './handlers/CommandContext'
-import { FlagsCommandHandler } from './handlers/FlagsCommandHandler'
 import { ForwardControlCommandHandler } from './handlers/ForwardControlCommandHandler'
 import { GroupManagementCommandHandler } from './handlers/GroupManagementCommandHandler'
 import { HelpCommandHandler } from './handlers/HelpCommandHandler'
 import { InfoCommandHandler } from './handlers/InfoCommandHandler'
-import { QQInteractionCommandHandler } from './handlers/QQInteractionCommandHandler'
 import { RecallCommandHandler } from './handlers/RecallCommandHandler'
-import { RefreshCommandHandler } from './handlers/RefreshCommandHandler'
 import { RequestManagementCommandHandler } from './handlers/RequestManagementCommandHandler'
 import { StatusCommandHandler } from './handlers/StatusCommandHandler'
 import { UnbindCommandHandler } from './handlers/UnbindCommandHandler'
@@ -54,9 +51,6 @@ export class CommandsFeature {
   private readonly recallHandler: RecallCommandHandler
   private readonly forwardControlHandler: ForwardControlCommandHandler
   private readonly infoHandler: InfoCommandHandler
-  private readonly qqInteractionHandler: QQInteractionCommandHandler
-  private readonly refreshHandler: RefreshCommandHandler
-  private readonly flagsHandler: FlagsCommandHandler
   private readonly groupManagementHandler: GroupManagementCommandHandler
   private readonly advancedGroupManagementHandler: AdvancedGroupManagementCommandHandler
   private readonly requestManagementHandler: RequestManagementCommandHandler
@@ -90,9 +84,6 @@ export class CommandsFeature {
     this.recallHandler = new RecallCommandHandler(this.commandContext)
     this.forwardControlHandler = new ForwardControlCommandHandler(this.commandContext)
     this.infoHandler = new InfoCommandHandler(this.commandContext)
-    this.qqInteractionHandler = new QQInteractionCommandHandler(this.commandContext)
-    this.refreshHandler = new RefreshCommandHandler(this.commandContext)
-    this.flagsHandler = new FlagsCommandHandler(this.commandContext)
     this.groupManagementHandler = new GroupManagementCommandHandler(this.commandContext)
     this.advancedGroupManagementHandler = new AdvancedGroupManagementCommandHandler(this.commandContext)
     this.requestManagementHandler = new RequestManagementCommandHandler(this.commandContext)
@@ -119,7 +110,7 @@ export class CommandsFeature {
    */
   private async registerDefaultCommands() {
     // === 从插件系统加载命令（双轨并行策略） ===
-    const pluginCommands = await this.loadPluginCommands()
+    await this.loadPluginCommands()
 
     // TODO: 旧版 constants/commands.ts 中有更细分的指令清单（preSetup/group/private 等），后续可按需合并：
     // setup/login/flags/alive/add/addfriend/addgroup/refresh_all/newinstance/info/q/rm/rmt/rmq/forwardoff/forwardon/disable_qq_forward/enable_qq_forward/disable_tg_forward/enable_tg_forward/refresh/poke/nick/mute 等。
@@ -221,28 +212,6 @@ export class CommandsFeature {
       handler: (msg, args) => this.infoHandler.execute(msg, args),
     })
 
-    // QQ 交互命令
-    // TODO: Remove after plugin-qq-interaction is stable
-    if (!pluginCommands.has('poke')) {
-      this.registerCommand({
-        name: 'poke',
-        aliases: ['戳一戳'],
-        description: '戳一戳（需要 NapCat API 支持）',
-        handler: (msg, args) => this.qqInteractionHandler.execute(msg, args, 'poke'),
-      })
-    }
-
-    // TODO: Remove after plugin-qq-interaction is stable
-    if (!pluginCommands.has('nick')) {
-      this.registerCommand({
-        name: 'nick',
-        aliases: ['群名片'],
-        description: '获取/设置 QQ 群名片',
-        usage: '/nick [新名片]',
-        handler: (msg, args) => this.qqInteractionHandler.execute(msg, args, 'nick'),
-      })
-    }
-
     // 群组管理命令（新实现）
     this.registerCommand({
       name: 'ban',
@@ -276,40 +245,6 @@ export class CommandsFeature {
       handler: (msg, args) => this.groupManagementHandler.execute(msg, args, 'card'),
       adminOnly: true,
     })
-
-    // 刷新命令
-    // TODO: Remove after plugin-refresh is stable
-    if (!pluginCommands.has('refresh')) {
-      this.registerCommand({
-        name: 'refresh',
-        aliases: ['刷新'],
-        description: '刷新当前群组的头像和简介',
-        handler: (msg, args) => this.refreshHandler.execute(msg, args, 'refresh'),
-        adminOnly: true,
-      })
-    }
-
-    // TODO: Remove after plugin-refresh is stable
-    if (!pluginCommands.has('refresh_all')) {
-      this.registerCommand({
-        name: 'refresh_all',
-        description: '刷新所有群组的头像和简介',
-        handler: (msg, args) => this.refreshHandler.execute(msg, args, 'refresh_all'),
-        adminOnly: true,
-      })
-    }
-
-    // Flags 命令
-    // TODO: Remove after plugin-flags is stable
-    if (!pluginCommands.has('flags')) {
-      this.registerCommand({
-        name: 'flags',
-        description: '管理实验性功能标志',
-        usage: '/flags [list|enable|disable] [flag_name]',
-        handler: (msg, args) => this.flagsHandler.execute(msg, args),
-        adminOnly: true,
-      })
-    }
 
     // ============ Phase 2: 高级群组管理命令 ============
 
@@ -405,8 +340,8 @@ export class CommandsFeature {
     })
 
     // ============ Phase 3: QQ交互增强 ============
-    // Note: like and honor commands are now exclusively provided by plugin-qq-interaction
-    // They will only be available when the plugin is enabled
+    // Note: QQ 交互命令现在完全由 plugin-qq-interaction 提供
+    // 它们只会在插件启用时可用
 
     // ============ Phase 4: 请求统计与批量操作 ============
 
