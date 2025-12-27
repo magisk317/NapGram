@@ -5,7 +5,7 @@ import {
     mediaCache,
     performanceMonitor,
     userInfoCache,
-} from '../../../main/src/infrastructure';
+} from '@napgram/infra-kit';
 
 const plugin: NapGramPlugin = {
     id: 'monitoring',
