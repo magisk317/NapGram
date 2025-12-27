@@ -1,6 +1,5 @@
 import type { NapGramPlugin, PluginContext, InstanceStatusEvent } from '@napgram/sdk';
-import Instance from '../../../main/src/domain/models/Instance';
-import { MediaFeature } from '../../../main/src/features/MediaFeature';
+import { Instance, MediaFeature } from '@napgram/feature-kit';
 
 const plugin: NapGramPlugin = {
     id: 'media',

@@ -1,7 +1,7 @@
 {
-    "name": "@napgram/plugin-forward",
+    "name": "@napgram/feature-kit",
     "version": "1.0.0",
-    "description": "NapGram forward feature plugin",
+    "description": "Feature wiring helpers for NapGram",
     "main": "./dist/index.js",
     "types": "./dist/index.d.ts",
     "type": "module",
@@ -18,15 +18,12 @@
     },
     "keywords": [
         "napgram",
-        "plugin",
-        "forward"
+        "feature"
     ],
     "author": "NapGram Team",
     "license": "MIT",
     "devDependencies": {
         "@types/node": "^25.0.3",
-        "typescript": "^5.9.3",
-        "@napgram/sdk": "workspace:*",
-        "@napgram/feature-kit": "workspace:*"
+        "typescript": "^5.9.3"
     }
 }
