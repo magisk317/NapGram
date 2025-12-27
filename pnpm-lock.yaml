@@ -159,6 +159,24 @@ importers:
         specifier: ^4.0.16
         version: 4.0.16(@types/node@25.0.3)(jiti@2.6.1)(jsdom@16.7.0(canvas@2.11.2(encoding@0.1.13)))(lightningcss@1.30.2)(tsx@4.21.0)(yaml@2.8.2)
 
+  packages/feature-kit:
+    devDependencies:
+      '@types/node':
+        specifier: ^25.0.3
+        version: 25.0.3
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
+  packages/infra-kit:
+    devDependencies:
+      '@types/node':
+        specifier: ^25.0.3
+        version: 25.0.3
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
   packages/plugin-adapter-qq-napcat:
     dependencies:
       '@napgram/qq-client':
@@ -196,6 +214,9 @@ importers:
       '@napgram/sdk':
         specifier: workspace:*
         version: link:../../external/sdk/packages/sdk
+      '@napgram/web-interfaces':
+        specifier: workspace:*
+        version: link:../web-interfaces
       '@types/node':
         specifier: ^25.0.3
         version: 25.0.3
@@ -208,6 +229,9 @@ importers:
       '@napgram/sdk':
         specifier: workspace:*
         version: link:../../external/sdk/packages/sdk
+      '@napgram/web-interfaces':
+        specifier: workspace:*
+        version: link:../web-interfaces
       '@types/node':
         specifier: ^25.0.3
         version: 25.0.3
@@ -220,6 +244,9 @@ importers:
       '@napgram/sdk':
         specifier: workspace:*
         version: link:../../external/sdk/packages/sdk
+      '@napgram/web-interfaces':
+        specifier: workspace:*
+        version: link:../web-interfaces
       '@types/node':
         specifier: ^25.0.3
         version: 25.0.3
@@ -232,6 +259,9 @@ importers:
       '@napgram/sdk':
         specifier: workspace:*
         version: link:../../external/sdk/packages/sdk
+      '@napgram/web-interfaces':
+        specifier: workspace:*
+        version: link:../web-interfaces
       '@types/node':
         specifier: ^25.0.3
         version: 25.0.3
@@ -244,6 +274,9 @@ importers:
       '@napgram/sdk':
         specifier: workspace:*
         version: link:../../external/sdk/packages/sdk
+      '@napgram/web-interfaces':
+        specifier: workspace:*
+        version: link:../web-interfaces
       '@types/node':
         specifier: ^25.0.3
         version: 25.0.3
@@ -256,6 +289,9 @@ importers:
       '@napgram/sdk':
         specifier: workspace:*
         version: link:../../external/sdk/packages/sdk
+      '@napgram/web-interfaces':
+        specifier: workspace:*
+        version: link:../web-interfaces
       '@types/node':
         specifier: ^25.0.3
         version: 25.0.3
@@ -268,6 +304,9 @@ importers:
       '@napgram/sdk':
         specifier: workspace:*
         version: link:../../external/sdk/packages/sdk
+      '@napgram/web-interfaces':
+        specifier: workspace:*
+        version: link:../web-interfaces
       '@types/node':
         specifier: ^25.0.3
         version: 25.0.3
@@ -280,6 +319,24 @@ importers:
       '@napgram/sdk':
         specifier: workspace:*
         version: link:../../external/sdk/packages/sdk
+      '@napgram/web-interfaces':
+        specifier: workspace:*
+        version: link:../web-interfaces
+      '@types/node':
+        specifier: ^25.0.3
+        version: 25.0.3
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
+  packages/plugin-admin-suite:
+    devDependencies:
+      '@napgram/sdk':
+        specifier: workspace:*
+        version: link:../../external/sdk/packages/sdk
+      '@napgram/web-interfaces':
+        specifier: workspace:*
+        version: link:../web-interfaces
       '@types/node':
         specifier: ^25.0.3
         version: 25.0.3
@@ -289,6 +346,9 @@ importers:
 
   packages/plugin-commands:
     devDependencies:
+      '@napgram/feature-kit':
+        specifier: workspace:*
+        version: link:../feature-kit
       '@napgram/sdk':
         specifier: workspace:*
         version: link:../../external/sdk/packages/sdk
@@ -313,6 +373,9 @@ importers:
 
   packages/plugin-forward:
     devDependencies:
+      '@napgram/feature-kit':
+        specifier: workspace:*
+        version: link:../feature-kit
       '@napgram/sdk':
         specifier: workspace:*
         version: link:../../external/sdk/packages/sdk
@@ -337,6 +400,9 @@ importers:
 
   packages/plugin-media:
     devDependencies:
+      '@napgram/feature-kit':
+        specifier: workspace:*
+        version: link:../feature-kit
       '@napgram/sdk':
         specifier: workspace:*
         version: link:../../external/sdk/packages/sdk
@@ -349,6 +415,9 @@ importers:
 
   packages/plugin-monitoring:
     devDependencies:
+      '@napgram/infra-kit':
+        specifier: workspace:*
+        version: link:../infra-kit
       '@napgram/sdk':
         specifier: workspace:*
         version: link:../../external/sdk/packages/sdk
@@ -385,6 +454,9 @@ importers:
 
   packages/plugin-recall:
     devDependencies:
+      '@napgram/feature-kit':
+        specifier: workspace:*
+        version: link:../feature-kit
       '@napgram/sdk':
         specifier: workspace:*
         version: link:../../external/sdk/packages/sdk
@@ -409,6 +481,9 @@ importers:
 
   packages/plugin-request-handler:
     devDependencies:
+      '@napgram/request-kit':
+        specifier: workspace:*
+        version: link:../request-kit
       '@napgram/sdk':
         specifier: workspace:*
         version: link:../../external/sdk/packages/sdk
@@ -421,6 +496,9 @@ importers:
 
   packages/plugin-request-management:
     devDependencies:
+      '@napgram/request-kit':
+        specifier: workspace:*
+        version: link:../request-kit
       '@napgram/sdk':
         specifier: workspace:*
         version: link:../../external/sdk/packages/sdk
@@ -436,6 +514,9 @@ importers:
       '@napgram/sdk':
         specifier: workspace:*
         version: link:../../external/sdk/packages/sdk
+      '@napgram/web-interfaces':
+        specifier: workspace:*
+        version: link:../web-interfaces
       '@types/node':
         specifier: ^25.0.3
         version: 25.0.3
@@ -448,6 +529,9 @@ importers:
       '@napgram/sdk':
         specifier: workspace:*
         version: link:../../external/sdk/packages/sdk
+      '@napgram/web-interfaces':
+        specifier: workspace:*
+        version: link:../web-interfaces
       '@types/node':
         specifier: ^25.0.3
         version: 25.0.3
@@ -460,6 +544,9 @@ importers:
       '@napgram/sdk':
         specifier: workspace:*
         version: link:../../external/sdk/packages/sdk
+      '@napgram/web-interfaces':
+        specifier: workspace:*
+        version: link:../web-interfaces
       '@types/node':
         specifier: ^25.0.3
         version: 25.0.3
@@ -480,6 +567,24 @@ importers:
         specifier: ^5.9.3
         version: 5.9.3
 
+  packages/request-kit:
+    devDependencies:
+      '@types/node':
+        specifier: ^25.0.3
+        version: 25.0.3
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
+  packages/runtime-kit:
+    devDependencies:
+      '@types/node':
+        specifier: ^25.0.3
+        version: 25.0.3
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
   packages/telegram-client:
     dependencies:
       '@mtcute/core':
@@ -492,6 +597,34 @@ importers:
         specifier: ^0.27.4
         version: 0.27.4(ws@8.18.3)
     devDependencies:
+      '@types/node':
+        specifier: ^25.0.3
+        version: 25.0.3
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+
+  packages/web-interfaces:
+    dependencies:
+      '@kitajs/html':
+        specifier: ^4.2.11
+        version: 4.2.11
+      fastify:
+        specifier: ^5.6.2
+        version: 5.6.2
+      zod:
+        specifier: ^4.2.1
+        version: 4.2.1
+    devDependencies:
+      '@kitajs/ts-html-plugin':
+        specifier: ^4.1.3
+        version: 4.1.3(@kitajs/html@4.2.11)(typescript@5.9.3)
+      '@napgram/infra-kit':
+        specifier: workspace:*
+        version: link:../infra-kit
+      '@napgram/runtime-kit':
+        specifier: workspace:*
+        version: link:../runtime-kit
       '@types/node':
         specifier: ^25.0.3
         version: 25.0.3
