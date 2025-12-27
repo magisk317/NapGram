@@ -102,11 +102,9 @@ vi.mock('../ForwardMap', () => ({
 }))
 
 vi.mock('../../../features', () => ({
-  FeatureManager: vi.fn(function () {
-    return {
-      initialize: featureManagerMocks.initialize,
-    }
-  }),
+  FeatureManager: vi.fn(() => ({
+    initialize: featureManagerMocks.initialize,
+  })),
 }))
 
 vi.mock('../../../infrastructure/clients/qq', () => ({
@@ -121,9 +119,7 @@ vi.mock('../../../infrastructure/clients/telegram', () => ({
 }))
 
 vi.mock('../../../shared/services/NotificationService', () => ({
-  NotificationService: vi.fn(function () {
-    return notificationMocks
-  }),
+  NotificationService: vi.fn(() => notificationMocks),
 }))
 
 describe('instance', () => {

@@ -1,9 +1,8 @@
 import { Buffer } from 'node:buffer'
 import { Message } from '@mtcute/core'
-
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import Telegram from '../client'
 import TelegramChat from '../chat'
+import Telegram from '../client'
 
 const envMock = vi.hoisted(() => ({
   DATA_DIR: '/data',
@@ -63,7 +62,6 @@ const sessionMocks = vi.hoisted(() => ({
   load: vi.fn(),
   save: vi.fn(),
 }))
-
 
 vi.mock('node:fs', () => ({
   default: {
@@ -160,7 +158,6 @@ const sessionClass = vi.hoisted(() => ({
     }
   },
 }))
-
 
 vi.mock('@mtcute/dispatcher', () => ({
   Dispatcher: {
