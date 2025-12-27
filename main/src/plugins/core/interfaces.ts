@@ -377,6 +377,8 @@ export type NoticeType
     | 'group-recall'
     | 'friend-add'
     | 'friend-recall'
+    | 'connection-lost'
+    | 'connection-restored'
     | 'other'
 
 /**

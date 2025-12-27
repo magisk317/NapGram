@@ -282,7 +282,7 @@ export interface NoticeEvent {
   timestamp: number
   raw: any
 }
-export type NoticeType = 'group-member-increase' | 'group-member-decrease' | 'group-admin' | 'group-ban' | 'group-recall' | 'friend-add' | 'friend-recall' | 'other'
+export type NoticeType = 'group-member-increase' | 'group-member-decrease' | 'group-admin' | 'group-ban' | 'group-recall' | 'friend-add' | 'friend-recall' | 'connection-lost' | 'connection-restored' | 'other'
 /**
  * 实例状态事件
  */

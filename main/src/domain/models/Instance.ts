@@ -267,48 +267,40 @@ export default class Instance {
           this.log.warn('Failed to publish instance running status:', error)
         }
 
-        // 初始化掉线通知服务
-        if (env.ENABLE_OFFLINE_NOTIFICATION) {
-          const { NotificationService } = await import('../../shared/services/NotificationService')
-          this.log.info('Offline notification service 正在初始化')
-          const notificationService = new NotificationService(env.OFFLINE_NOTIFICATION_COOLDOWN)
+        // 监听掉线/恢复事件，交给插件侧处理通知
+        this.qqClient.on('connection:lost', async (event: any) => {
+          this.log.warn('NapCat connection lost:', event)
+          this.isSetup = false
+          try {
+            getEventPublisher().publishNotice({
+              instanceId: this.id,
+              platform: 'qq',
+              noticeType: 'connection-lost',
+              timestamp: typeof event?.timestamp === 'number' ? event.timestamp : Date.now(),
+              raw: event,
+            })
+          }
+          catch (error) {
+            this.log.warn('Failed to publish connection-lost notice:', error)
+          }
+        })
 
-          // 监听掉线事件
-          this.qqClient.on('connection:lost', async (event: any) => {
-            this.log.warn('NapCat connection lost:', event)
-            this.isSetup = false
-            try {
-              await notificationService.notifyDisconnection(
-                this.qqClient,
-                this.tgBot,
-                env.ADMIN_QQ,
-                env.ADMIN_TG,
-              )
-            }
-            catch (error) {
-              this.log.error(error, 'Failed to send disconnection notification:')
-            }
-          })
-
-          // 监听重连成功事件
-          this.qqClient.on('connection:restored', async (event: any) => {
-            this.log.info('NapCat connection restored:', event)
-            this.isSetup = true
-            try {
-              await notificationService.notifyReconnection(
-                this.qqClient,
-                this.tgBot,
-                env.ADMIN_QQ,
-                env.ADMIN_TG,
-              )
-            }
-            catch (error) {
-              this.log.error(error, 'Failed to send reconnection notification:')
-            }
-          })
-
-          this.log.info('Offline notification service ✓ 初始化完成')
-        }
+        this.qqClient.on('connection:restored', async (event: any) => {
+          this.log.info('NapCat connection restored:', event)
+          this.isSetup = true
+          try {
+            getEventPublisher().publishNotice({
+              instanceId: this.id,
+              platform: 'qq',
+              noticeType: 'connection-restored',
+              timestamp: typeof event?.timestamp === 'number' ? event.timestamp : Date.now(),
+              raw: event,
+            })
+          }
+          catch (error) {
+            this.log.warn('Failed to publish connection-restored notice:', error)
+          }
+        })
       }
 
       this.isSetup = true

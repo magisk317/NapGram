@@ -53,11 +53,6 @@ const telegramMocks = vi.hoisted(() => ({
   create: vi.fn(),
 }))
 
-const notificationMocks = vi.hoisted(() => ({
-  notifyDisconnection: vi.fn(),
-  notifyReconnection: vi.fn(),
-}))
-
 const qqMocks = vi.hoisted(() => {
   const handlers = new Map<string, any>()
   const client = {
@@ -118,10 +113,6 @@ vi.mock('../../../infrastructure/clients/telegram', () => ({
   },
 }))
 
-vi.mock('../../../shared/services/NotificationService', () => ({
-  NotificationService: vi.fn(() => notificationMocks),
-}))
-
 describe('instance', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -141,8 +132,6 @@ describe('instance', () => {
     forwardMapMocks.load.mockResolvedValue({ map: true })
     dbMocks.instance.create.mockResolvedValue({ id: 0 })
     dbMocks.instance.update.mockResolvedValue({})
-    notificationMocks.notifyDisconnection.mockResolvedValue(undefined)
-    notificationMocks.notifyReconnection.mockResolvedValue(undefined)
   })
 
   it('creates instance zero record when missing', async () => {
@@ -228,22 +217,18 @@ describe('instance', () => {
     const lostHandler = qqMocks.handlers.get('connection:lost')
     await lostHandler({ reason: 'offline' })
     expect(instance.isSetup).toBe(false)
-    expect(notificationMocks.notifyDisconnection).toHaveBeenCalledWith(
-      qqMocks.client,
-      instance.tgBot,
-      envMock.ADMIN_QQ,
-      envMock.ADMIN_TG,
-    )
+    const lostNotice = eventPublisherMocks.publishNotice.mock.calls
+      .map(call => call[0])
+      .find(call => call.noticeType === 'connection-lost')
+    expect(lostNotice).toEqual(expect.objectContaining({ noticeType: 'connection-lost' }))
 
     const restoreHandler = qqMocks.handlers.get('connection:restored')
     await restoreHandler({ reason: 'back' })
     expect(instance.isSetup).toBe(true)
-    expect(notificationMocks.notifyReconnection).toHaveBeenCalledWith(
-      qqMocks.client,
-      instance.tgBot,
-      envMock.ADMIN_QQ,
-      envMock.ADMIN_TG,
-    )
+    const restoreNotice = eventPublisherMocks.publishNotice.mock.calls
+      .map(call => call[0])
+      .find(call => call.noticeType === 'connection-restored')
+    expect(restoreNotice).toEqual(expect.objectContaining({ noticeType: 'connection-restored' }))
   })
 
   it('reports init failure when bot token missing', async () => {
@@ -413,24 +398,6 @@ describe('instance', () => {
     // Should warn but not fail instance start
     expect(loggerMocks.warn).toHaveBeenCalledWith('Plugin event bridge init failed:', error)
     expect(Instance.instances).toHaveLength(1)
-  })
-
-  it('handles notification service failures', async () => {
-    envMock.ENABLE_OFFLINE_NOTIFICATION = true
-    dbMocks.instance.findFirst.mockResolvedValue({ isSetup: true })
-    const notifyError = new Error('Notify Failed')
-    notificationMocks.notifyDisconnection.mockRejectedValueOnce(notifyError)
-    notificationMocks.notifyReconnection.mockRejectedValueOnce(notifyError)
-
-    await Instance.start(10, 'token')
-
-    const lostHandler = qqMocks.handlers.get('connection:lost')
-    await lostHandler({})
-    expect(loggerMocks.error).toHaveBeenCalledWith(notifyError, 'Failed to send disconnection notification:')
-
-    const restoreHandler = qqMocks.handlers.get('connection:restored')
-    await restoreHandler({})
-    expect(loggerMocks.error).toHaveBeenCalledWith(notifyError, 'Failed to send reconnection notification:')
   })
 
   it('reuses existing init promise', async () => {
