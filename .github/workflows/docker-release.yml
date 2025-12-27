@@ -71,7 +71,9 @@ jobs:
         run: pnpm install --no-frozen-lockfile
 
       - name: Build web dist
-        run: pnpm --filter web build
+        run: |
+          pnpm -C web install --no-frozen-lockfile
+          pnpm -C web run build
 
       - name: OCI meta
         id: meta
