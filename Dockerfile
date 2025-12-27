@@ -44,7 +44,7 @@ RUN if [ "$USE_MIRROR" = "true" ]; then \
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json* /app/
 COPY main/package.json /app/main/
 COPY web/package.json /app/web/
-COPY packages/*/package.json /app/packages/
+COPY packages/ /app/packages/
 COPY external/sdk/packages/sdk/package.json /app/external/sdk/packages/sdk/
 COPY external/sdk/packages/core/package.json /app/external/sdk/packages/core/
 COPY external/sdk/packages/utils/package.json /app/external/sdk/packages/utils/
@@ -60,7 +60,6 @@ RUN pnpm install --no-frozen-lockfile --shamefully-hoist --ignore-scripts && \
 # 源码构建（后端）
 COPY external/sdk/ /app/external/sdk/
 COPY main/ /app/main/
-COPY packages/ /app/packages/
 RUN DATABASE_URL="postgresql://dummy" pnpm --filter ./main exec prisma generate --no-hints
 RUN pnpm --filter ./main run build
 
