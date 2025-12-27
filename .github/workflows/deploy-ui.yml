@@ -51,12 +51,12 @@ jobs:
       - name: Install dependencies
         run: |
           cd web
-          pnpm install --frozen-lockfile
+          pnpm install --no-frozen-lockfile --ignore-workspace
       
       - name: Build UI
         run: |
           cd web
-          pnpm run build
+          pnpm --ignore-workspace run build
         env:
           NODE_ENV: production
           VITE_API_ORIGIN: ${{ secrets.VITE_API_ORIGIN }}
