@@ -14,6 +14,7 @@
     "moduleResolution": "Bundler",
     "paths": {
       "@napgram/feature-kit": ["../packages/feature-kit/src/index.ts"],
+      "@napgram/gateway-kit": ["../packages/gateway-kit/src/index.ts"],
       "@napgram/infra-kit": ["../packages/infra-kit/src/index.ts"],
       "@napgram/request-kit": ["../packages/request-kit/src/index.ts"],
       "@napgram/runtime-kit": ["../packages/runtime-kit/src/index.ts"],

@@ -1,0 +1,5 @@
+export { GatewayRuntime } from '../../../main/src/gateway/server/GatewayRuntime'
+export { GatewayServer } from '../../../main/src/gateway/server/GatewayServer'
+export * from '../../../main/src/gateway/protocol/actions'
+export * from '../../../main/src/gateway/protocol/events'
+export * from '../../../main/src/gateway/protocol/frames'
