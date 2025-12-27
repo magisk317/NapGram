@@ -147,9 +147,7 @@ const { mockNapLinkInstance, mockLogger, mockMessageConverter } = vi.hoisted(() 
 
 vi.mock('@naplink/naplink', () => {
   return {
-    NapLink: vi.fn(function () {
-      return mockNapLinkInstance
-    }),
+    NapLink: vi.fn(() => mockNapLinkInstance),
   }
 })
 
