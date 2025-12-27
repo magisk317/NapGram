@@ -7,6 +7,9 @@ import YAML from 'yaml'
 import env from '../../domain/models/env'
 import { getLogger } from '../../shared/logger'
 import builtinPingPong from '../../../../packages/plugin-ping-pong/src/index'
+import builtinQQInteraction from '../../../../packages/plugin-qq-interaction/src/index'
+import builtinRefresh from '../../../../packages/plugin-refresh/src/index'
+import builtinFlags from '../../../../packages/plugin-flags/src/index'
 import { readBoolEnv, readStringEnv } from './env'
 import { getManagedPluginsConfigPath } from './store'
 
@@ -359,6 +362,24 @@ export async function loadPluginSpecs(): Promise<PluginSpec[]> {
         module: '@builtin/ping-pong',
         enabled: true,
         load: async () => builtinPingPong,
+      },
+      {
+        id: 'qq-interaction',
+        module: '@builtin/qq-interaction',
+        enabled: true,
+        load: async () => builtinQQInteraction,
+      },
+      {
+        id: 'refresh',
+        module: '@builtin/refresh',
+        enabled: true,
+        load: async () => builtinRefresh,
+      },
+      {
+        id: 'flags',
+        module: '@builtin/flags',
+        enabled: true,
+        load: async () => builtinFlags,
       },
     ]
 
