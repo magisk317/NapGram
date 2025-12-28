@@ -28,5 +28,11 @@ export function configureInfraKit(options: { loggerFactory?: LoggerFactory } = {
 }
 
 export function getInfraLogger(name: string): InfraLogger {
-  return loggerFactory(name)
+  return {
+    trace: (...args) => loggerFactory(name).trace(...args),
+    debug: (...args) => loggerFactory(name).debug(...args),
+    info: (...args) => loggerFactory(name).info(...args),
+    warn: (...args) => loggerFactory(name).warn(...args),
+    error: (...args) => loggerFactory(name).error(...args),
+  }
 }
