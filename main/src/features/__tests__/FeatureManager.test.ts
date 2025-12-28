@@ -1,12 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { CommandsFeature } from '../commands/CommandsFeature'
 import { FeatureManager } from '../FeatureManager'
-import { MediaFeature } from '../MediaFeature'
-import { RecallFeature } from '../RecallFeature'
-
-vi.mock('../commands/CommandsFeature')
-vi.mock('../MediaFeature')
-vi.mock('../RecallFeature')
+import { messageConverter } from '../domain/message'
 vi.mock('../domain/message', () => ({
   messageConverter: {
     setInstance: vi.fn(),
@@ -30,16 +24,8 @@ describe('featureManager', () => {
     const manager = new FeatureManager(mockInstance, mockTgBot, mockQqClient)
     await manager.initialize()
 
-    expect(MediaFeature).toHaveBeenCalledWith(mockInstance, mockTgBot, mockQqClient)
-    expect(CommandsFeature).toHaveBeenCalledWith(mockInstance, mockTgBot, mockQqClient)
-    expect(RecallFeature).toHaveBeenCalledWith(mockInstance, mockTgBot, mockQqClient)
-
     const status = manager.getFeatureStatus()
-    expect(status).toEqual({
-      media: true,
-      commands: true,
-      recall: true,
-    })
+    expect(status).toEqual({})
   })
 
   it('should use plugin-provided forward feature', async () => {
@@ -52,10 +38,7 @@ describe('featureManager', () => {
     expect(manager.forward).toBe(forwardFeature)
     const status = manager.getFeatureStatus()
     expect(status).toEqual({
-      media: true,
-      commands: true,
       forward: true,
-      recall: true,
     })
   })
 
@@ -67,13 +50,13 @@ describe('featureManager', () => {
     await manager.initialize()
 
     expect(manager.commands).toBe(commandsFeature)
-    expect(CommandsFeature).not.toHaveBeenCalled()
     const status = manager.getFeatureStatus()
     expect(status.commands).toBe(true)
   })
 
   it('should enable and disable features', async () => {
-    const manager = new FeatureManager(mockInstance, mockTgBot, mockQqClient)
+    const instanceWithMedia = { id: 1, mediaFeature: { destroy: vi.fn() } } as any
+    const manager = new FeatureManager(instanceWithMedia, mockTgBot, mockQqClient)
     await manager.initialize()
 
     expect(manager.enableFeature('media')).toBe(true)
@@ -84,7 +67,7 @@ describe('featureManager', () => {
   })
 
   it('should handle errors during initialization', async () => {
-    vi.mocked(MediaFeature).mockImplementationOnce(() => {
+    vi.mocked(messageConverter.setInstance).mockImplementationOnce(() => {
       throw new Error('Init error')
     })
     const manager = new FeatureManager(mockInstance, mockTgBot, mockQqClient)
@@ -92,43 +75,48 @@ describe('featureManager', () => {
   })
 
   it('should destroy all features', async () => {
-    const manager = new FeatureManager(mockInstance, mockTgBot, mockQqClient)
-    await manager.initialize()
-
-    // Mock destroy methods
     const mockDestroy = vi.fn()
-    manager.media!.destroy = mockDestroy
-    manager.commands!.destroy = mockDestroy
-    manager.recall!.destroy = mockDestroy
+    const instanceWithFeatures = {
+      id: 1,
+      mediaFeature: { destroy: mockDestroy },
+      commandsFeature: { destroy: mockDestroy },
+      recallFeature: { destroy: mockDestroy },
+    } as any
+    const manager = new FeatureManager(instanceWithFeatures, mockTgBot, mockQqClient)
+    await manager.initialize()
 
     await manager.destroy()
     expect(mockDestroy).toHaveBeenCalledTimes(3)
   })
 
   it('should skip non-function destroy handlers', async () => {
-    const manager = new FeatureManager(mockInstance, mockTgBot, mockQqClient)
-    await manager.initialize()
-
     const mockDestroy = vi.fn()
-    manager.media!.destroy = mockDestroy
-    manager.commands!.destroy = 'noop' as any
-    manager.recall!.destroy = mockDestroy
+    const instanceWithFeatures = {
+      id: 1,
+      mediaFeature: { destroy: mockDestroy },
+      commandsFeature: { destroy: 'noop' as any },
+      recallFeature: { destroy: mockDestroy },
+    } as any
+    const manager = new FeatureManager(instanceWithFeatures, mockTgBot, mockQqClient)
+    await manager.initialize()
 
     await manager.destroy()
     expect(mockDestroy).toHaveBeenCalledTimes(2)
   })
 
   it('should handle errors during destroy', async () => {
-    const manager = new FeatureManager(mockInstance, mockTgBot, mockQqClient)
-    await manager.initialize()
-
     const failingDestroy = vi.fn().mockImplementation(() => {
       throw new Error('Destroy failed')
     })
     const workingDestroy = vi.fn()
 
-    manager.media!.destroy = failingDestroy
-    manager.commands!.destroy = workingDestroy
+    const instanceWithFeatures = {
+      id: 1,
+      mediaFeature: { destroy: failingDestroy },
+      commandsFeature: { destroy: workingDestroy },
+    } as any
+    const manager = new FeatureManager(instanceWithFeatures, mockTgBot, mockQqClient)
+    await manager.initialize()
 
     await manager.destroy()
     expect(workingDestroy).toHaveBeenCalled()

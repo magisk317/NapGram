@@ -1,11 +1,11 @@
 import type Instance from '../domain/models/Instance'
 import type { IQQClient } from '../infrastructure/clients/qq'
 import type Telegram from '../infrastructure/clients/telegram/client'
-import type { ForwardFeature } from './forward/ForwardFeature'
 import { getLogger } from '../shared/logger'
-import { CommandsFeature } from './commands/CommandsFeature'
-import { MediaFeature } from './MediaFeature'
-import { RecallFeature } from './RecallFeature'
+import type { ForwardFeature } from './forward/ForwardFeature'
+import type { CommandsFeature } from './commands/CommandsFeature'
+import type { MediaFeature } from './MediaFeature'
+import type { RecallFeature } from './RecallFeature'
 
 const logger = getLogger('FeatureManager')
 
@@ -27,30 +27,22 @@ export class FeatureManager {
 
   async initialize() {
     try {
-      logger.info('MediaFeature 正在初始化...')
-      this.media = this.instance.mediaFeature ?? new MediaFeature(this.instance, this.tgBot, this.qqClient)
-      if (!this.instance.mediaFeature) {
-        this.instance.mediaFeature = this.media
-      }
-      this.features.set('media', this.media)
-      logger.info('MediaFeature ✓ 初始化完成')
-
       // Set instance to messageConverter for sticker download
       const { messageConverter } = await import('../domain/message')
       messageConverter.setInstance(this.instance)
       logger.debug('✓ MessageConverter instance set')
+      logger.info('FeatureManager in plugin-only mode: built-in features disabled')
 
-      logger.info('CommandsFeature 正在初始化...')
+      if (this.instance.mediaFeature) {
+        this.media = this.instance.mediaFeature
+        this.features.set('media', this.media)
+        logger.info('MediaFeature ✓ 已由插件注入')
+      }
+
       if (this.instance.commandsFeature) {
         this.commands = this.instance.commandsFeature
         this.features.set('commands', this.commands)
         logger.info('CommandsFeature ✓ 已由插件注入')
-      }
-      else {
-        this.commands = new CommandsFeature(this.instance, this.tgBot, this.qqClient)
-        this.instance.commandsFeature = this.commands
-        this.features.set('commands', this.commands)
-        logger.info('CommandsFeature ✓ 初始化完成')
       }
 
       if (this.instance.forwardFeature) {
@@ -59,15 +51,13 @@ export class FeatureManager {
         logger.info('ForwardFeature ✓ 已由插件注入')
       }
 
-      logger.info('RecallFeature 正在初始化...')
-      this.recall = this.instance.recallFeature ?? new RecallFeature(this.instance, this.tgBot, this.qqClient)
-      if (!this.instance.recallFeature) {
-        this.instance.recallFeature = this.recall
+      if (this.instance.recallFeature) {
+        this.recall = this.instance.recallFeature
+        this.features.set('recall', this.recall)
+        logger.info('RecallFeature ✓ 已由插件注入')
       }
-      this.features.set('recall', this.recall)
-      logger.info('RecallFeature ✓ 初始化完成')
 
-      logger.info(`FeatureManager 初始化完成，共 ${this.features.size} 个功能`)
+      logger.info(`FeatureManager 初始化完成，共 ${this.features.size} 个插件功能`)
     }
     catch (error) {
       logger.error('Failed to initialize features:', error)
