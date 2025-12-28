@@ -36,6 +36,37 @@ export class ForwardFeature {
   private mediaGroupHandler: MediaGroupHandler
   private tgMessageHandler: TelegramMessageHandler
   private mediaPreparer: ForwardMediaPreparer
+  private handleTgMessage = async (tgMsg: Message) => {
+    const threadId = new ThreadIdExtractor().extractFromRaw((tgMsg as any).raw || tgMsg)
+
+    const pair = this.forwardMap.findByTG(
+      tgMsg.chat.id,
+      threadId,
+      !threadId, // 如果有 threadId，禁用 fallback，避免落到 general
+    )
+    if (!pair) {
+      logger.debug(`No QQ mapping for TG chat ${tgMsg.chat.id} thread ${threadId || 'none'}`)
+      return
+    }
+
+    // Publish gateway event (doesn't affect forwarding)
+    try {
+      const unified = messageConverter.fromTelegram(tgMsg as any)
+      await this.instance.eventPublisher?.publishMessageCreated(this.instance.id, unified as any, pair)
+    }
+    catch (e) {
+      logger.debug(e, '[Gateway] publishMessageCreated (TG) failed')
+    }
+
+    // Check forward mode (TG -> QQ is index 1)
+    const forwardMode = this.getForwardMode(pair)
+    if (forwardMode[1] === '0') {
+      logger.debug(`Forward TG->QQ disabled for chat ${tgMsg.chat.id} (mode: ${forwardMode})`)
+      return
+    }
+
+    await this.tgMessageHandler.handleTGMessage(tgMsg, pair)
+  }
 
   constructor(
     private readonly instance: Instance,
@@ -86,37 +117,7 @@ export class ForwardFeature {
   private setupListeners() {
     this.qqClient.on('message', this.handleQQMessage)
     this.qqClient.on('poke', this.handlePokeEvent)
-    this.tgBot.addNewMessageEventHandler(async (tgMsg: Message) => {
-      const threadId = new ThreadIdExtractor().extractFromRaw((tgMsg as any).raw || tgMsg)
-
-      const pair = this.forwardMap.findByTG(
-        tgMsg.chat.id,
-        threadId,
-        !threadId, // 如果有 threadId，禁用 fallback，避免落到 general
-      )
-      if (!pair) {
-        logger.debug(`No QQ mapping for TG chat ${tgMsg.chat.id} thread ${threadId || 'none'}`)
-        return
-      }
-
-      // Publish gateway event (doesn't affect forwarding)
-      try {
-        const unified = messageConverter.fromTelegram(tgMsg as any)
-        await this.instance.eventPublisher?.publishMessageCreated(this.instance.id, unified as any, pair)
-      }
-      catch (e) {
-        logger.debug(e, '[Gateway] publishMessageCreated (TG) failed')
-      }
-
-      // Check forward mode (TG -> QQ is index 1)
-      const forwardMode = this.getForwardMode(pair)
-      if (forwardMode[1] === '0') {
-        logger.debug(`Forward TG->QQ disabled for chat ${tgMsg.chat.id} (mode: ${forwardMode})`)
-        return
-      }
-
-      await this.tgMessageHandler.handleTGMessage(tgMsg, pair)
-    })
+    this.tgBot.addNewMessageEventHandler(this.handleTgMessage)
     logger.debug('[ForwardFeature] listeners attached')
   }
 
@@ -538,7 +539,7 @@ export class ForwardFeature {
     this.mediaGroupHandler.destroy()
     this.qqClient.removeListener('message', this.handleQQMessage)
     this.qqClient.removeListener('poke', this.handlePokeEvent)
-    // Note: TG bot event handler cleanup is handled by bot client
+    this.tgBot.removeNewMessageEventHandler(this.handleTgMessage)
     logger.info('ForwardFeature destroyed')
   }
 }
