@@ -167,7 +167,7 @@ export class MessageConverter {
         logger.info(`Using repliedMsgOverride for TG msg ${tgMsg.id}`)
       }
       else {
-        logger.info(`Detected replyToMessage in TG msg ${tgMsg.id}`)
+        logger.debug(`Detected replyToMessage in TG msg ${tgMsg.id}`)
       }
       content.push({
         type: 'reply',

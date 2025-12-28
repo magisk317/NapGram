@@ -22,7 +22,7 @@ export class TelegramMessageHandler {
     private readonly getNicknameMode: (pair: any) => string,
   ) { }
 
-  async handleTGMessage(tgMsg: Message, pair: any): Promise<void> {
+  async handleTGMessage(tgMsg: Message, pair: any, preUnified?: UnifiedMessage): Promise<void> {
     try {
       // Check if this is a Media Group message
       const isMediaGroup = await this.mediaGroupHandler.handleMediaGroup(tgMsg, pair)
@@ -31,7 +31,7 @@ export class TelegramMessageHandler {
         return
       }
 
-      const unified = messageConverter.fromTelegram(tgMsg as any)
+      const unified = preUnified ?? messageConverter.fromTelegram(tgMsg as any)
       await this.prepareMediaForQQ(unified)
 
       // 如果是回复，尝试找到对应的 QQ 消息 ID，构造 QQ 的 reply 段

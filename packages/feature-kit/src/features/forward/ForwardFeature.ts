@@ -38,7 +38,7 @@ export class ForwardFeature {
   private mediaPreparer: ForwardMediaPreparer
   private handleTgMessage = async (tgMsg: Message) => {
     const rawText = tgMsg.text || ''
-    logger.info('[Forward][TG->QQ] incoming', {
+    logger.debug('[Forward][TG->QQ] incoming', {
       id: tgMsg.id,
       chatId: tgMsg.chat.id,
       text: rawText.slice(0, 100),
@@ -56,19 +56,27 @@ export class ForwardFeature {
       return
     }
 
-    logger.info('[Forward][TG->QQ] resolved', {
+    logger.debug('[Forward][TG->QQ] resolved', {
       tgMsgId: tgMsg.id,
       tgChatId: tgMsg.chat.id,
       threadId,
       qqRoomId: pair.qqRoomId,
     })
 
-    await this.publishTgPluginEvent(tgMsg, pair, threadId)
+    let unified: UnifiedMessage | undefined
+    try {
+      unified = messageConverter.fromTelegram(tgMsg as any)
+    }
+    catch (e) {
+      logger.debug(e, '[Forward] Failed to convert TG message')
+    }
+
+    await this.publishTgPluginEvent(tgMsg, pair, unified, threadId)
 
     // Publish gateway event (doesn't affect forwarding)
     try {
-      const unified = messageConverter.fromTelegram(tgMsg as any)
-      await this.instance.eventPublisher?.publishMessageCreated(this.instance.id, unified as any, pair)
+      const gatewayMessage = unified ?? messageConverter.fromTelegram(tgMsg as any)
+      await this.instance.eventPublisher?.publishMessageCreated(this.instance.id, gatewayMessage as any, pair)
     }
     catch (e) {
       logger.debug(e, '[Gateway] publishMessageCreated (TG) failed')
@@ -86,7 +94,7 @@ export class ForwardFeature {
       return
     }
 
-    await this.tgMessageHandler.handleTGMessage(tgMsg, pair)
+    await this.tgMessageHandler.handleTGMessage(tgMsg, pair, unified)
   }
 
   constructor(
@@ -258,11 +266,16 @@ export class ForwardFeature {
       .join('')
   }
 
-  private async publishTgPluginEvent(tgMsg: Message, pair: ForwardPairRecord, threadId?: number) {
+  private async publishTgPluginEvent(
+    tgMsg: Message,
+    pair: ForwardPairRecord,
+    unified: UnifiedMessage | undefined,
+    threadId?: number,
+  ) {
     try {
       const eventPublisher = getEventPublisher()
-      const unified = messageConverter.fromTelegram(tgMsg as any)
-      const segments = this.toPluginSegments(unified.content as any, 'tg')
+      const message = unified ?? messageConverter.fromTelegram(tgMsg as any)
+      const segments = this.toPluginSegments(message.content as any, 'tg')
       const text = this.contentToText(segments)
       const timestamp = tgMsg.date ? (typeof tgMsg.date === 'number' ? tgMsg.date : tgMsg.date.getTime()) : Date.now()
 
