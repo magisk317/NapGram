@@ -10,7 +10,7 @@ import { getLogger } from '../../shared/logger'
 import db from './db'
 import env from './env'
 import ForwardMap from './ForwardMap'
-import posthog from './posthog'
+import sentry from './sentry'
 
 export type WorkMode = 'personal' | 'group' | 'public'
 
@@ -308,7 +308,7 @@ export default class Instance {
       .then(() => this.log.info('Instance ✓ 初始化完成'))
       .catch((err) => {
         this.log.error('初始化失败', err)
-        posthog.capture('初始化失败', { error: err })
+        sentry.captureException(err, { stage: 'instance-init', instanceId: this.id })
       })
 
     return this.initPromise

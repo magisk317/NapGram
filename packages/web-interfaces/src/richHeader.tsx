@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify'
 import Html from '@kitajs/html'
-import { env, formatDate, getLogger, Instance, posthog } from '@napgram/runtime-kit'
+import { env, formatDate, getLogger, Instance, sentry } from '@napgram/runtime-kit'
 
 const logger = getLogger('Rich Header')
 void Html // Keep Html in scope for JSX factory
@@ -248,7 +248,7 @@ async function handler(request: any, reply: any) {
   }
   catch (e) {
     logger.error('Error:', e)
-    posthog.capture('RichHeaderError', { error: e })
+    sentry.captureException(e, { scope: 'richHeader' })
     reply.status(500).send('Internal Server Error')
   }
 };

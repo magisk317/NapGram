@@ -1,7 +1,7 @@
 export { default as env } from '../../../main/src/domain/models/env'
 export { default as db } from '../../../main/src/domain/models/db'
 export { default as Instance } from '../../../main/src/domain/models/Instance'
-export { default as posthog } from '../../../main/src/domain/models/posthog'
+export { default as sentry } from '../../../main/src/domain/models/sentry'
 export { getLogger } from '../../../main/src/shared/logger'
 export { ApiResponse } from '../../../main/src/shared/utils/api-response'
 export { ErrorResponses, registerDualRoute } from '../../../main/src/shared/utils/fastify'

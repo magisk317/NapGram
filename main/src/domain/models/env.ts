@@ -62,7 +62,8 @@ const configParsed = z.object({
   WEB_ENDPOINT: z.preprocess(emptyStringToUndefined, z.string().url().optional()),
   INTERNAL_WEB_ENDPOINT: z.preprocess(emptyStringToUndefined, z.string().url().optional()),
 
-  POSTHOG_OPTOUT: z.string().default('false').transform(v => ['true', '1', 'yes'].includes(v.toLowerCase())),
+  ERROR_REPORTING: z.string().default('1').transform(v => ['true', '1', 'yes'].includes(v.toLowerCase())),
+
   SHOW_NICKNAME_MODE: z.string().regex(/^[01]{2}$/).default('11'),
   FORWARD_MODE: z.string().regex(/^[01]{2}$/).default('11'),
   COMMAND_REPLY_BOTH_SIDES: z.string().default('false').transform(v => ['true', '1', 'yes'].includes(v.toLowerCase())),

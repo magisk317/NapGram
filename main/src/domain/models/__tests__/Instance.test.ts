@@ -29,8 +29,8 @@ const loggerMocks = vi.hoisted(() => ({
   error: vi.fn(),
 }))
 
-const posthogMocks = vi.hoisted(() => ({
-  capture: vi.fn(),
+const sentryMocks = vi.hoisted(() => ({
+  captureException: vi.fn(),
 }))
 
 const eventPublisherMocks = vi.hoisted(() => ({
@@ -82,8 +82,8 @@ vi.mock('../../../shared/logger', () => ({
   getLogger: vi.fn(() => loggerMocks),
 }))
 
-vi.mock('../posthog', () => ({
-  default: posthogMocks,
+vi.mock('../sentry', () => ({
+  default: sentryMocks,
 }))
 
 vi.mock('../../../plugins/core/event-publisher', () => ({
@@ -240,7 +240,9 @@ describe('instance', () => {
     await expect((instance as any).init()).rejects.toThrow('botToken 未指定')
     await Promise.resolve()
 
-    expect(posthogMocks.capture).toHaveBeenCalledWith('初始化失败', expect.any(Object))
+    expect(sentryMocks.captureException).toHaveBeenCalledWith(expect.any(Error), expect.objectContaining({
+      stage: 'instance-init',
+    }))
   })
 
   it('updates instance fields via setters', () => {

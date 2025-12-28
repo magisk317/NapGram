@@ -125,8 +125,8 @@ services:
       IMAGE_SUMMARY: ""
       # 是否启用功能管理器（true/false）
       ENABLE_FEATURE_MANAGER: "false"
-      # 是否禁用 PostHog 统计（true/false）
-      POSTHOG_OPTOUT: "false"
+      # 错误收集开关（默认 1 启用；不愿上报错误/隐私合规考虑可改为 0）
+      ERROR_REPORTING: "1"
       # 昵称显示模式（具体取值参考文档）
       SHOW_NICKNAME_MODE: "11"
       # 转发模式（具体取值参考文档）

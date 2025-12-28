@@ -2,7 +2,7 @@ import process from 'node:process'
 import db from './domain/models/db'
 import env from './domain/models/env'
 import Instance from './domain/models/Instance'
-import posthog from './domain/models/posthog'
+import sentry from './domain/models/sentry'
 import api, { registerWebRoutes } from './interfaces'
 import { PluginRuntime } from './plugins/runtime'
 import { getLogger } from './shared/logger';
@@ -59,14 +59,16 @@ import { getLogger } from './shared/logger';
   }
   log.info('=================================')
 
+  sentry.init()
+
   process.on('unhandledRejection', (error) => {
     log.error(error, 'UnhandledRejection: ')
-    posthog.capture('UnhandledRejection', { error })
+    sentry.captureException(error, { type: 'unhandledRejection' })
   })
 
   process.on('uncaughtException', (error) => {
     log.error(error, 'UncaughtException: ')
-    posthog.capture('UncaughtException', { error })
+    sentry.captureException(error, { type: 'uncaughtException' })
   })
 
   const instanceEntries = await db.instance.findMany()
@@ -80,5 +82,5 @@ import { getLogger } from './shared/logger';
   // 再启动实例（包括 FeatureManager 中的 CommandsFeature）
   await Promise.all(targets.map(id => Instance.start(id)))
 
-  posthog.capture('启动完成', { instanceCount: targets.length })
+  sentry.captureMessage('启动完成', { instanceCount: targets.length })
 })()
