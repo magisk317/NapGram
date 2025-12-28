@@ -3,12 +3,10 @@
  * 将 NapGram 的 UnifiedMessage 转换为 Gateway 事件并发布
  */
 
-import type { UnifiedMessage } from '../../domain/message'
-import type { ForwardPairRecord } from '../../domain/models/ForwardMap'
+import type { UnifiedMessage } from '@napgram/message-kit'
 import type { MessageCreatedEvent, Segment } from '../protocol/events'
 import type { GatewayServer } from '../server/GatewayServer'
-import { ThreadIdExtractor } from '@napgram/feature-kit'
-import { getLogger } from '../../shared/logger'
+import { getLogger } from '../logger'
 
 const logger = getLogger('EventPublisher')
 
@@ -23,11 +21,11 @@ export class EventPublisher {
   async publishMessageCreated(
     instanceId: number,
     msg: UnifiedMessage,
-    _pair: ForwardPairRecord,
+    _pair: unknown,
   ): Promise<void> {
     try {
       const platform = this.normalizePlatform(msg.platform)
-      const threadId = platform === 'tg' ? new ThreadIdExtractor().extractFromRaw(msg.metadata?.raw || msg) : undefined
+      const threadId = platform === 'tg' ? this.extractThreadId(msg.metadata?.raw || msg) : undefined
       const channelId = this.buildChannelId(platform, msg.chat.type, msg.chat.id, threadId)
       const userId = this.buildUserId(platform, msg.sender.id)
       const messageId = this.buildMessageId(platform, msg.chat.id, msg.id)
@@ -99,6 +97,47 @@ export class EventPublisher {
 
   private normalizePlatform(platform: UnifiedMessage['platform']): 'qq' | 'tg' {
     return platform === 'telegram' ? 'tg' : 'qq'
+  }
+
+  private extractThreadId(raw: any): number | undefined {
+    if (!raw)
+      return undefined
+
+    const replyTo = raw?.replyTo
+    const candidates = [
+      replyTo?.replyToTopId,
+      raw?.replyToTopId,
+      replyTo?.forumTopicId,
+      replyTo?.topicId,
+      replyTo?.replyToTopicId,
+      replyTo?.replyToMsgId,
+      raw?.replyToMsgId,
+      raw?.topicId,
+      raw?.forumTopicId,
+      raw?.threadId,
+      raw?.replyToThreadId,
+      raw?.replyToTopMsgId,
+      raw?.messageThreadId,
+    ]
+
+    if (raw?.raw) {
+      const tlReplyTo = raw.raw.replyTo
+      candidates.push(
+        tlReplyTo?.replyToTopId,
+        tlReplyTo?.replyToMsgId,
+        tlReplyTo?.forumTopicId,
+        tlReplyTo?.topicId,
+        raw.raw?.replyToTopId,
+        raw.raw?.topicId,
+        raw.raw?.messageThreadId,
+      )
+    }
+
+    for (const candidate of candidates) {
+      if (typeof candidate === 'number' && candidate > 0)
+        return candidate
+    }
+    return undefined
   }
 
   /**

@@ -12,12 +12,16 @@ vi.mock('node:process', () => ({
   default: {
     env: { DATA_DIR: '/test/data' },
     exit: vi.fn(),
+    stdout: { write: vi.fn() },
   },
 }))
 
 vi.mock('../../../domain/models/env', () => ({
   default: {
     DATA_DIR: '/test/data',
+    LOG_FILE: '/test/data/logs/app.log',
+    LOG_LEVEL: 'info',
+    LOG_FILE_LEVEL: 'debug',
   },
 }))
 
@@ -68,6 +72,43 @@ describe('store.ts', () => {
       expect(result.exists).toBe(false)
       expect(result.config.plugins).toEqual([])
       expect(result.path).toBe(mockConfigPath)
+    })
+
+    it('should migrate legacy config when default config is missing', async () => {
+      const legacyPath = path.join(mockPluginsDir, 'plugins.json')
+      const jsonContent = JSON.stringify({
+        plugins: [{
+          id: 'legacy-plugin',
+          module: './legacy.js',
+        }],
+      })
+
+      vi.mocked(fs.access).mockImplementation(async (p) => {
+        if (p === mockConfigPath)
+          throw new Error('File not found')
+        if (p === legacyPath)
+          return undefined
+        throw new Error('File not found')
+      })
+      vi.mocked(fs.readFile).mockImplementation(async (p) => {
+        if (p === legacyPath)
+          return jsonContent
+        throw new Error('File not found')
+      })
+      vi.mocked(fs.realpath).mockImplementation(async p => String(p))
+      vi.mocked(fs.mkdir).mockResolvedValue(undefined)
+      vi.mocked(fs.writeFile).mockResolvedValue(undefined)
+
+      const result = await store.readPluginsConfig()
+
+      expect(result.exists).toBe(true)
+      expect(result.config.plugins).toHaveLength(1)
+      expect(result.config.plugins[0].id).toBe('legacy-plugin')
+      expect(vi.mocked(fs.writeFile)).toHaveBeenCalledWith(
+        mockConfigPath,
+        expect.stringContaining('legacy-plugin'),
+        'utf8',
+      )
     })
 
     it('should read and parse YAML config', async () => {

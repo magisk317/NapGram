@@ -4,7 +4,12 @@ import process from 'node:process'
 import { fileURLToPath } from 'node:url'
 import YAML from 'yaml'
 import env from '../../domain/models/env'
+import { getLogger } from '../../shared/logger'
 import { readStringEnv } from './env'
+
+const logger = getLogger('PluginStore')
+
+const legacyConfigExtensions = ['.yaml', '.yml', '.json'] as const
 
 export interface PluginsConfigFile {
   plugins: Array<{
@@ -53,6 +58,11 @@ async function exists(p: string): Promise<boolean> {
   }
 }
 
+async function writePluginsConfigFile(configPath: string, config: PluginsConfigFile): Promise<void> {
+  await fs.mkdir(path.dirname(configPath), { recursive: true })
+  await fs.writeFile(configPath, YAML.stringify({ plugins: config.plugins }), 'utf8')
+}
+
 function parseConfig(raw: string, ext: string): PluginsConfigFile {
   const data = (ext === '.yaml' || ext === '.yml') ? YAML.parse(raw) : JSON.parse(raw)
   const plugins = Array.isArray((data as any)?.plugins) ? (data as any).plugins : []
@@ -85,6 +95,35 @@ function sanitizeId(id: string): string {
     .replace(/-+/g, '-')
     .replace(/^[-_]+|[-_]+$/g, '')
     .slice(0, 64) || 'plugin'
+}
+
+function getLegacyConfigCandidates(configPath: string): string[] {
+  const ext = path.extname(configPath).toLowerCase()
+  const base = path.join(path.dirname(configPath), path.basename(configPath, ext))
+  return legacyConfigExtensions
+    .filter(candidate => candidate !== ext)
+    .map(candidate => `${base}${candidate}`)
+}
+
+async function migrateLegacyPluginsConfig(configPath: string): Promise<PluginsConfigFile | null> {
+  const candidates = getLegacyConfigCandidates(configPath)
+  for (const candidate of candidates) {
+    if (!await exists(candidate))
+      continue
+    try {
+      await ensureUnderDataDir(candidate)
+      const raw = await fs.readFile(candidate, 'utf8')
+      const ext = path.extname(candidate).toLowerCase()
+      const config = parseConfig(raw, ext)
+      await writePluginsConfigFile(configPath, config)
+      logger.info({ from: candidate, to: configPath }, 'Migrated legacy plugins config')
+      return config
+    }
+    catch (error) {
+      logger.warn({ from: candidate, error }, 'Failed to migrate legacy plugins config')
+    }
+  }
+  return null
 }
 
 export async function getManagedPluginsConfigPath(): Promise<string> {
@@ -123,7 +162,13 @@ export async function normalizeModuleSpecifierForPluginsConfig(moduleRaw: string
 export async function readPluginsConfig(): Promise<{ path: string, config: PluginsConfigFile, exists: boolean }> {
   const configPath = await getManagedPluginsConfigPath()
   await ensureUnderDataDir(configPath)
-  const ok = await exists(configPath)
+  let ok = await exists(configPath)
+  if (!ok) {
+    const migrated = await migrateLegacyPluginsConfig(configPath)
+    if (migrated)
+      return { path: configPath, config: migrated, exists: true }
+    ok = await exists(configPath)
+  }
   if (!ok)
     return { path: configPath, config: { plugins: [] }, exists: false }
   const raw = await fs.readFile(configPath, 'utf8')
@@ -152,8 +197,7 @@ export async function upsertPluginConfig(entry: { id?: string, module: string, e
 
   config.plugins.sort((a, b) => a.id.localeCompare(b.id))
 
-  await fs.mkdir(path.dirname(configPath), { recursive: true })
-  await fs.writeFile(configPath, YAML.stringify({ plugins: config.plugins }), 'utf8')
+  await writePluginsConfigFile(configPath, config)
 
   return { id: inferredId, path: configPath, record }
 }
@@ -198,8 +242,7 @@ export async function patchPluginConfig(id: string, patch: { module?: string, en
   }
 
   config.plugins[idx] = next
-  await fs.mkdir(path.dirname(configPath), { recursive: true })
-  await fs.writeFile(configPath, YAML.stringify({ plugins: config.plugins }), 'utf8')
+  await writePluginsConfigFile(configPath, config)
 
   return { id: pluginId, path: configPath, record: next }
 }
@@ -211,8 +254,7 @@ export async function removePluginConfig(id: string) {
   if (idx < 0)
     return { removed: false, id: pluginId, path: configPath }
   config.plugins.splice(idx, 1)
-  await fs.mkdir(path.dirname(configPath), { recursive: true })
-  await fs.writeFile(configPath, YAML.stringify({ plugins: config.plugins }), 'utf8')
+  await writePluginsConfigFile(configPath, config)
   return { removed: true, id: pluginId, path: configPath }
 }
 

@@ -3,6 +3,10 @@ import path from 'node:path'
 import process from 'node:process'
 import YAML from 'yaml'
 import env from '../../../main/src/domain/models/env'
+import { getLogger } from '../../../main/src/shared/logger'
+
+const logger = getLogger('MarketplacesConfig')
+const legacyConfigExtensions = ['.yaml', '.yml', '.json'] as const
 
 export interface MarketplaceIndexSpec {
   id: string
@@ -30,6 +34,17 @@ async function exists(p: string): Promise<boolean> {
   }
 }
 
+async function writeMarketplacesFile(filePath: string, next: MarketplacesConfigFile): Promise<MarketplacesConfigFile> {
+  await fs.mkdir(path.dirname(filePath), { recursive: true })
+  const normalized: MarketplacesConfigFile = {
+    version: 1,
+    indexes: (next.indexes || []).map(i => ({ ...i, id: sanitizeId(i.id), enabled: i.enabled !== false })),
+  }
+  normalized.indexes.sort((a, b) => a.id.localeCompare(b.id))
+  await fs.writeFile(filePath, YAML.stringify(normalized), 'utf8')
+  return normalized
+}
+
 function sanitizeId(id: string): string {
   return String(id || '')
     .trim()
@@ -37,6 +52,47 @@ function sanitizeId(id: string): string {
     .replace(/-+/g, '-')
     .replace(/^[-_]+|[-_]+$/g, '')
     .slice(0, 64) || 'market'
+}
+
+function parseMarketplaces(raw: string, ext: string): MarketplacesConfigFile {
+  const data = (ext === '.yaml' || ext === '.yml') ? YAML.parse(raw) : JSON.parse(raw)
+  const indexes = Array.isArray((data as any)?.indexes) ? (data as any).indexes : []
+  const normalized: MarketplaceIndexSpec[] = indexes
+    .map((i: any) => ({
+      id: sanitizeId(i?.id),
+      url: typeof i?.url === 'string' ? i.url : '',
+      enabled: i?.enabled !== false,
+    }))
+    .filter(i => i.id && i.url)
+  return { version: 1, indexes: normalized }
+}
+
+function getLegacyMarketplaceCandidates(filePath: string): string[] {
+  const ext = path.extname(filePath).toLowerCase()
+  const base = path.join(path.dirname(filePath), path.basename(filePath, ext))
+  return legacyConfigExtensions
+    .filter(candidate => candidate !== ext)
+    .map(candidate => `${base}${candidate}`)
+}
+
+async function migrateLegacyMarketplaces(filePath: string): Promise<MarketplacesConfigFile | null> {
+  const candidates = getLegacyMarketplaceCandidates(filePath)
+  for (const candidate of candidates) {
+    if (!await exists(candidate))
+      continue
+    try {
+      const raw = await fs.readFile(candidate, 'utf8')
+      const ext = path.extname(candidate).toLowerCase()
+      const config = parseMarketplaces(raw, ext)
+      await writeMarketplacesFile(filePath, config)
+      logger.info({ from: candidate, to: filePath }, 'Migrated legacy marketplaces config')
+      return config
+    }
+    catch (error) {
+      logger.warn({ from: candidate, error }, 'Failed to migrate legacy marketplaces config')
+    }
+  }
+  return null
 }
 
 export async function getManagedMarketplacesPath(): Promise<string> {
@@ -57,31 +113,23 @@ export async function getMarketCacheDir(): Promise<string> {
 
 export async function readMarketplaces(): Promise<{ path: string, config: MarketplacesConfigFile, exists: boolean }> {
   const filePath = await getManagedMarketplacesPath()
-  const ok = await exists(filePath)
+  let ok = await exists(filePath)
+  if (!ok) {
+    const migrated = await migrateLegacyMarketplaces(filePath)
+    if (migrated)
+      return { path: filePath, config: migrated, exists: true }
+    ok = await exists(filePath)
+  }
   if (!ok)
     return { path: filePath, config: { version: 1, indexes: [] }, exists: false }
   const raw = await fs.readFile(filePath, 'utf8')
-  const data = YAML.parse(raw) || {}
-  const indexes = Array.isArray((data as any).indexes) ? (data as any).indexes : []
-  const normalized: MarketplaceIndexSpec[] = indexes
-    .map((i: any) => ({
-      id: sanitizeId(i?.id),
-      url: typeof i?.url === 'string' ? i.url : '',
-      enabled: i?.enabled !== false,
-    }))
-    .filter(i => i.id && i.url)
-  return { path: filePath, config: { version: 1, indexes: normalized }, exists: true }
+  const ext = path.extname(filePath).toLowerCase()
+  return { path: filePath, config: parseMarketplaces(raw, ext), exists: true }
 }
 
 export async function writeMarketplaces(next: MarketplacesConfigFile): Promise<{ path: string, config: MarketplacesConfigFile }> {
   const filePath = await getManagedMarketplacesPath()
-  await fs.mkdir(path.dirname(filePath), { recursive: true })
-  const normalized: MarketplacesConfigFile = {
-    version: 1,
-    indexes: (next.indexes || []).map(i => ({ ...i, id: sanitizeId(i.id), enabled: i.enabled !== false })),
-  }
-  normalized.indexes.sort((a, b) => a.id.localeCompare(b.id))
-  await fs.writeFile(filePath, YAML.stringify(normalized), 'utf8')
+  const normalized = await writeMarketplacesFile(filePath, next)
   return { path: filePath, config: normalized }
 }
 

@@ -3,8 +3,8 @@
  * 使用 Bearer Token 认证
  */
 
-import env from '../../domain/models/env'
-import { getLogger } from '../../shared/logger'
+import process from 'node:process'
+import { getLogger } from '../logger'
 
 const logger = getLogger('AuthManager')
 
@@ -25,7 +25,7 @@ export class AuthManager {
   async authenticate(token: string): Promise<AuthResult> {
     try {
       // MVP: 使用 ADMIN_TOKEN 作为 Gateway Token
-      const adminToken = env.ADMIN_TOKEN
+      const adminToken = process.env.ADMIN_TOKEN
 
       if (!adminToken) {
         logger.warn('ADMIN_TOKEN not configured, Gateway authentication disabled')

@@ -5,12 +5,12 @@
 
 import type { InputText } from '@mtcute/core'
 import type { tl } from '@mtcute/node'
-import type { MessageContent, UnifiedMessage } from '../../domain/message'
-import type { IQQClient } from '../../infrastructure/clients/qq'
-import type Telegram from '../../infrastructure/clients/telegram/client'
+import type { MessageContent, UnifiedMessage } from '@napgram/message-kit'
+import type { IQQClient } from '@napgram/qq-client'
+import type Telegram from '@napgram/telegram-client'
 import type { MessageSendResult } from '../protocol/actions'
 import type { Segment } from '../protocol/events'
-import { getLogger } from '../../shared/logger'
+import { getLogger } from '../logger'
 
 const logger = getLogger('ActionExecutor')
 

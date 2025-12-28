@@ -5,10 +5,10 @@
  * per-instance ActionExecutors and a shared EventPublisher.
  */
 
-import type ForwardMap from '../../domain/models/ForwardMap'
-import type { IQQClient } from '../../infrastructure/clients/qq'
-import type Telegram from '../../infrastructure/clients/telegram/client'
-import { getLogger } from '../../shared/logger'
+import type { IQQClient } from '@napgram/qq-client'
+import type Telegram from '@napgram/telegram-client'
+import type { GatewayPairsProvider } from '../types'
+import { getLogger } from '../logger'
 import { ActionExecutor } from '../adapters/ActionExecutor'
 import { EventPublisher } from '../adapters/EventPublisher'
 import { GatewayServer } from './GatewayServer'
@@ -33,13 +33,12 @@ export class GatewayRuntime {
     return { server: this.server, publisher: this.publisher! }
   }
 
-  static registerInstance(instanceId: number, qqClient: IQQClient, tgBot: Telegram, forwardPairs?: ForwardMap) {
+  static registerInstance(instanceId: number, qqClient: IQQClient, tgBot: Telegram, forwardPairs?: GatewayPairsProvider) {
     const { server, publisher } = this.ensureStarted()
     const executor = new ActionExecutor(qqClient, tgBot)
     this.executors.set(instanceId, executor)
-    if (forwardPairs) {
+    if (forwardPairs)
       this.pairsProvider.set(instanceId, () => forwardPairs.getAll())
-    }
     logger.info({ instanceId }, 'Gateway instance registered')
     return { server, publisher, executor }
   }

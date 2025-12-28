@@ -16,6 +16,14 @@
         "build": "tsc -p tsconfig.json",
         "dev": "tsc -p tsconfig.json --watch"
     },
+    "dependencies": {
+        "@mtcute/core": "^0.27.4",
+        "@mtcute/node": "^0.27.4",
+        "@napgram/message-kit": "workspace:*",
+        "@napgram/qq-client": "workspace:*",
+        "@napgram/telegram-client": "workspace:*",
+        "ws": "^8.18.3"
+    },
     "keywords": [
         "napgram",
         "gateway"

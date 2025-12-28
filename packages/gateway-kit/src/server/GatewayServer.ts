@@ -5,7 +5,6 @@ import type { Buffer } from 'node:buffer'
  * 协议: NapGram Gateway v1
  */
 
-import type { ForwardPairRecord } from '../../domain/models/ForwardMap'
 import type {
   CallFrame,
   Frame,
@@ -13,8 +12,9 @@ import type {
   PingFrame,
 } from '../protocol/frames'
 import type { Session } from './SessionManager'
+import type { GatewayPairRecord } from '../types'
 import { WebSocket, WebSocketServer } from 'ws'
-import { getLogger } from '../../shared/logger'
+import { getLogger } from '../logger'
 import {
   createErrorFrame,
   createHelloFrame,
@@ -36,7 +36,7 @@ export class GatewayServer {
     private readonly port: number = 8765,
     private readonly opts?: {
       resolveExecutor?: (instanceId: number) => any
-      resolvePairs?: (instanceId: number) => ForwardPairRecord[]
+      resolvePairs?: (instanceId: number) => GatewayPairRecord[]
     },
   ) {
     this.sessions = new SessionManager()
