@@ -5,8 +5,6 @@ import type { ReplyResolver } from '../services/ReplyResolver'
 import type { MediaGroupHandler } from './MediaGroupHandler'
 import { messageConverter } from '../../../domain/message'
 import db from '../../../domain/models/db'
-import Instance from '../../../domain/models/Instance'
-import { getEventPublisher } from '../../../plugins/core/event-publisher'
 import { getLogger } from '../../../shared/logger'
 import { ThreadIdExtractor } from '../../commands/services/ThreadIdExtractor'
 
@@ -38,86 +36,6 @@ export class TelegramMessageHandler {
       const trimmedText = rawText.trim()
       if (trimmedText.startsWith('/')) {
         logger.debug({ text: rawText }, `[Forward] Skipping command message`)
-        try {
-          const eventPublisher = getEventPublisher()
-          const instanceId = pair.instanceId
-          const resolveInstance = () => Instance.instances.find(it => it.id === instanceId)
-          const threadId = new ThreadIdExtractor().extractFromRaw((tgMsg as any).raw || tgMsg)
-          const contentToText = (content: string | any[]) => {
-            if (typeof content === 'string')
-              return content
-            if (!Array.isArray(content))
-              return String(content ?? '')
-            return content
-              .map((seg: any) => {
-                if (!seg)
-                  return ''
-                if (typeof seg === 'string')
-                  return seg
-                if (seg.type === 'text')
-                  return String(seg.data?.text ?? '')
-                if (seg.type === 'at')
-                  return seg.data?.userName ? `@${seg.data.userName}` : '@'
-                return ''
-              })
-              .filter(Boolean)
-              .join('')
-          }
-
-          eventPublisher.publishMessage({
-            instanceId,
-            platform: 'tg',
-            channelId: String(tgMsg.chat.id),
-            channelType: 'group',
-            threadId,
-            sender: {
-              userId: `tg:u:${tgMsg.sender?.id || 0}`,
-              userName: tgMsg.sender?.displayName || tgMsg.sender?.username || 'Unknown',
-            },
-            message: {
-              id: String(tgMsg.id),
-              text: rawText,
-              segments: [{ type: 'text', data: { text: rawText } }],
-              timestamp: tgMsg.date ? (typeof tgMsg.date === 'number' ? tgMsg.date : tgMsg.date.getTime()) : Date.now(),
-            },
-            raw: tgMsg,
-            reply: async (content) => {
-              const instance = resolveInstance()
-              if (!instance)
-                throw new Error(`Instance ${instanceId} not found`)
-              const chat = await instance.tgBot.getChat(Number(tgMsg.chat.id))
-              const text = contentToText(content)
-              const params: any = { replyTo: tgMsg.id }
-              if (threadId)
-                params.messageThreadId = threadId
-              const sent = await chat.sendMessage(text, params)
-              return { messageId: `tg:${String(tgMsg.chat.id)}:${String((sent as any)?.id ?? '')}` }
-            },
-            send: async (content) => {
-              const instance = resolveInstance()
-              if (!instance)
-                throw new Error(`Instance ${instanceId} not found`)
-              const chat = await instance.tgBot.getChat(Number(tgMsg.chat.id))
-              const text = contentToText(content)
-              const params: any = {}
-              if (threadId)
-                params.messageThreadId = threadId
-              const sent = await chat.sendMessage(text, params)
-              return { messageId: `tg:${String(tgMsg.chat.id)}:${String((sent as any)?.id ?? '')}` }
-            },
-            recall: async () => {
-              const instance = resolveInstance()
-              if (!instance)
-                throw new Error(`Instance ${instanceId} not found`)
-              const chat = await instance.tgBot.getChat(Number(tgMsg.chat.id))
-              await chat.deleteMessages([tgMsg.id])
-            },
-          })
-          logger.debug('[Forward] Command message event published to plugin system')
-        }
-        catch (error) {
-          logger.debug(error, '[Forward] publishMessage (command) failed')
-        }
         return
       }
 
@@ -322,86 +240,6 @@ export class TelegramMessageHandler {
       if (receipt.success) {
         const msgId = receipt.messageId || (receipt as any).data?.message_id || (receipt as any).id
         logger.info(`[Forward][TG->QQ] message ${tgMsg.id} -> QQ ${pair.qqRoomId} (seq: ${msgId})`)
-
-        // 发布消息事件到插件系统
-        try {
-          const eventPublisher = getEventPublisher()
-          const instanceId = pair.instanceId
-          const resolveInstance = () => Instance.instances.find(it => it.id === instanceId)
-          const contentToText = (content: string | any[]) => {
-            if (typeof content === 'string')
-              return content
-            if (!Array.isArray(content))
-              return String(content ?? '')
-            return content
-              .map((seg: any) => {
-                if (!seg)
-                  return ''
-                if (typeof seg === 'string')
-                  return seg
-                if (seg.type === 'text')
-                  return String(seg.data?.text ?? '')
-                if (seg.type === 'at')
-                  return seg.data?.userName ? `@${seg.data.userName}` : '@'
-                return ''
-              })
-              .filter(Boolean)
-              .join('')
-          }
-          eventPublisher.publishMessage({
-            instanceId,
-            platform: 'tg',
-            channelId: String(tgMsg.chat.id),
-            channelType: 'group',
-            threadId,
-            sender: {
-              userId: `tg:u:${tgMsg.sender?.id || 0}`,
-              userName: tgMsg.sender?.displayName || tgMsg.sender?.username || 'Unknown',
-            },
-            message: {
-              id: String(tgMsg.id),
-              text: rawText,
-              segments: unified.content,
-              timestamp: tgMsg.date ? (typeof tgMsg.date === 'number' ? tgMsg.date : tgMsg.date.getTime()) : Date.now(),
-            },
-            raw: tgMsg,
-            reply: async (content) => {
-              const instance = resolveInstance()
-              if (!instance)
-                throw new Error(`Instance ${instanceId} not found`)
-              const chat = await instance.tgBot.getChat(Number(tgMsg.chat.id))
-              const text = contentToText(content)
-              const params: any = { replyTo: tgMsg.id }
-              if (threadId)
-                params.messageThreadId = threadId
-              const sent = await chat.sendMessage(text, params)
-              return { messageId: `tg:${String(tgMsg.chat.id)}:${String((sent as any)?.id ?? '')}` }
-            },
-            send: async (content) => {
-              const instance = resolveInstance()
-              if (!instance)
-                throw new Error(`Instance ${instanceId} not found`)
-              const chat = await instance.tgBot.getChat(Number(tgMsg.chat.id))
-              const text = contentToText(content)
-              const params: any = {}
-              if (threadId)
-                params.messageThreadId = threadId
-              const sent = await chat.sendMessage(text, params)
-              return { messageId: `tg:${String(tgMsg.chat.id)}:${String((sent as any)?.id ?? '')}` }
-            },
-            recall: async () => {
-              const instance = resolveInstance()
-              if (!instance)
-                throw new Error(`Instance ${instanceId} not found`)
-              const chat = await instance.tgBot.getChat(Number(tgMsg.chat.id))
-              await chat.deleteMessages([tgMsg.id])
-            },
-          })
-          logger.debug('Event published to plugin system')
-        }
-        catch (publishError) {
-          logger.warn('Failed to publish event to plugin system:', publishError)
-        }
 
         if (msgId) {
           // Save mapping for reply lookup (QQ -> TG reply)

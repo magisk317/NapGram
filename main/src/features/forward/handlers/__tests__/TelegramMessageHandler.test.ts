@@ -1,14 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { messageConverter } from '../../../../domain/message'
 import db from '../../../../domain/models/db'
-import Instance from '../../../../domain/models/Instance'
 import { TelegramMessageHandler } from '../TelegramMessageHandler'
-
-const publishMessage = vi.fn()
-
-vi.mock('../../../../plugins/core/event-publisher', () => ({
-  getEventPublisher: () => ({ publishMessage }),
-}))
 
 vi.mock('../../../../domain/message', () => ({
   messageConverter: {
@@ -17,11 +10,6 @@ vi.mock('../../../../domain/message', () => ({
   },
 }))
 
-vi.mock('../../../../domain/models/Instance', () => ({
-  default: {
-    instances: [],
-  },
-}))
 
 vi.mock('../../../../domain/models/db', () => ({
   default: {
@@ -61,7 +49,7 @@ describe('telegramMessageHandler', () => {
     )
   })
 
-  it('skips forwarding command messages and handles plugin interaction', async () => {
+  it('skips forwarding command messages', async () => {
     const tgMsg: any = {
       id: 1,
       text: '/help',
@@ -72,34 +60,10 @@ describe('telegramMessageHandler', () => {
     }
     const pair = { instanceId: 1, qqRoomId: '888', tgChatId: '100' }
 
-    // Setup instance for plugin reply/send
-    const mockInstance = {
-      id: 1,
-      tgBot: {
-        getChat: vi.fn().mockResolvedValue({
-          sendMessage: vi.fn().mockResolvedValue({ id: 999 }),
-          deleteMessages: vi.fn().mockResolvedValue(undefined),
-        }),
-      },
-    }
-      ; (Instance.instances as any).push(mockInstance)
-
     await handler.handleTGMessage(tgMsg, pair)
 
-    expect(publishMessage).toHaveBeenCalled()
-    const event = publishMessage.mock.calls[0][0]
-    expect(event.instanceId).toBe(1)
-    expect(event.message.text).toBe('/help')
-
-    // Test reply/send/recall functions in the event
-    await event.reply('hello')
-    expect(mockInstance.tgBot.getChat).toHaveBeenCalledWith(100)
-
-    await event.send('world')
-    await event.recall()
-
-    // Cleanup singleton mock
-    Instance.instances.length = 0
+    expect(messageConverter.fromTelegram).not.toHaveBeenCalled()
+    expect(qqClient.sendMessage).not.toHaveBeenCalled()
   })
 
   it('handles media group messages by skipping further processing', async () => {
@@ -217,26 +181,6 @@ describe('telegramMessageHandler', () => {
     const sentMsg = qqClient.sendMessage.mock.calls[0][1]
     expect(sentMsg.content.some((c: any) => c.type === 'reply')).toBe(true)
   })
-  it('handles command message helper errors when instance not found', async () => {
-    const tgMsg: any = {
-      id: 1,
-      text: '/help',
-      date: new Date(),
-      chat: { id: 100 },
-      raw: {},
-    }
-    const pair = { instanceId: 999, qqRoomId: '888', tgChatId: '100' } // ID 999 not in instances
-
-    await handler.handleTGMessage(tgMsg, pair)
-
-    expect(publishMessage).toHaveBeenCalled()
-    const event = publishMessage.mock.calls[0][0]
-
-    // Instance 999 not found
-    await expect(event.send('test')).rejects.toThrow('not found')
-    await expect(event.reply('test')).rejects.toThrow('not found')
-    await expect(event.recall()).rejects.toThrow('not found')
-  })
 
   it('handles receipt with error', async () => {
     const tgMsg: any = { id: 1, text: 'Hello', chat: { id: 100 }, date: new Date(), sender: { id: 10 } }
@@ -345,105 +289,4 @@ describe('telegramMessageHandler', () => {
     expect(qqClient.sendMessage).not.toHaveBeenCalled()
   })
 
-  it('handles plugin interaction for forwarded messages', async () => {
-    const tgMsg: any = { id: 1, text: 'Hello', chat: { id: 100 }, date: new Date(), sender: { id: 10 } }
-    const pair = { instanceId: 1, qqRoomId: '888', tgChatId: '100' }
-    const unified = {
-      id: '1',
-      sender: { name: 'Alice' },
-      content: [{ type: 'text', data: { text: 'Hello' } }],
-      chat: { id: '888' },
-      timestamp: Date.now(),
-    }
-    messageConverter.fromTelegram.mockReturnValueOnce(unified)
-    messageConverter.toNapCat.mockResolvedValueOnce([{ type: 'text', data: { text: 'Hello' } }])
-
-    // Mock success receipt with ID
-    qqClient.sendMessage.mockResolvedValueOnce({ success: true, messageId: 'qq-msg-123' })
-
-    // Setup instance for plugin reply/send
-    const mockInstance = {
-      id: 1,
-      tgBot: {
-        getChat: vi.fn().mockResolvedValue({
-          sendMessage: vi.fn().mockResolvedValue({ id: 999 }),
-          deleteMessages: vi.fn().mockResolvedValue(undefined),
-        }),
-      },
-    };
-    (Instance.instances as any).push(mockInstance)
-
-    await handler.handleTGMessage(tgMsg, pair)
-
-    expect(publishMessage).toHaveBeenCalled()
-    // The second call might be from this test.
-    // Wait, previous tests might have called it. We should use .toHaveBeenLastCalledWith or get the last call.
-    const calls = publishMessage.mock.calls
-    const event = calls[calls.length - 1][0]
-
-    expect(event.instanceId).toBe(1)
-    expect(event.message.text).toBe('Hello')
-
-    // Test helper functions
-    await event.reply('reply text')
-    expect(mockInstance.tgBot.getChat).toHaveBeenCalledWith(100)
-
-    await event.send('send text')
-    await event.recall()
-
-    // Cleanup
-    Instance.instances.length = 0
-  })
-
-  it('handles plugin interaction errors and threadId for forwarded messages', async () => {
-    // Message with extracted threadId
-    const tgMsg: any = {
-      id: 1,
-      text: 'Hello',
-      chat: { id: 100 },
-      date: new Date(),
-      sender: { id: 10 },
-      raw: { replyTo: { replyToTopId: 999 } }, // Mock threadId source
-    }
-    const pair = { instanceId: 1, qqRoomId: '888', tgChatId: '100' }
-    const unified = {
-      id: '1',
-      sender: { name: 'Alice' },
-      content: [{ type: 'text', data: { text: 'Hello' } }],
-      chat: { id: '888' },
-      timestamp: Date.now(),
-    }
-    messageConverter.fromTelegram.mockReturnValueOnce(unified)
-    messageConverter.toNapCat.mockResolvedValueOnce([{ type: 'text', data: { text: 'Hello' } }])
-
-    qqClient.sendMessage.mockResolvedValueOnce({ success: true, messageId: 'qq-msg-123' })
-
-    // We do NOT add the instance to Instance.instances, to trigger "Instance not found" error
-
-    await handler.handleTGMessage(tgMsg, pair)
-
-    expect(publishMessage).toHaveBeenCalled()
-    const calls = publishMessage.mock.calls
-    const event = calls[calls.length - 1][0]
-
-    expect(event.instanceId).toBe(1)
-    // Verify threadId presence
-    // Note: ThreadIdExtractor is real, so if we mock it correctly it should be there.
-    // In our test, ThreadIdExtractor is imported but mocked?
-    // Let's check imports.
-    // Line 11: import { ThreadIdExtractor } from ...
-    // But we didn't mock ThreadIdExtractor in this test file explicitly?
-    // Ah, lines 124 in source: new ThreadIdExtractor().extractFromRaw(...)
-    // If it's not mocked, it uses real logic?
-    // Wait, check top of test file.
-    // It is NOT mocked in `vi.mock(...)` calls in the snippet I saw.
-    // So it uses real one.
-    // And I provided `raw: { replyTo: { replyToTopId: 999 } }`.
-    // ThreadIdExtractor likely extracts 999.
-
-    // Test helper functions failure (no instance)
-    await expect(event.send('send text')).rejects.toThrow('not found')
-    await expect(event.reply('reply text')).rejects.toThrow('not found')
-    await expect(event.recall()).rejects.toThrow('not found')
-  })
 })

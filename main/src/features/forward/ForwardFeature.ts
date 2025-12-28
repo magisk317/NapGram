@@ -49,6 +49,8 @@ export class ForwardFeature {
       return
     }
 
+    await this.publishTgPluginEvent(tgMsg, pair, threadId)
+
     // Publish gateway event (doesn't affect forwarding)
     try {
       const unified = messageConverter.fromTelegram(tgMsg as any)
@@ -137,6 +139,160 @@ export class ForwardFeature {
     return pair.nicknameMode || env.SHOW_NICKNAME_MODE
   }
 
+  private toPluginSegments(contents: MessageContent[], platform: 'qq' | 'tg'): MessageSegment[] {
+    const out: MessageSegment[] = []
+    for (const c of contents || []) {
+      if (!c)
+        continue
+      switch (c.type) {
+        case 'text':
+          out.push({ type: 'text', data: { text: String((c.data as any)?.text ?? '') } })
+          break
+        case 'at':
+          out.push({
+            type: 'at',
+            data: {
+              userId: String((c.data as any)?.userId ?? ''),
+              userName: (c.data as any)?.userName ? String((c.data as any).userName) : undefined,
+            },
+          })
+          break
+        case 'reply':
+          out.push({ type: 'reply', data: { messageId: String((c.data as any)?.messageId ?? '') } })
+          break
+        case 'image': {
+          const data = c.data as any
+          out.push({
+            type: 'image',
+            data: { url: typeof data?.url === 'string' ? data.url : undefined, file: typeof data?.file === 'string' ? data.file : undefined },
+          })
+          break
+        }
+        case 'video': {
+          const data = c.data as any
+          out.push({
+            type: 'video',
+            data: { url: typeof data?.url === 'string' ? data.url : undefined, file: typeof data?.file === 'string' ? data.file : undefined },
+          })
+          break
+        }
+        case 'audio': {
+          const data = c.data as any
+          out.push({
+            type: 'audio',
+            data: { url: typeof data?.url === 'string' ? data.url : undefined, file: typeof data?.file === 'string' ? data.file : undefined },
+          })
+          break
+        }
+        case 'file': {
+          const data = c.data as any
+          out.push({
+            type: 'file',
+            data: {
+              url: typeof data?.url === 'string' ? data.url : undefined,
+              file: typeof data?.file === 'string' ? data.file : undefined,
+              name: data?.filename ? String(data.filename) : undefined,
+            },
+          })
+          break
+        }
+        case 'forward': {
+          const msgs = Array.isArray((c.data as any)?.messages) ? (c.data as any).messages : []
+          out.push({
+            type: 'forward',
+            data: {
+              messages: msgs.map((m: UnifiedMessage) => ({
+                userId: String(m?.sender?.id ?? ''),
+                userName: String(m?.sender?.name ?? ''),
+                segments: this.toPluginSegments(m?.content || [], platform),
+              })),
+            },
+          })
+          break
+        }
+        default:
+          out.push({ type: 'raw', data: { platform, content: c } })
+          break
+      }
+    }
+    return out
+  }
+
+  private contentToText(content: string | any[]): string {
+    if (typeof content === 'string')
+      return content
+    if (!Array.isArray(content))
+      return String(content ?? '')
+    return content
+      .map((seg: any) => {
+        if (!seg)
+          return ''
+        if (typeof seg === 'string')
+          return seg
+        if (seg.type === 'text')
+          return String(seg.data?.text ?? '')
+        if (seg.type === 'at')
+          return seg.data?.userName ? `@${seg.data.userName}` : '@'
+        return ''
+      })
+      .filter(Boolean)
+      .join('')
+  }
+
+  private async publishTgPluginEvent(tgMsg: Message, pair: ForwardPairRecord, threadId?: number) {
+    try {
+      const eventPublisher = getEventPublisher()
+      const unified = messageConverter.fromTelegram(tgMsg as any)
+      const segments = this.toPluginSegments(unified.content as any, 'tg')
+      const text = this.contentToText(segments)
+      const timestamp = tgMsg.date ? (typeof tgMsg.date === 'number' ? tgMsg.date : tgMsg.date.getTime()) : Date.now()
+
+      eventPublisher.publishMessage({
+        instanceId: pair.instanceId,
+        platform: 'tg',
+        channelId: String(tgMsg.chat.id),
+        channelType: 'group',
+        threadId,
+        sender: {
+          userId: `tg:u:${tgMsg.sender?.id || 0}`,
+          userName: tgMsg.sender?.displayName || tgMsg.sender?.username || 'Unknown',
+        },
+        message: {
+          id: String(tgMsg.id),
+          text,
+          segments,
+          timestamp,
+        },
+        raw: tgMsg,
+        reply: async (content) => {
+          const chat = await this.tgBot.getChat(Number(tgMsg.chat.id))
+          const replyText = this.contentToText(content)
+          const params: any = { replyTo: tgMsg.id }
+          if (threadId)
+            params.messageThreadId = threadId
+          const sent = await chat.sendMessage(replyText, params)
+          return { messageId: `tg:${String(tgMsg.chat.id)}:${String((sent as any)?.id ?? '')}` }
+        },
+        send: async (content) => {
+          const chat = await this.tgBot.getChat(Number(tgMsg.chat.id))
+          const sendText = this.contentToText(content)
+          const params: any = {}
+          if (threadId)
+            params.messageThreadId = threadId
+          const sent = await chat.sendMessage(sendText, params)
+          return { messageId: `tg:${String(tgMsg.chat.id)}:${String((sent as any)?.id ?? '')}` }
+        },
+        recall: async () => {
+          const chat = await this.tgBot.getChat(Number(tgMsg.chat.id))
+          await chat.deleteMessages([tgMsg.id])
+        },
+      })
+    }
+    catch (e) {
+      logger.debug(e, '[Plugin] publishMessage (TG) failed')
+    }
+  }
+
   private handleQQMessage = async (msg: UnifiedMessage) => {
     const startTime = Date.now() // 📊 开始计时
     const text = (msg.content || [])
@@ -158,107 +314,7 @@ export class ForwardFeature {
               ? 'group'
               : 'group'
 
-        const toPluginSegments = (contents: MessageContent[], platform: 'qq' | 'tg'): MessageSegment[] => {
-          const out: MessageSegment[] = []
-          for (const c of contents || []) {
-            if (!c)
-              continue
-            switch (c.type) {
-              case 'text':
-                out.push({ type: 'text', data: { text: String((c.data as any)?.text ?? '') } })
-                break
-              case 'at':
-                out.push({
-                  type: 'at',
-                  data: {
-                    userId: String((c.data as any)?.userId ?? ''),
-                    userName: (c.data as any)?.userName ? String((c.data as any).userName) : undefined,
-                  },
-                })
-                break
-              case 'reply':
-                out.push({ type: 'reply', data: { messageId: String((c.data as any)?.messageId ?? '') } })
-                break
-              case 'image': {
-                const data = c.data as any
-                out.push({
-                  type: 'image',
-                  data: { url: typeof data?.url === 'string' ? data.url : undefined, file: typeof data?.file === 'string' ? data.file : undefined },
-                })
-                break
-              }
-              case 'video': {
-                const data = c.data as any
-                out.push({
-                  type: 'video',
-                  data: { url: typeof data?.url === 'string' ? data.url : undefined, file: typeof data?.file === 'string' ? data.file : undefined },
-                })
-                break
-              }
-              case 'audio': {
-                const data = c.data as any
-                out.push({
-                  type: 'audio',
-                  data: { url: typeof data?.url === 'string' ? data.url : undefined, file: typeof data?.file === 'string' ? data.file : undefined },
-                })
-                break
-              }
-              case 'file': {
-                const data = c.data as any
-                out.push({
-                  type: 'file',
-                  data: {
-                    url: typeof data?.url === 'string' ? data.url : undefined,
-                    file: typeof data?.file === 'string' ? data.file : undefined,
-                    name: data?.filename ? String(data.filename) : undefined,
-                  },
-                })
-                break
-              }
-              case 'forward': {
-                const msgs = Array.isArray((c.data as any)?.messages) ? (c.data as any).messages : []
-                out.push({
-                  type: 'forward',
-                  data: {
-                    messages: msgs.map((m: UnifiedMessage) => ({
-                      userId: String(m?.sender?.id ?? ''),
-                      userName: String(m?.sender?.name ?? ''),
-                      segments: toPluginSegments(m?.content || [], platform),
-                    })),
-                  },
-                })
-                break
-              }
-              default:
-                out.push({ type: 'raw', data: { platform, content: c } })
-                break
-            }
-          }
-          return out
-        }
-
-        const segments = toPluginSegments(msg.content as any, 'qq')
-
-        const contentToText = (content: string | any[]) => {
-          if (typeof content === 'string')
-            return content
-          if (!Array.isArray(content))
-            return String(content ?? '')
-          return content
-            .map((seg: any) => {
-              if (!seg)
-                return ''
-              if (typeof seg === 'string')
-                return seg
-              if (seg.type === 'text')
-                return String(seg.data?.text ?? '')
-              if (seg.type === 'at')
-                return seg.data?.userName ? `@${seg.data.userName}` : '@'
-              return ''
-            })
-            .filter(Boolean)
-            .join('')
-        }
+        const segments = this.toPluginSegments(msg.content as any, 'qq')
 
         eventPublisher.publishMessage({
           instanceId: this.instance.id,
@@ -277,7 +333,7 @@ export class ForwardFeature {
           },
           raw: msg,
           reply: async (content) => {
-            const text = contentToText(content)
+            const text = this.contentToText(content)
             const receipt = await this.qqClient.sendMessage(String(msg.chat.id), {
               id: `plugin-reply-${Date.now()}`,
               platform: 'qq',
@@ -292,7 +348,7 @@ export class ForwardFeature {
             return { messageId: `qq:${String(receipt.messageId)}` }
           },
           send: async (content) => {
-            const text = contentToText(content)
+            const text = this.contentToText(content)
             const receipt = await this.qqClient.sendMessage(String(msg.chat.id), {
               id: `plugin-send-${Date.now()}`,
               platform: 'qq',
