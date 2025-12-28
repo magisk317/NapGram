@@ -139,6 +139,12 @@ export class ForwardFeature {
 
   private handleQQMessage = async (msg: UnifiedMessage) => {
     const startTime = Date.now() // 📊 开始计时
+    const text = (msg.content || [])
+      .filter(c => c.type === 'text')
+      .map(c => (c.data as any).text || '')
+      .join('')
+      .trim()
+    const isCommand = text.startsWith('/')
 
     try {
       // Publish plugin event (doesn't affect forwarding)
@@ -151,12 +157,6 @@ export class ForwardFeature {
             : msg.chat.type === 'group'
               ? 'group'
               : 'group'
-
-        const text = (msg.content || [])
-          .filter(c => c.type === 'text')
-          .map(c => (c.data as any).text || '')
-          .join('')
-          .trim()
 
         const toPluginSegments = (contents: MessageContent[], platform: 'qq' | 'tg'): MessageSegment[] => {
           const out: MessageSegment[] = []
@@ -310,6 +310,11 @@ export class ForwardFeature {
       }
       catch (e) {
         logger.debug(e, '[Plugin] publishMessage (QQ) failed')
+      }
+
+      if (isCommand) {
+        logger.debug({ text }, '[Forward] Skipping command message')
+        return
       }
 
       const pair = this.forwardMap.findByQQ(msg.chat.id)

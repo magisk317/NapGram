@@ -364,6 +364,21 @@ describe('forwardFeature', () => {
     expect(qqClient.recallMessage).toHaveBeenCalledWith('msg-1')
   })
 
+  it('skips forwarding for command messages', async () => {
+    const { feature, forwardMap, instance } = createFeature()
+    forwardMap.findByQQ.mockReturnValue(createPair())
+
+    const msg = createMessage({
+      content: [{ type: 'text', data: { text: '/ping' } }],
+    })
+
+    await (feature as any).handleQQMessage(msg)
+
+    expect(publishMessage).toHaveBeenCalled()
+    expect(instance.eventPublisher.publishMessageCreated).not.toHaveBeenCalled()
+    expect((feature as any).telegramSender.sendToTelegram).not.toHaveBeenCalled()
+  })
+
   it('skips forwarding when sender is blocked', async () => {
     const { feature, forwardMap } = createFeature()
     forwardMap.findByQQ.mockReturnValue(createPair({ ignoreSenders: '123,456' }))
