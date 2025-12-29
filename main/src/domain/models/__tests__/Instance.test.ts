@@ -481,7 +481,7 @@ describe('instance', () => {
     const friendCalls = eventPublisherMocks.publishFriendRequest.mock.calls
     const lastFriendCall = friendCalls[friendCalls.length - 1][0]
     expect(lastFriendCall.userId).toBe('')
-    expect(lastFriendCall.userName).toBe('')
+    expect(lastFriendCall.userName).toBe('Unknown')
 
     const groupHandler = qqMocks.handlers.get('request.group')
     // Missing groupId, should fallback
