@@ -65,6 +65,22 @@ describe('pluginLoader', () => {
       await expect(loader.load(spec)).rejects.toThrow('Failed to load plugin abs-plugin')
     })
 
+    it('should successfully load plugin via importModule (else path)', async () => {
+      const spec: PluginSpec = {
+        id: 'imported-plugin',
+        module: './imported',
+        enabled: true,
+      }
+
+      // Mock importModule to return a valid module
+      vi.spyOn(loader as any, 'importModule').mockResolvedValue({ default: mockPlugin })
+
+      const result = await loader.load(spec)
+
+      expect(result.plugin).toEqual(mockPlugin)
+      expect(result.type).toBe(PluginType.Native)
+    })
+
     it('should try extensions in importModule on failure', async () => {
       const spec: PluginSpec = {
         id: 'ext-plugin',

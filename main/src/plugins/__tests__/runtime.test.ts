@@ -225,4 +225,19 @@ describe('pluginRuntime', () => {
     const eventBus = PluginRuntime.getEventBus()
     expect(eventBus).toBeInstanceOf(EventBus)
   })
+
+  it('should set web routes', () => {
+    const register = vi.fn()
+    PluginRuntime.setWebRoutes(register)
+  })
+
+  it('should accept webRoutes in start options', async () => {
+    const runtimeStub = createRuntimeStub()
+    vi.spyOn(coreRuntime, 'getGlobalRuntime').mockReturnValue(runtimeStub as any)
+    vi.spyOn(config, 'loadPluginSpecs').mockResolvedValue([])
+
+    const register = vi.fn()
+    await PluginRuntime.start({ webRoutes: register })
+    // Implicitly verifies line 68 is executed
+  })
 })

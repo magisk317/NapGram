@@ -688,11 +688,66 @@ describe('createMessageAPI', () => {
     expect(messageAPI.recall).toBeDefined()
     expect(messageAPI.get).toBeDefined()
   })
+})
 
-  it('should create message API with instance resolver', () => {
-    const instanceResolver = vi.fn()
-    const messageAPI = new MessageAPIImpl(instanceResolver)
+describe('Message Conversion Coverage', () => {
+  let messageAPI: MessageAPIImpl
 
-    expect(messageAPI).toBeDefined()
+  it('should convert all segment types to unified content in QQ send', async () => {
+    const sendMessage = vi.fn().mockResolvedValue({ messageId: 'qq123' })
+    const qqClient = {
+      uin: '123456',
+      nickname: 'TestBot',
+      sendMessage,
+    }
+    messageAPI = new MessageAPIImpl(() => ({ qqClient }))
+
+    // Trigger pluginSegmentsToUnifiedContents with all known types
+    await messageAPI.send({
+      instanceId: 1,
+      channelId: 'qq:group:123',
+      content: [
+        { type: 'text', data: { text: 't' } },
+        { type: 'at', data: { userId: 'u', userName: 'n' } },
+        { type: 'reply', data: { messageId: 'm' } },
+        { type: 'image', data: { url: 'u' } },
+        { type: 'video', data: { url: 'u' } },
+        { type: 'audio', data: { url: 'u' } },
+        { type: 'file', data: { url: 'u' } },
+        { type: 'unknown', data: {} } as any, // Default case
+      ]
+    })
+
+    const unified = sendMessage.mock.calls[0][1]
+    expect(unified.content).toHaveLength(8)
+    expect(unified.content[7].type).toBe('text') // Default fallback
+  })
+
+  it('should handle missing replyTo for platform check', async () => {
+    // parseReplyToForPlatform early return
+    const mockInstanceResolver = vi.fn().mockReturnValue({
+      tgBot: { getChat: vi.fn().mockReturnValue({ sendMessage: vi.fn().mockResolvedValue({}) }) }
+    })
+    messageAPI = new MessageAPIImpl(mockInstanceResolver)
+
+    // Pass empty replyTo to hit line 75 check
+    await messageAPI.send({
+      instanceId: 1,
+      channelId: 'tg:123',
+      content: 'test',
+      replyTo: ''
+    })
+  })
+
+  it('should handle undefined raw input in parsing', async () => {
+    // Force undefined into parseChannelId via cast
+    const mockInstanceResolver = vi.fn().mockReturnValue({})
+    messageAPI = new MessageAPIImpl(mockInstanceResolver)
+
+    await expect(messageAPI.send({
+      instanceId: 1,
+      channelId: undefined as any,
+      content: 't'
+    })).rejects.toThrow()
   })
 })

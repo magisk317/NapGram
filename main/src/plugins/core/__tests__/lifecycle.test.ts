@@ -448,4 +448,14 @@ describe('pluginLifecycleManager', () => {
     const result = await lifecycleManager.uninstall(pluginInstance)
     expect(result.success).toBe(true)
   })
+
+  it('should handle empty lists for batch operations', async () => {
+    const installResult = await lifecycleManager.installAll([])
+    expect(installResult.succeeded).toHaveLength(0)
+    expect(installResult.failed).toHaveLength(0)
+
+    const uninstallResult = await lifecycleManager.uninstallAll([])
+    expect(uninstallResult.succeeded).toHaveLength(0)
+    expect(uninstallResult.failed).toHaveLength(0)
+  })
 })

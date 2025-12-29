@@ -186,4 +186,18 @@ describe('eventBus', () => {
 
     expect(eventBus.getStats().errors).toBe(1)
   })
+
+  it('should handle error with pluginId context', async () => {
+    // Test coverage for line 254 (context with pluginId)
+    const handler = vi.fn(() => {
+      throw new Error('test error')
+    })
+
+    // Subscribe with pluginId
+    eventBus.subscribe('message', handler, undefined, 'my-plugin')
+
+    await eventBus.publish('message', { id: '1' } as any)
+
+    expect(eventBus.getStats().errors).toBe(1)
+  })
 })

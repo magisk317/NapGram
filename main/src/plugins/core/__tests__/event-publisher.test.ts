@@ -67,6 +67,33 @@ describe('eventPublisher', () => {
     }, 'Publishing message event')
   })
 
+  it('publishes qq group message events', () => {
+    const publisher = new EventPublisher(eventBus as any)
+
+    publisher.publishMessage({
+      instanceId: 1,
+      platform: 'qq',
+      channelId: '88',
+      channelType: 'group',
+      sender: { userId: '1', userName: 'User', role: 'member' },
+      message: { id: 'm2', text: 'hi', segments: [], timestamp: 123 },
+      raw: {},
+      reply: vi.fn(),
+      send: vi.fn(),
+      recall: vi.fn(),
+    })
+
+    expect(publishSync).toHaveBeenCalledWith('message', expect.objectContaining({
+      channelRef: 'qq:group:88',
+      message: expect.objectContaining({
+        ref: 'qq:m2',
+      }),
+      sender: expect.objectContaining({
+        role: 'member',
+      }),
+    }))
+  })
+
   it('publishes tg message events with thread id', () => {
     const publisher = new EventPublisher(eventBus as any)
 
