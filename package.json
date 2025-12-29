@@ -1,6 +1,7 @@
 {
     "name": "napgram-root",
     "private": true,
+    "packageManager": "pnpm@10.26.2",
     "scripts": {
         "postinstall": "node -e \"const fs=require('fs'); const {execSync}=require('child_process'); if(fs.existsSync('main/prisma/schema.prisma')){ const env={...process.env, DATABASE_URL: process.env.DATABASE_URL||'postgresql://dummy'}; execSync('pnpm --filter ./main exec prisma generate --no-hints',{stdio:'inherit', env}); }\""
     },
