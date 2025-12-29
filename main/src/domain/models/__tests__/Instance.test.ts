@@ -651,4 +651,76 @@ describe('instance', () => {
     const last = calls[calls.length - 1][0]
     expect(last.userId).toBe('')
   })
+
+  it('handles explicit fields and fallbacks in requests', async () => {
+    dbMocks.instance.findFirst.mockResolvedValue({})
+    await Instance.start(21, 'token')
+
+    // request.friend with explicit fields
+    const friendHandler = qqMocks.handlers.get('request.friend')
+    await friendHandler({
+      flag: 'f_exp',
+      userId: 'u_exp',
+      comment: 'friend comment',
+      timestamp: 1001
+    })
+    const fCalls = eventPublisherMocks.publishFriendRequest.mock.calls
+    const lastF = fCalls[fCalls.length - 1][0]
+    expect(lastF.comment).toBe('friend comment')
+    expect(lastF.timestamp).toBe(1001)
+
+    // request.friend fallback logic: userName missing -> takes userId
+    await friendHandler({
+      flag: 'f_fb',
+      userId: 'u_fb'
+      // no userName
+    })
+    const lastF2 = fCalls[fCalls.length - 1][0]
+    expect(lastF2.userName).toBe('u_fb')
+
+    // request.group with explicit fields including invite subType
+    const groupHandler = qqMocks.handlers.get('request.group')
+    await groupHandler({
+      flag: 'g_exp',
+      groupId: 'g_1',
+      userId: 'u_g_exp',
+      subType: 'invite',
+      comment: 'group comment',
+      timestamp: 2002
+    })
+    const gCalls = eventPublisherMocks.publishGroupRequest.mock.calls
+    const lastG = gCalls[gCalls.length - 1][0]
+    expect(lastG.subType).toBe('invite')
+    expect(lastG.comment).toBe('group comment')
+    expect(lastG.timestamp).toBe(2002)
+
+    // request.group fallback: userName missing -> takes userId
+    await groupHandler({
+      flag: 'g_fb',
+      groupId: 'g_2',
+      userId: 'u_g_fb'
+    })
+    const lastG2 = gCalls[gCalls.length - 1][0]
+    expect(lastG2.userName).toBe('u_g_fb')
+  })
+
+  it('handles setter when qq property is missing (Line 407)', async () => {
+    // Return empty object so this._qq is undefined
+    dbMocks.instance.findFirst.mockResolvedValue({})
+    const instance = await Instance.start(22, 'token')
+
+    const flushPromises = () => new Promise(resolve => setImmediate(resolve))
+
+    // Set qqBotId - should skip internal _qq update but still do DB update
+    loggerMocks.trace.mockClear()
+    instance.qqBotId = 111
+
+    expect(dbMocks.instance.update).toHaveBeenCalledWith(expect.objectContaining({
+      data: { qqBotId: 111 }
+    }))
+    await flushPromises()
+    expect(loggerMocks.trace).toHaveBeenCalledWith(111)
+    // instance.qqBotId getter checks this._qq?.id, so it should be undefined
+    expect(instance.qqBotId).toBeUndefined()
+  })
 })

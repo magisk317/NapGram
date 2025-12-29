@@ -252,53 +252,53 @@ export default class Instance {
       this.forwardPairs = await ForwardMap.load(this.id)
 
       // 初始化新架构的功能管理器
-      if (this.qqClient) {
-        this.log.debug('FeatureManager 正在初始化')
-        this.featureManager = new FeatureManager(this, this.tgBot, this.qqClient)
-        await this.featureManager.initialize()
-        this.log.info('FeatureManager ✓ 初始化完成')
+      // if (this.qqClient) { // Redundant check, login() succeeded above
+      this.log.debug('FeatureManager 正在初始化')
+      this.featureManager = new FeatureManager(this, this.tgBot, this.qqClient)
+      await this.featureManager.initialize()
+      this.log.info('FeatureManager ✓ 初始化完成')
+      try {
+        getEventPublisher().publishInstanceStatus({ instanceId: this.id, status: 'running' })
+      }
+      catch (error) {
+        this.log.warn('Failed to publish instance running status:', error)
+      }
+
+      // 监听掉线/恢复事件，交给插件侧处理通知
+      this.qqClient.on('connection:lost', async (event: any) => {
+        this.log.warn('NapCat connection lost:', event)
+        this.isSetup = false
         try {
-          getEventPublisher().publishInstanceStatus({ instanceId: this.id, status: 'running' })
+          getEventPublisher().publishNotice({
+            instanceId: this.id,
+            platform: 'qq',
+            noticeType: 'connection-lost',
+            timestamp: typeof event?.timestamp === 'number' ? event.timestamp : Date.now(),
+            raw: event,
+          })
         }
         catch (error) {
-          this.log.warn('Failed to publish instance running status:', error)
+          this.log.warn('Failed to publish connection-lost notice:', error)
         }
+      })
 
-        // 监听掉线/恢复事件，交给插件侧处理通知
-        this.qqClient.on('connection:lost', async (event: any) => {
-          this.log.warn('NapCat connection lost:', event)
-          this.isSetup = false
-          try {
-            getEventPublisher().publishNotice({
-              instanceId: this.id,
-              platform: 'qq',
-              noticeType: 'connection-lost',
-              timestamp: typeof event?.timestamp === 'number' ? event.timestamp : Date.now(),
-              raw: event,
-            })
-          }
-          catch (error) {
-            this.log.warn('Failed to publish connection-lost notice:', error)
-          }
-        })
-
-        this.qqClient.on('connection:restored', async (event: any) => {
-          this.log.info('NapCat connection restored:', event)
-          this.isSetup = true
-          try {
-            getEventPublisher().publishNotice({
-              instanceId: this.id,
-              platform: 'qq',
-              noticeType: 'connection-restored',
-              timestamp: typeof event?.timestamp === 'number' ? event.timestamp : Date.now(),
-              raw: event,
-            })
-          }
-          catch (error) {
-            this.log.warn('Failed to publish connection-restored notice:', error)
-          }
-        })
-      }
+      this.qqClient.on('connection:restored', async (event: any) => {
+        this.log.info('NapCat connection restored:', event)
+        this.isSetup = true
+        try {
+          getEventPublisher().publishNotice({
+            instanceId: this.id,
+            platform: 'qq',
+            noticeType: 'connection-restored',
+            timestamp: typeof event?.timestamp === 'number' ? event.timestamp : Date.now(),
+            raw: event,
+          })
+        }
+        catch (error) {
+          this.log.warn('Failed to publish connection-restored notice:', error)
+        }
+      })
+      // }
 
       this.isSetup = true
       this.isInit = true
