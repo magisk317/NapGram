@@ -1,0 +1,37 @@
+{
+    "name": "@napgram/gateway-kit",
+    "version": "1.0.0",
+    "description": "Gateway exports for NapGram",
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "type": "module",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js"
+        },
+        "./package.json": "./package.json"
+    },
+    "scripts": {
+        "build": "tsc -p tsconfig.json",
+        "dev": "tsc -p tsconfig.json --watch"
+    },
+    "dependencies": {
+        "@mtcute/core": "^0.27.4",
+        "@mtcute/node": "^0.27.4",
+        "@napgram/message-kit": "workspace:*",
+        "@napgram/qq-client": "workspace:*",
+        "@napgram/telegram-client": "workspace:*",
+        "ws": "^8.18.3"
+    },
+    "keywords": [
+        "napgram",
+        "gateway"
+    ],
+    "author": "NapGram Team",
+    "license": "MIT",
+    "devDependencies": {
+        "@types/node": "^25.0.3",
+        "typescript": "^5.9.3"
+    }
+}

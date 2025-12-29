@@ -44,6 +44,7 @@ RUN if [ "$USE_MIRROR" = "true" ]; then \
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json* /app/
 COPY main/package.json /app/main/
 COPY web/package.json /app/web/
+COPY packages/ /app/packages/
 COPY external/sdk/packages/sdk/package.json /app/external/sdk/packages/sdk/
 COPY external/sdk/packages/core/package.json /app/external/sdk/packages/core/
 COPY external/sdk/packages/utils/package.json /app/external/sdk/packages/utils/

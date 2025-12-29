@@ -1,9 +1,10 @@
-/**
- * QQ 客户端模块导出
- * Phase 1: 统一的客户端接口和工厂
- */
+import { configureQQClient } from '@napgram/qq-client'
+import { messageConverter } from '../../../domain/message/converter'
+import { getLogger } from '../../../shared/logger'
 
-export * from './factory'
-export * from './interface'
-export * from './NapCatAdapter'
-export * from './types'
+configureQQClient({
+  messageConverter,
+  loggerFactory: getLogger,
+})
+
+export * from '@napgram/qq-client'

@@ -31,6 +31,7 @@ let consoleLevel = normalizeLevel(env.LOG_LEVEL)
 const fileLevel = normalizeLevel(env.LOG_FILE_LEVEL)
 let consoleThreshold = levelId[consoleLevel]
 const fileThreshold = levelId[fileLevel]
+const fileLoggingRequested = fileThreshold < levelId.off
 const tz = process.env.TZ || 'Asia/Shanghai'
 const timeFormatter = new Intl.DateTimeFormat('sv-SE', {
   timeZone: tz,
@@ -50,8 +51,17 @@ const dateFormatter = new Intl.DateTimeFormat('sv-SE', {
 })
 
 const logDir = path.dirname(env.LOG_FILE)
-if (!fs.existsSync(logDir)) {
-  fs.mkdirSync(logDir, { recursive: true })
+let fileStream: fs.WriteStream | null = null
+let fileLoggingEnabled = fileLoggingRequested
+if (fileLoggingRequested) {
+  try {
+    if (!fs.existsSync(logDir)) {
+      fs.mkdirSync(logDir, { recursive: true })
+    }
+  }
+  catch {
+    fileLoggingEnabled = false
+  }
 }
 
 function buildDatedFile(dateStr: string) {
@@ -60,15 +70,31 @@ function buildDatedFile(dateStr: string) {
 }
 
 let currentDate = dateFormatter.format(new Date())
-let fileStream = fs.createWriteStream(buildDatedFile(currentDate), { flags: 'a' })
+if (fileLoggingEnabled) {
+  try {
+    fileStream = fs.createWriteStream(buildDatedFile(currentDate), { flags: 'a' })
+  }
+  catch {
+    fileLoggingEnabled = false
+    fileStream = null
+  }
+}
 
-function rotateIfNeeded() {
+export function rotateIfNeeded() {
+  if (!fileLoggingEnabled || !fileStream)
+    return
   const today = dateFormatter.format(new Date())
   if (today === currentDate)
     return
   fileStream.end()
   currentDate = today
-  fileStream = fs.createWriteStream(buildDatedFile(currentDate), { flags: 'a' })
+  try {
+    fileStream = fs.createWriteStream(buildDatedFile(currentDate), { flags: 'a' })
+  }
+  catch {
+    fileLoggingEnabled = false
+    fileStream = null
+  }
 }
 
 function formatArgs(args: unknown[], color = false) {
@@ -107,6 +133,7 @@ const LOGGER_COLOR_MAP: Record<string, string> = {
   'Instance': MODULE_COLORS.bold_white,
   'Main': MODULE_COLORS.bold_white,
   'FeatureManager': MODULE_COLORS.purple,
+  'Plugin': MODULE_COLORS.purple,
 
   // Forwarding Core
   'ForwardFeature': MODULE_COLORS.bright_green,
@@ -228,9 +255,16 @@ function logToConsole(logger: string, level: LogLevel, args: unknown[]) {
 }
 
 function logToFile(logger: string, level: LogLevel, args: unknown[]) {
+  if (!fileLoggingEnabled || !fileStream)
+    return
   if (fileThreshold >= levelId.off || levelId[level] < fileThreshold)
     return
   rotateIfNeeded()
+
+  // Recheck after rotation - rotateIfNeeded() may have disabled file logging or nulled fileStream
+  if (!fileLoggingEnabled || !fileStream)
+    return
+
   const payload = {
     time: timeFormatter.format(new Date()).replace(' ', 'T'),
     level,

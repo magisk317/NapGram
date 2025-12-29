@@ -150,6 +150,9 @@ export class GroupAPIImpl implements GroupAPI {
       else if (groupPlatform === 'tg') {
         await this.setTGAdmin(instance, groupId, userId, params.enable)
       }
+      else {
+        throw new Error(`Unknown platform: ${groupPlatform}`)
+      }
 
       logger.info({ params }, 'Admin status updated')
     }
@@ -191,6 +194,9 @@ export class GroupAPIImpl implements GroupAPI {
       else if (groupPlatform === 'tg') {
         await this.muteTGUser(instance, groupId, userId, params.duration)
       }
+      else {
+        throw new Error(`Unknown platform: ${groupPlatform}`)
+      }
 
       logger.info({ params }, 'User muted')
     }
@@ -231,6 +237,9 @@ export class GroupAPIImpl implements GroupAPI {
       }
       else if (groupPlatform === 'tg') {
         await this.kickTGUser(instance, groupId, userId)
+      }
+      else {
+        throw new Error(`Unknown platform: ${groupPlatform}`)
       }
 
       logger.info({ params }, 'User kicked')

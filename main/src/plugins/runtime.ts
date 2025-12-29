@@ -10,6 +10,7 @@ import { createGroupAPI } from './api/group'
 import { createInstanceAPI } from './api/instance'
 import { createMessageAPI } from './api/message'
 import { createUserAPI } from './api/user'
+import { createWebAPI } from './api/web'
 import { getGlobalRuntime } from './core/plugin-runtime'
 import { loadPluginSpecs } from './internal/config'
 
@@ -19,6 +20,12 @@ const logger = getLogger('PluginRuntimeAPI')
  * 插件运行时公共 API
  */
 export class PluginRuntime {
+  private static webRoutes?: (register: (app: any) => void, pluginId?: string) => void
+
+  static setWebRoutes(register?: (appRegister: (app: any) => void, pluginId?: string) => void) {
+    this.webRoutes = register
+  }
+
   private static async reloadCommandsForInstances() {
     for (const instance of Instance.instances) {
       try {
@@ -44,6 +51,7 @@ export class PluginRuntime {
       instance: createInstanceAPI(instancesResolver),
       user: createUserAPI(instanceResolver),
       group: createGroupAPI(instanceResolver),
+      web: createWebAPI(this.webRoutes),
     }
 
     getGlobalRuntime({ apis })
@@ -52,10 +60,13 @@ export class PluginRuntime {
   /**
    * 启动插件系统
    */
-  static async start(_options?: { defaultInstances?: number[] }) {
+  static async start(options?: { defaultInstances?: number[], webRoutes?: (register: (app: any) => void, pluginId?: string) => void }) {
     logger.info('Starting plugin runtime')
 
     try {
+      if (options?.webRoutes) {
+        this.webRoutes = options.webRoutes
+      }
       this.configureApis()
       // 加载插件规范
       const specs = await loadPluginSpecs()

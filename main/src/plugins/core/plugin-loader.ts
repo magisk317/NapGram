@@ -172,13 +172,11 @@ export class PluginLoader {
     // 检查 default export
     const plugin = module.default || module
 
-    // 必须有 id, name, version, install
+    // 以 id/name 判定为原生插件；其余字段交给校验报错
     return (
       typeof plugin === 'object'
       && typeof plugin.id === 'string'
       && typeof plugin.name === 'string'
-      && typeof plugin.version === 'string'
-      && typeof plugin.install === 'function'
     )
   }
 

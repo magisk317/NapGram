@@ -1,4 +1,4 @@
-import type { NapGramPlugin, PluginContext } from './types/napgram';
+import type { NapGramPlugin, PluginContext } from '@napgram/sdk';
 import { sendPoke, handleNick, sendLike, getGroupHonor } from './helpers/qq-helpers';
 
 const plugin: NapGramPlugin = {

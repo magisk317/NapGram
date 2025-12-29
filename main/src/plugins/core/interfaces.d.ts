@@ -22,6 +22,8 @@ export interface NapGramPlugin {
   description?: string
   /** 插件主页 */
   homepage?: string
+  /** 默认配置（可选） */
+  defaultConfig?: any
   /** 所需权限 */
   permissions?: PluginPermissions
   /**
@@ -109,6 +111,8 @@ export interface PluginContext {
   readonly user: UserAPI
   /** 群组 API */
   readonly group: GroupAPI
+  /** Web API（注册管理路由） */
+  readonly web: WebAPI
   /**
    * 注册命令
    *
@@ -160,6 +164,12 @@ export interface MessageEvent {
   channelType: 'group' | 'private' | 'channel'
   /** 话题 ID（仅 Telegram） */
   threadId?: number
+  /** QQ 客户端 API（若可用） */
+  qq?: any
+  /** Telegram 客户端 API（若可用） */
+  tg?: any
+  /** 实例 API（若可用） */
+  instance?: any
   /** 发送者信息 */
   sender: {
     /** 用户 ID */
@@ -200,6 +210,8 @@ export interface MessageEvent {
   }
   /** 原始消息对象（平台特定） */
   raw: any
+  /** 日志记录器（若可用） */
+  logger?: PluginLogger
   /**
    * 回复消息
    *
@@ -248,6 +260,7 @@ export interface GroupRequestEvent {
   userId: string
   userName: string
   comment?: string
+  subType?: 'add' | 'invite'
   timestamp: number
   /** 同意请求 */
   approve: () => Promise<void>
@@ -269,7 +282,7 @@ export interface NoticeEvent {
   timestamp: number
   raw: any
 }
-export type NoticeType = 'group-member-increase' | 'group-member-decrease' | 'group-admin' | 'group-ban' | 'group-recall' | 'friend-add' | 'friend-recall' | 'other'
+export type NoticeType = 'group-member-increase' | 'group-member-decrease' | 'group-admin' | 'group-ban' | 'group-recall' | 'friend-add' | 'friend-recall' | 'connection-lost' | 'connection-restored' | 'other'
 /**
  * 实例状态事件
  */
@@ -308,6 +321,8 @@ export interface ReplySegment {
   type: 'reply'
   data: {
     messageId: string
+    senderId?: string
+    userId?: string
   }
 }
 export interface ImageSegment {
@@ -511,6 +526,15 @@ export interface KickUserParams {
   rejectAddRequest?: boolean
 }
 /**
+ * Web API
+ */
+export interface WebAPI {
+  /**
+   * 注册 Web 路由
+   */
+  registerRoutes: (register: (app: any) => void, pluginId?: string) => void
+}
+/**
  * 插件存储 API
  */
 export interface PluginStorage {
@@ -542,19 +566,19 @@ export interface PluginLogger {
   /**
    * 调试级别日志
    */
-  debug: (message: string, ...args: any[]) => void
+  debug: (message: any, ...args: any[]) => void
   /**
    * 信息级别日志
    */
-  info: (message: string, ...args: any[]) => void
+  info: (message: any, ...args: any[]) => void
   /**
    * 警告级别日志
    */
-  warn: (message: string, ...args: any[]) => void
+  warn: (message: any, ...args: any[]) => void
   /**
    * 错误级别日志
    */
-  error: (message: string, ...args: any[]) => void
+  error: (message: any, ...args: any[]) => void
 }
 export type MessageEventHandler = (event: MessageEvent) => void | Promise<void>
 export type FriendRequestEventHandler = (event: FriendRequestEvent) => void | Promise<void>

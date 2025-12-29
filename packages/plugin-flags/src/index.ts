@@ -1,4 +1,4 @@
-import type { NapGramPlugin, PluginContext, MessageEvent } from './types/napgram.js';
+import type { NapGramPlugin, PluginContext, MessageEvent } from '@napgram/sdk';
 
 type FlagsByInstance = Record<string, Record<string, boolean>>;
 

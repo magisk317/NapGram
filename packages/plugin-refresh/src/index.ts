@@ -1,4 +1,4 @@
-import type { NapGramPlugin, PluginContext, MessageEvent } from './types/napgram.js';
+import type { NapGramPlugin, PluginContext, MessageEvent } from '@napgram/sdk';
 
 const plugin: NapGramPlugin = {
     id: 'refresh',

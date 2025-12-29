@@ -4,7 +4,7 @@
  * 提供高级封装，避免插件重复实现逻辑
  */
 
-import type { MessageEvent } from '../types/napgram';
+import type { MessageEvent } from '@napgram/sdk';
 
 export interface QQInteractionResult {
     success: boolean;

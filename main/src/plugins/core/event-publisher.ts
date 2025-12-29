@@ -159,6 +159,7 @@ export class EventPublisher {
     userId: string
     userName: string
     comment?: string
+    subType?: 'add' | 'invite'
     timestamp: number
     approve: () => Promise<void>
     reject: (reason?: string) => Promise<void>
@@ -172,6 +173,7 @@ export class EventPublisher {
       userId: params.userId,
       userName: params.userName,
       comment: params.comment,
+      subType: params.subType,
       timestamp: params.timestamp,
       approve: params.approve,
       reject: params.reject,

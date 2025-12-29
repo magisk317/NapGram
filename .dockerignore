@@ -8,3 +8,5 @@ dist
 build
 web/src
 npm-debug.log
+main/data
+main/coverage

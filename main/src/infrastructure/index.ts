@@ -8,6 +8,11 @@
  * - 消息队列
  */
 
+import { configureInfraKit } from '@napgram/infra-kit'
+import { getLogger } from '../shared/logger'
+
+configureInfraKit({ loggerFactory: getLogger })
+
 // ============================================
 // Clients - 外部服务客户端
 // ============================================

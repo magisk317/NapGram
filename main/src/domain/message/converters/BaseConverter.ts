@@ -1,5 +1,3 @@
-import { getLogger } from '../../../shared/logger'
+export * from '@napgram/message-kit'
 
-export abstract class BaseConverter {
-  protected logger = getLogger(this.constructor.name)
-}
+export const __coverage_anchor__ = true

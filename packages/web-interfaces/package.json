@@ -1,0 +1,38 @@
+{
+    "name": "@napgram/web-interfaces",
+    "version": "1.0.0",
+    "description": "Shared web route modules for NapGram",
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "type": "module",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js"
+        },
+        "./package.json": "./package.json"
+    },
+    "scripts": {
+        "build": "tsc -p tsconfig.json",
+        "dev": "tsc -p tsconfig.json --watch"
+    },
+    "dependencies": {
+        "@kitajs/html": "^4.2.11",
+        "fastify": "^5.6.2",
+        "zod": "^4.2.1"
+    },
+    "keywords": [
+        "napgram",
+        "web",
+        "interfaces"
+    ],
+    "author": "NapGram Team",
+    "license": "MIT",
+    "devDependencies": {
+        "@kitajs/ts-html-plugin": "^4.1.3",
+        "@types/node": "^25.0.3",
+        "typescript": "^5.9.3",
+        "@napgram/infra-kit": "workspace:*",
+        "@napgram/runtime-kit": "workspace:*"
+    }
+}

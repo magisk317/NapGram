@@ -27,6 +27,8 @@ services:
       LISTEN_PORT: "8080"
       # 对外访问的 Web 地址（用于生成链接、跨服务回调等）
       WEB_ENDPOINT: "http://localhost:8080"
+      # 富头像/预览链接的版本号（用于强制刷新缓存）
+      RICH_HEADER_VERSION: "2"
       # 管理后台访问 Token（请设置为强随机字符串）
       ADMIN_TOKEN: "replace_me"
 
@@ -125,8 +127,8 @@ services:
       IMAGE_SUMMARY: ""
       # 是否启用功能管理器（true/false）
       ENABLE_FEATURE_MANAGER: "false"
-      # 是否禁用 PostHog 统计（true/false）
-      POSTHOG_OPTOUT: "false"
+      # 错误收集开关（默认 1 启用；不愿上报错误/隐私合规考虑可改为 0）
+      ERROR_REPORTING: "1"
       # 昵称显示模式（具体取值参考文档）
       SHOW_NICKNAME_MODE: "11"
       # 转发模式（具体取值参考文档）

@@ -4,9 +4,36 @@ import path from 'node:path'
 import process from 'node:process'
 import { fileURLToPath, pathToFileURL } from 'node:url'
 import YAML from 'yaml'
+import builtinQqNapcatAdapter from '../../../../packages/plugin-adapter-qq-napcat/src/index'
+import builtinTelegramAdapter from '../../../../packages/plugin-adapter-telegram-mtcute/src/index'
+import builtinAdminAuth from '../../../../packages/plugin-admin-auth/src/index'
+import builtinAdminDatabase from '../../../../packages/plugin-admin-database/src/index'
+import builtinAdminInstances from '../../../../packages/plugin-admin-instances/src/index'
+import builtinAdminLogs from '../../../../packages/plugin-admin-logs/src/index'
+import builtinAdminMessages from '../../../../packages/plugin-admin-messages/src/index'
+import builtinAdminPairs from '../../../../packages/plugin-admin-pairs/src/index'
+import builtinAdminPlugins from '../../../../packages/plugin-admin-plugins/src/index'
+import builtinAdminSettings from '../../../../packages/plugin-admin-settings/src/index'
+import builtinAdminSuite from '../../../../packages/plugin-admin-suite/src/index'
+import builtinCommands from '../../../../packages/plugin-commands/src/index'
+import builtinFlags from '../../../../packages/plugin-flags/src/index'
+import builtinForward from '../../../../packages/plugin-forward/src/index'
+import builtinGateway from '../../../../packages/plugin-gateway/src/index'
+import builtinGroupManagement from '../../../../packages/plugin-group-management/src/index'
+import builtinMedia from '../../../../packages/plugin-media/src/index'
+import builtinMonitoring from '../../../../packages/plugin-monitoring/src/index'
+import builtinNotifications from '../../../../packages/plugin-notifications/src/index'
+import builtinPingPong from '../../../../packages/plugin-ping-pong/src/index'
+import builtinQQInteraction from '../../../../packages/plugin-qq-interaction/src/index'
+import builtinRecall from '../../../../packages/plugin-recall/src/index'
+import builtinRefresh from '../../../../packages/plugin-refresh/src/index'
+import builtinRequestHandler from '../../../../packages/plugin-request-handler/src/index'
+import builtinRequestManagement from '../../../../packages/plugin-request-management/src/index'
+import builtinStatistics from '../../../../packages/plugin-statistics/src/index'
+import builtinWebAssets from '../../../../packages/plugin-web-assets/src/index'
+import builtinWebConsole from '../../../../packages/plugin-web-console/src/index'
 import env from '../../domain/models/env'
 import { getLogger } from '../../shared/logger'
-import builtinPingPong from '../builtin/ping-pong'
 import { readBoolEnv, readStringEnv } from './env'
 import { getManagedPluginsConfigPath } from './store'
 
@@ -236,15 +263,17 @@ export async function loadPluginSpecs(): Promise<PluginSpec[]> {
     }
   }
 
-  const defaultDir = path.join(dataDir, 'plugins', 'local')
-  const pluginsDir = readStringEnv(['PLUGINS_DIR']) || defaultDir
-  if (pluginsDir && await exists(pluginsDir)) {
-    try {
-      const absDir = await resolvePathUnderDataDir(pluginsDir)
-      logger.debug({ absDir }, 'Scanning local plugins directory')
-      const entries = await fs.readdir(absDir, { withFileTypes: true })
+  async function loadLocalPluginSpecs() {
+    const defaultDir = path.join(dataDir, 'plugins')
+    const pluginsDir = readStringEnv(['PLUGINS_DIR']) || defaultDir
 
-      // 加载文件（单文件插件）
+    if (!await exists(pluginsDir))
+      return
+
+    try {
+      const entries = await fs.readdir(pluginsDir, { withFileTypes: true })
+
+      // 1. 加载文件
       const files = entries
         .filter(e => e.isFile())
         .map(e => e.name)
@@ -254,17 +283,10 @@ export async function loadPluginSpecs(): Promise<PluginSpec[]> {
 
       for (const filename of files) {
         try {
-          const modulePath = path.join(absDir, filename)
+          const modulePath = path.join(pluginsDir, filename)
           const id = sanitizeId(inferIdFromPath(modulePath))
-
-          // 如果该插件已在配置文件中定义（无论启用与否），则跳过自动发现
-          // 检查 ID 或 模块路径是否匹配
-          if (specsById.has(id) || hasSpec(s => s.module === modulePath)) {
-            logger.debug({ id }, 'Plugin already configured via config file, skipping auto-discovery')
+          if (specsById.has(id) || hasSpec(s => s.module === modulePath))
             continue
-          }
-
-          logger.debug({ id, modulePath }, 'Found local file plugin')
           addSpec({
             id,
             module: modulePath,
@@ -277,7 +299,7 @@ export async function loadPluginSpecs(): Promise<PluginSpec[]> {
         }
       }
 
-      // 加载目录（package 插件）
+      // 2. 加载目录
       const dirs = entries
         .filter(e => e.isDirectory())
         .map(e => e.name)
@@ -285,18 +307,12 @@ export async function loadPluginSpecs(): Promise<PluginSpec[]> {
         .sort((a, b) => a.localeCompare(b))
 
       for (const dirname of dirs) {
-        const dirPath = path.join(absDir, dirname)
+        const dirPath = path.join(pluginsDir, dirname)
         const pkgPath = path.join(dirPath, 'package.json')
 
-        logger.debug({ dirname, dirPath }, 'Checking directory for plugin')
-
-        // 检查是否有 package.json
         if (await exists(pkgPath)) {
           try {
-            const pkgRaw = await fs.readFile(pkgPath, 'utf8')
-            const pkg = JSON.parse(pkgRaw)
-
-            // 默认寻找 index.mjs -> index.js -> package.json[main]
+            const pkg = JSON.parse(await fs.readFile(pkgPath, 'utf-8'))
             let mainFile = pkg.main
             if (!mainFile) {
               if (await exists(path.join(dirPath, 'index.mjs')))
@@ -304,28 +320,16 @@ export async function loadPluginSpecs(): Promise<PluginSpec[]> {
               else if (await exists(path.join(dirPath, 'index.js')))
                 mainFile = 'index.js'
             }
-
-            if (!mainFile) {
-              logger.debug({ dirname }, 'Skip directory plugin: No entry file (main/index.mjs/index.js) found')
+            if (!mainFile)
               continue
-            }
 
             const modulePath = path.join(dirPath, mainFile)
-
             if (await exists(modulePath)) {
-              // 提取 ID 时，如果 package.json 有 name，则优先使用其最后一部分
               const pkgName = typeof pkg.name === 'string' ? pkg.name : ''
               const rawId = pkgName.split('/').pop() || dirname
               const id = sanitizeId(rawId)
-
-              // 如果该插件已在配置文件中定义（无论启用与否），则跳过自动发现
-              // 检查 ID 或 模块路径（入口文件或目录）是否匹配
-              if (specsById.has(id) || hasSpec(s => s.module === modulePath || s.module === dirPath)) {
-                logger.debug({ id }, 'Plugin already configured via config file, skipping auto-discovery')
+              if (specsById.has(id) || hasSpec(s => s.module === modulePath || s.module === dirPath))
                 continue
-              }
-
-              logger.debug({ id, modulePath, pkgName }, 'Found local directory plugin')
               addSpec({
                 id,
                 module: modulePath,
@@ -333,32 +337,196 @@ export async function loadPluginSpecs(): Promise<PluginSpec[]> {
                 load: () => loadModule(modulePath),
               }, 'local')
             }
-            else {
-              logger.debug({ dirname, modulePath }, 'Skip directory plugin: Entry file does not exist')
-            }
           }
           catch (err: any) {
             logger.warn({ dir: dirname, error: err.message }, 'Failed to load directory plugin')
           }
         }
-        else {
-          logger.debug({ dirname }, 'Skip directory: No package.json found')
-        }
       }
     }
     catch (error: any) {
-      logger.error({ pluginsDir, dataDir, error: error.message }, 'Failed to scan PLUGINS_DIR')
+      logger.error({ pluginsDir, error: error.message }, 'Failed to scan pluginsDir')
     }
   }
+
+  await loadLocalPluginSpecs()
 
   // 加载内置插件（低优先级：仅当外部未提供同名 id）
   try {
     const builtinPlugins: Array<PluginSpec> = [
       {
+        id: 'adapter-qq-napcat',
+        module: '@builtin/adapter-qq-napcat',
+        enabled: true,
+        load: async () => builtinQqNapcatAdapter,
+      },
+      {
+        id: 'adapter-telegram-mtcute',
+        module: '@builtin/adapter-telegram-mtcute',
+        enabled: true,
+        load: async () => builtinTelegramAdapter,
+      },
+      {
         id: 'ping-pong',
         module: '@builtin/ping-pong',
         enabled: true,
         load: async () => builtinPingPong,
+      },
+      {
+        id: 'commands',
+        module: '@builtin/commands',
+        enabled: true,
+        load: async () => builtinCommands,
+      },
+      {
+        id: 'qq-interaction',
+        module: '@builtin/qq-interaction',
+        enabled: true,
+        load: async () => builtinQQInteraction,
+      },
+      {
+        id: 'refresh',
+        module: '@builtin/refresh',
+        enabled: true,
+        load: async () => builtinRefresh,
+      },
+      {
+        id: 'flags',
+        module: '@builtin/flags',
+        enabled: true,
+        load: async () => builtinFlags,
+      },
+      {
+        id: 'request-handler',
+        module: '@builtin/request-handler',
+        enabled: true,
+        load: async () => builtinRequestHandler,
+      },
+      {
+        id: 'request-management',
+        module: '@builtin/request-management',
+        enabled: true,
+        load: async () => builtinRequestManagement,
+      },
+      {
+        id: 'group-management',
+        module: '@builtin/group-management',
+        enabled: true,
+        load: async () => builtinGroupManagement,
+      },
+      {
+        id: 'media',
+        module: '@builtin/media',
+        enabled: true,
+        load: async () => builtinMedia,
+      },
+      {
+        id: 'recall',
+        module: '@builtin/recall',
+        enabled: true,
+        load: async () => builtinRecall,
+      },
+      {
+        id: 'forward',
+        module: '@builtin/forward',
+        enabled: true,
+        load: async () => builtinForward,
+      },
+      {
+        id: 'monitoring',
+        module: '@builtin/monitoring',
+        enabled: true,
+        load: async () => builtinMonitoring,
+      },
+      {
+        id: 'statistics',
+        module: '@builtin/statistics',
+        enabled: true,
+        load: async () => builtinStatistics,
+      },
+      {
+        id: 'gateway',
+        module: '@builtin/gateway',
+        enabled: false,
+        load: async () => builtinGateway,
+      },
+      {
+        id: 'notifications',
+        module: '@builtin/notifications',
+        enabled: Boolean(env.ENABLE_OFFLINE_NOTIFICATION),
+        config: {
+          enabled: Boolean(env.ENABLE_OFFLINE_NOTIFICATION),
+          adminQQ: env.ADMIN_QQ,
+          adminTG: env.ADMIN_TG,
+          cooldownMs: env.OFFLINE_NOTIFICATION_COOLDOWN,
+        },
+        load: async () => builtinNotifications,
+      },
+      {
+        id: 'admin-auth',
+        module: '@builtin/admin-auth',
+        enabled: false,
+        load: async () => builtinAdminAuth,
+      },
+      {
+        id: 'admin-instances',
+        module: '@builtin/admin-instances',
+        enabled: false,
+        load: async () => builtinAdminInstances,
+      },
+      {
+        id: 'admin-pairs',
+        module: '@builtin/admin-pairs',
+        enabled: false,
+        load: async () => builtinAdminPairs,
+      },
+      {
+        id: 'admin-messages',
+        module: '@builtin/admin-messages',
+        enabled: false,
+        load: async () => builtinAdminMessages,
+      },
+      {
+        id: 'admin-logs',
+        module: '@builtin/admin-logs',
+        enabled: false,
+        load: async () => builtinAdminLogs,
+      },
+      {
+        id: 'admin-settings',
+        module: '@builtin/admin-settings',
+        enabled: false,
+        load: async () => builtinAdminSettings,
+      },
+      {
+        id: 'admin-plugins',
+        module: '@builtin/admin-plugins',
+        enabled: false,
+        load: async () => builtinAdminPlugins,
+      },
+      {
+        id: 'admin-database',
+        module: '@builtin/admin-database',
+        enabled: false,
+        load: async () => builtinAdminDatabase,
+      },
+      {
+        id: 'admin-suite',
+        module: '@builtin/admin-suite',
+        enabled: true,
+        load: async () => builtinAdminSuite,
+      },
+      {
+        id: 'web-assets',
+        module: '@builtin/web-assets',
+        enabled: true,
+        load: async () => builtinWebAssets,
+      },
+      {
+        id: 'web-console',
+        module: '@builtin/web-console',
+        enabled: true,
+        load: async () => builtinWebConsole,
       },
     ]
 

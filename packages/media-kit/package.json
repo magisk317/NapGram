@@ -1,0 +1,33 @@
+{
+    "name": "@napgram/media-kit",
+    "version": "1.0.0",
+    "description": "Media conversion utilities for NapGram",
+    "main": "./dist/index.js",
+    "types": "./dist/index.d.ts",
+    "type": "module",
+    "exports": {
+        ".": {
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js"
+        },
+        "./package.json": "./package.json"
+    },
+    "scripts": {
+        "build": "tsc -p tsconfig.json",
+        "dev": "tsc -p tsconfig.json --watch"
+    },
+    "keywords": [
+        "napgram",
+        "media",
+        "encoding"
+    ],
+    "author": "NapGram Team",
+    "license": "MIT",
+    "dependencies": {
+        "silk-wasm": "^3.7.1"
+    },
+    "devDependencies": {
+        "@types/node": "^25.0.3",
+        "typescript": "^5.9.3"
+    }
+}

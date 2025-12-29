@@ -99,12 +99,26 @@ describe('permissionChecker', () => {
       expect(result).toBe(false)
     })
 
-    it('should handle API errors gracefully', async () => {
+    it('should handle API errors gracefully for owner', async () => {
       vi.mocked(mockQQClient.getGroupMemberInfo).mockRejectedValue(
         new Error('API Error'),
       )
 
       const result = await PermissionChecker.isGroupAdmin(
+        mockQQClient,
+        '789',
+        '123456',
+      )
+
+      expect(result).toBe(false)
+    })
+
+    it('should handle API errors gracefully', async () => {
+      vi.mocked(mockQQClient.getGroupMemberInfo).mockRejectedValue(
+        new Error('API Error'),
+      )
+
+      const result = await PermissionChecker.isGroupOwner(
         mockQQClient,
         '789',
         '123456',

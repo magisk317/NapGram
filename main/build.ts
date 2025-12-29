@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url'
 import esbuild from 'esbuild'
 import packageJson from './package.json'
 
@@ -20,5 +21,17 @@ esbuild.buildSync({
   platform: 'node',
   format: 'esm',
   banner,
+  alias: {
+    '@napgram/feature-kit': fileURLToPath(new URL('../packages/feature-kit/src/index.ts', import.meta.url)),
+    '@napgram/gateway-kit': fileURLToPath(new URL('../packages/gateway-kit/src/index.ts', import.meta.url)),
+    '@napgram/infra-kit': fileURLToPath(new URL('../packages/infra-kit/src/index.ts', import.meta.url)),
+    '@napgram/auth-kit': fileURLToPath(new URL('../packages/auth-kit/src/index.ts', import.meta.url)),
+    '@napgram/media-kit': fileURLToPath(new URL('../packages/media-kit/src/index.ts', import.meta.url)),
+    '@napgram/message-kit': fileURLToPath(new URL('../packages/message-kit/src/index.ts', import.meta.url)),
+    '@napgram/marketplace-kit': fileURLToPath(new URL('../packages/marketplace-kit/src/index.ts', import.meta.url)),
+    '@napgram/request-kit': fileURLToPath(new URL('../packages/request-kit/src/index.ts', import.meta.url)),
+    '@napgram/runtime-kit': fileURLToPath(new URL('../packages/runtime-kit/src/index.ts', import.meta.url)),
+    '@napgram/web-interfaces': fileURLToPath(new URL('../packages/web-interfaces/src/index.ts', import.meta.url)),
+  },
   external: Object.keys(packageJson.dependencies),
 })

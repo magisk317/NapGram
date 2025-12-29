@@ -1,4 +1,4 @@
-export default {
+const QFace = {
   0: '/惊讶',
   1: '/撇嘴',
   2: '/色',
@@ -249,3 +249,5 @@ export default {
   431: '/蛇尾',
   432: '/灵蛇献瑞',
 }
+
+export default QFace

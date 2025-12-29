@@ -21,6 +21,7 @@ import type {
   PluginReloadEventHandler,
   PluginStorage,
   UserAPI,
+  WebAPI,
 } from './interfaces'
 import { createPluginLogger } from '../api/logger'
 import { createPluginStorage } from '../api/storage'
@@ -39,6 +40,7 @@ export class PluginContextImpl implements PluginContext {
   readonly instance!: InstanceAPI
   readonly user!: UserAPI
   readonly group!: GroupAPI
+  readonly web!: WebAPI
 
   /** 命令注册表 */
   private commands: Map<string, CommandConfig> = new Map()
@@ -56,6 +58,7 @@ export class PluginContextImpl implements PluginContext {
       instance?: InstanceAPI
       user?: UserAPI
       group?: GroupAPI
+      web?: WebAPI
     },
   ) {
     this.pluginId = pluginId
@@ -76,6 +79,12 @@ export class PluginContextImpl implements PluginContext {
     if (apis?.group) {
       (this as any).group = apis.group
     }
+    if (apis?.web) {
+      const web = apis.web
+      ;(this as any).web = {
+        registerRoutes: (register: (app: any) => void) => web.registerRoutes(register, this.pluginId),
+      }
+    }
 
     // 如果没有提供完整 API，使用懒加载的占位符
     // 实际 API 将在 Phase 4 时注入
@@ -90,6 +99,9 @@ export class PluginContextImpl implements PluginContext {
     }
     if (!apis?.group) {
       (this as any).group = this.createMockGroupAPI()
+    }
+    if (!apis?.web) {
+      (this as any).web = this.createMockWebAPI()
     }
   }
 
@@ -163,6 +175,15 @@ export class PluginContextImpl implements PluginContext {
         logger.warn('GroupAPI not yet integrated (Phase 4)')
       },
     } as any
+  }
+
+  private createMockWebAPI(): WebAPI {
+    const logger = this.logger
+    return {
+      registerRoutes() {
+        logger.warn('WebAPI not yet integrated (Phase 3)')
+      },
+    }
   }
 
   // === 事件监听 ===

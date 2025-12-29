@@ -14,23 +14,35 @@ import { getLogger } from '../../shared/logger'
  * @returns 插件日志记录器
  */
 export function createPluginLogger(pluginId: string): PluginLogger {
-  const logger = getLogger(`Plugin:${pluginId}`)
+  const logger = getLogger('Plugin')
 
   return {
-    debug(message: string, ...args: any[]) {
-      logger.debug(message, ...args)
+    debug(message: any, ...args: any[]) {
+      if (typeof message === 'string')
+        logger.debug(`[${pluginId}] ${message}`, ...args)
+      else
+        logger.debug(`[${pluginId}]`, message, ...args)
     },
 
-    info(message: string, ...args: any[]) {
-      logger.info(message, ...args)
+    info(message: any, ...args: any[]) {
+      if (typeof message === 'string')
+        logger.info(`[${pluginId}] ${message}`, ...args)
+      else
+        logger.info(`[${pluginId}]`, message, ...args)
     },
 
-    warn(message: string, ...args: any[]) {
-      logger.warn(message, ...args)
+    warn(message: any, ...args: any[]) {
+      if (typeof message === 'string')
+        logger.warn(`[${pluginId}] ${message}`, ...args)
+      else
+        logger.warn(`[${pluginId}]`, message, ...args)
     },
 
-    error(message: string, ...args: any[]) {
-      logger.error(message, ...args)
+    error(message: any, ...args: any[]) {
+      if (typeof message === 'string')
+        logger.error(`[${pluginId}] ${message}`, ...args)
+      else
+        logger.error(`[${pluginId}]`, message, ...args)
     },
   }
 }

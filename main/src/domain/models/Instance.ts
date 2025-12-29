@@ -1,14 +1,16 @@
+import type { CommandsFeature, ForwardFeature, MediaFeature, RecallFeature } from '@napgram/feature-kit'
 import type { IQQClient } from '../../infrastructure/clients/qq'
+import type Telegram from '../../infrastructure/clients/telegram/client'
 import type { AppLogger } from '../../shared/logger'
-import { FeatureManager } from '../../features'
+import { FeatureManager } from '../../features/FeatureManager'
 import { qqClientFactory } from '../../infrastructure/clients/qq'
-import Telegram from '../../infrastructure/clients/telegram/client'
+import { telegramClientFactory } from '../../infrastructure/clients/telegram'
 import { getEventPublisher } from '../../plugins/core/event-publisher'
 import { getLogger } from '../../shared/logger'
 import db from './db'
 import env from './env'
 import ForwardMap from './ForwardMap'
-import posthog from './posthog'
+import sentry from './sentry'
 
 export type WorkMode = 'personal' | 'group' | 'public'
 
@@ -27,6 +29,10 @@ export default class Instance {
   public tgBot!: Telegram
   public qqClient?: IQQClient
   public forwardPairs!: ForwardMap
+  public mediaFeature?: MediaFeature
+  public recallFeature?: RecallFeature
+  public commandsFeature?: CommandsFeature
+  public forwardFeature?: ForwardFeature
   private featureManager?: FeatureManager
   public isInit = false
   private initPromise?: Promise<void>
@@ -71,14 +77,21 @@ export default class Instance {
       this.log.debug('TG Bot 正在登录')
       const token = botToken ?? env.TG_BOT_TOKEN
       if (this.botSessionId) {
-        this.tgBot = await Telegram.connect(this._botSessionId, 'NapGram', token)
+        this.tgBot = await telegramClientFactory.connect({
+          type: 'mtcute',
+          sessionId: this._botSessionId,
+          botToken: token,
+          appName: 'NapGram',
+        })
       }
       else {
         if (!token) {
           throw new Error('botToken 未指定')
         }
-        this.tgBot = await Telegram.create({
-          botAuthToken: token,
+        this.tgBot = await telegramClientFactory.create({
+          type: 'mtcute',
+          botToken: token,
+          appName: 'NapGram',
         })
         this.botSessionId = this.tgBot.sessionId
       }
@@ -101,6 +114,7 @@ export default class Instance {
       // 插件系统：桥接 QQ 侧事件到插件 EventBus
       try {
         const eventPublisher = getEventPublisher()
+        eventPublisher.publishInstanceStatus({ instanceId: this.id, status: 'starting' })
         const instanceId = this.id
         const qqClient = this.qqClient;
 
@@ -109,7 +123,7 @@ export default class Instance {
           if (!requestId)
             return
           const userId = String(e?.userId ?? '')
-          const userName = String(e?.userName ?? userId ?? 'Unknown')
+          const userName = String(e?.userName || userId || 'Unknown')
           eventPublisher.publishFriendRequest({
             instanceId,
             platform: 'qq',
@@ -139,7 +153,7 @@ export default class Instance {
             return
           const groupId = String(e?.groupId ?? '')
           const userId = String(e?.userId ?? '')
-          const userName = String(e?.userName ?? userId ?? 'Unknown')
+          const userName = String(e?.userName || userId || 'Unknown')
           const subType = (e?.subType === 'invite' ? 'invite' : 'add') as 'add' | 'invite'
           eventPublisher.publishGroupRequest({
             instanceId,
@@ -149,6 +163,7 @@ export default class Instance {
             userId,
             userName,
             comment: typeof e?.comment === 'string' ? e.comment : undefined,
+            subType,
             timestamp: typeof e?.timestamp === 'number' ? e.timestamp : Date.now(),
             approve: async () => {
               if (typeof (qqClient as any).handleGroupRequest !== 'function') {
@@ -237,55 +252,53 @@ export default class Instance {
       this.forwardPairs = await ForwardMap.load(this.id)
 
       // 初始化新架构的功能管理器
-      if (this.qqClient) {
-        this.log.debug('FeatureManager 正在初始化')
-        this.featureManager = new FeatureManager(this, this.tgBot, this.qqClient)
-        await this.featureManager.initialize()
-        this.log.info('FeatureManager ✓ 初始化完成')
-
-        // 初始化掉线通知服务
-        if (env.ENABLE_OFFLINE_NOTIFICATION) {
-          const { NotificationService } = await import('../../shared/services/NotificationService')
-          this.log.info('Offline notification service 正在初始化')
-          const notificationService = new NotificationService(env.OFFLINE_NOTIFICATION_COOLDOWN)
-
-          // 监听掉线事件
-          this.qqClient.on('connection:lost', async (event: any) => {
-            this.log.warn('NapCat connection lost:', event)
-            this.isSetup = false
-            try {
-              await notificationService.notifyDisconnection(
-                this.qqClient,
-                this.tgBot,
-                env.ADMIN_QQ,
-                env.ADMIN_TG,
-              )
-            }
-            catch (error) {
-              this.log.error(error, 'Failed to send disconnection notification:')
-            }
-          })
-
-          // 监听重连成功事件
-          this.qqClient.on('connection:restored', async (event: any) => {
-            this.log.info('NapCat connection restored:', event)
-            this.isSetup = true
-            try {
-              await notificationService.notifyReconnection(
-                this.qqClient,
-                this.tgBot,
-                env.ADMIN_QQ,
-                env.ADMIN_TG,
-              )
-            }
-            catch (error) {
-              this.log.error(error, 'Failed to send reconnection notification:')
-            }
-          })
-
-          this.log.info('Offline notification service ✓ 初始化完成')
-        }
+      // if (this.qqClient) { // Redundant check, login() succeeded above
+      this.log.debug('FeatureManager 正在初始化')
+      this.featureManager = new FeatureManager(this, this.tgBot, this.qqClient)
+      await this.featureManager.initialize()
+      this.log.info('FeatureManager ✓ 初始化完成')
+      try {
+        getEventPublisher().publishInstanceStatus({ instanceId: this.id, status: 'running' })
       }
+      catch (error) {
+        this.log.warn('Failed to publish instance running status:', error)
+      }
+
+      // 监听掉线/恢复事件，交给插件侧处理通知
+      this.qqClient.on('connection:lost', async (event: any) => {
+        this.log.warn('NapCat connection lost:', event)
+        this.isSetup = false
+        try {
+          getEventPublisher().publishNotice({
+            instanceId: this.id,
+            platform: 'qq',
+            noticeType: 'connection-lost',
+            timestamp: typeof event?.timestamp === 'number' ? event.timestamp : Date.now(),
+            raw: event,
+          })
+        }
+        catch (error) {
+          this.log.warn('Failed to publish connection-lost notice:', error)
+        }
+      })
+
+      this.qqClient.on('connection:restored', async (event: any) => {
+        this.log.info('NapCat connection restored:', event)
+        this.isSetup = true
+        try {
+          getEventPublisher().publishNotice({
+            instanceId: this.id,
+            platform: 'qq',
+            noticeType: 'connection-restored',
+            timestamp: typeof event?.timestamp === 'number' ? event.timestamp : Date.now(),
+            raw: event,
+          })
+        }
+        catch (error) {
+          this.log.warn('Failed to publish connection-restored notice:', error)
+        }
+      })
+      // }
 
       this.isSetup = true
       this.isInit = true
@@ -295,7 +308,7 @@ export default class Instance {
       .then(() => this.log.info('Instance ✓ 初始化完成'))
       .catch((err) => {
         this.log.error('初始化失败', err)
-        posthog.capture('初始化失败', { error: err })
+        sentry.captureException(err, { stage: 'instance-init', instanceId: this.id })
       })
 
     return this.initPromise

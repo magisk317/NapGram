@@ -3,25 +3,9 @@ import cookie from '@fastify/cookie'
 import Fastify from 'fastify'
 import env from '../domain/models/env'
 import { getLogger } from '../shared/logger'
-import auth from './auth'
-import database from './database'
-import instances from './instances'
-import logs from './logs'
-import marketplaces from './marketplaces'
-import messages from './messages'
-import { setupMonitoring } from './monitoring'
-import pairs from './pairs'
-import plugins from './plugins'
-import qqAvatar from './qqAvatar'
-import richHeader from './richHeader'
-import settings from './settings'
-import statistics from './statistics'
-import telegramAvatar from './telegramAvatar'
-import tempFile from './tempFile'
-import tokens from './tokens'
-import ui from './ui'
 
 const log = getLogger('Web Api')
+const registeredWebPlugins = new Set<string>()
 
 const fastify = Fastify({
   logger: false, // We use our own logger
@@ -42,26 +26,24 @@ fastify.get('/', async () => {
   return { hello: 'NapGram (Fastify)' }
 })
 
-// Register routes
-fastify.register(telegramAvatar)
-fastify.register(qqAvatar)
-fastify.register(richHeader)
-fastify.register(tempFile)
-fastify.register(messages)
-fastify.register(ui)
-fastify.register(auth)
-fastify.register(pairs)
-fastify.register(instances)
-fastify.register(statistics)
-fastify.register(logs)
-fastify.register(settings)
-fastify.register(tokens)
-fastify.register(plugins)
-fastify.register(marketplaces)
-fastify.register(database)
+// Routes are registered by plugins via registerWebRoutes.
 
-// 📊 Register monitoring and statistics API
-setupMonitoring(fastify)
+export function registerWebRoutes(register: (app: App) => void, pluginId?: string) {
+  if (pluginId) {
+    if (registeredWebPlugins.has(pluginId)) {
+      log.warn(`Web routes already registered for plugin: ${pluginId}`)
+      return
+    }
+    registeredWebPlugins.add(pluginId)
+  }
+  register(fastify)
+}
+
+export function getWebApi() {
+  return {
+    registerRoutes: registerWebRoutes,
+  }
+}
 
 export default {
   async startListening() {
