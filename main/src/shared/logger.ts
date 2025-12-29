@@ -133,6 +133,7 @@ const LOGGER_COLOR_MAP: Record<string, string> = {
   'Instance': MODULE_COLORS.bold_white,
   'Main': MODULE_COLORS.bold_white,
   'FeatureManager': MODULE_COLORS.purple,
+  'Plugin': MODULE_COLORS.purple,
 
   // Forwarding Core
   'ForwardFeature': MODULE_COLORS.bright_green,
