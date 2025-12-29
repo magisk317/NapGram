@@ -64,9 +64,6 @@ jobs:
 
       - name: Install pnpm
         uses: pnpm/action-setup@v4
-        with:
-          version: 9
-          run_install: false
 
       - name: Install dependencies
         # CI 默认会启用 frozen-lockfile；但这里会用私有 UI 仓库覆盖 ./web，
