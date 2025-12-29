@@ -4,7 +4,7 @@ import { NapCatAdapter } from '../NapCatAdapter'
 import { napCatForwardMultiple } from '../napcatConvert'
 
 // Mock dependencies
-const { mockNapLinkInstance, mockLogger, mockMessageConverter } = vi.hoisted(() => {
+const { mockNapLinkInstance, mockLogger, mockMessageConverter, mockNapLinkConstructor } = vi.hoisted(() => {
   const mockNapLink = {
     on: vi.fn(),
     connect: vi.fn(),
@@ -138,18 +138,24 @@ const { mockNapLinkInstance, mockLogger, mockMessageConverter } = vi.hoisted(() 
     toNapCat: vi.fn(),
   }
 
+  const mockNapLinkConstructor = vi.fn()
+
   return {
     mockNapLinkInstance: mockNapLink,
     mockLogger: mockLog,
     mockMessageConverter: mockMsgConv,
+    mockNapLinkConstructor,
   }
 })
 
 vi.mock('@naplink/naplink', () => {
   return {
-    NapLink: vi.fn(() => {
-      return mockNapLinkInstance
-    }),
+    NapLink: class {
+      constructor(...args: any[]) {
+        mockNapLinkConstructor(...args)
+        return mockNapLinkInstance
+      }
+    },
   }
 })
 
@@ -223,7 +229,7 @@ describe('napCatAdapter', () => {
   })
 
   it('should forward NapLink warn/error logs', () => {
-    const [config] = (NapLink as any).mock.calls[0]
+    const [config] = mockNapLinkConstructor.mock.calls[0]
     config.logging.logger.warn('warn-msg', { detail: 'w' })
     config.logging.logger.error('error-msg', new Error('boom'))
 

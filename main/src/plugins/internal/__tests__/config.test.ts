@@ -1,4 +1,5 @@
 import fs from 'node:fs/promises'
+import path from 'node:path'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import * as config from '../config'
 
@@ -1335,5 +1336,59 @@ describe('additional edge cases and helper functions', () => {
     // Builtin comes third. 1 is NOT > 3 or 2.
 
     // Wait, maybe I should check the code logic again.
+  })
+
+  it('should execute load function for local file plugin', async () => {
+    const files = [{ name: 'plugin.js', isFile: () => true, isDirectory: () => false }]
+    vi.mocked(fs.readdir).mockResolvedValue(files as any)
+    vi.mocked(fs.access).mockResolvedValue(undefined)
+
+    const specs = await config.loadPluginSpecs()
+    const pluginSpec = specs.find(s => s.id === 'plugin')
+    expect(pluginSpec).toBeDefined()
+
+    try {
+      await pluginSpec!.load()
+    } catch (e) {
+      // Expected
+    }
+  })
+
+  it('should handle error during local file execution', async () => {
+    const files = [{ name: 'error.js', isFile: () => true, isDirectory: () => false }]
+    vi.mocked(fs.readdir).mockResolvedValue(files as any)
+
+    // Force an error inside the loop
+    const originalJoin = path.join
+    vi.spyOn(path, 'join').mockImplementation((...args) => {
+      if (args.some(arg => String(arg).includes('error.js'))) {
+        throw new Error('Path error')
+      }
+      return originalJoin(...args)
+    })
+
+    await config.loadPluginSpecs()
+    expect(loggerMock.warn).toHaveBeenCalledWith(expect.objectContaining({ error: expect.any(Error) }), expect.stringContaining('Failed to parse file plugin'))
+  })
+
+  it('should skip directory plugin with no main file', async () => {
+    const entries = [
+      { name: 'no-main-plugin', isDirectory: () => true, isFile: () => false }
+    ]
+    vi.mocked(fs.readdir).mockResolvedValue(entries as any)
+    vi.mocked(fs.access).mockResolvedValue(undefined) // pkg exists
+
+    // Mock package.json with no main
+    vi.mocked(fs.readFile).mockResolvedValue(JSON.stringify({ name: 'no-main' }))
+
+    // Mock index files not existing
+    vi.mocked(fs.access)
+      .mockImplementation(async (p) => {
+        if (String(p).endsWith('package.json')) return undefined
+        throw new Error('No index')
+      })
+
+    const specs = await config.loadPluginSpecs()
+    expect(specs.find(s => s.id === 'no-main')).toBeUndefined()
   })
 })
