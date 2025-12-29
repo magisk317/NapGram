@@ -69,11 +69,11 @@ describe('performanceMonitor', () => {
   })
 
   it('printStats should log statistics', () => {
-    const infoSpy = vi.spyOn(console, 'info').mockImplementation(() => {})
+    const debugSpy = vi.spyOn(console, 'debug').mockImplementation(() => { })
     monitor.recordMessage(100)
     monitor.printStats()
-    expect(infoSpy).toHaveBeenCalledWith('[PerformanceMonitor]', expect.stringContaining('Performance Statistics'))
-    infoSpy.mockRestore()
+    expect(debugSpy).toHaveBeenCalledWith('[PerformanceMonitor]', expect.stringContaining('Performance Statistics'))
+    debugSpy.mockRestore()
   })
 
   it('reset should clear all metrics', () => {
