@@ -56,10 +56,17 @@ jobs:
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/napgram_test
 
+      - name: Prepare test environment
+        run: |
+          mkdir -p ${{ runner.temp }}/napgram-data/temp
+          mkdir -p ${{ runner.temp }}/napgram-data/cache
+          mkdir -p ${{ runner.temp }}/napgram-data/logs
+
       - name: Run tests with coverage
         run: pnpm --filter ./main test:coverage
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/napgram_test
+          DATA_DIR: ${{ runner.temp }}/napgram-data
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v5

@@ -11,10 +11,17 @@ import tgsToGif from './encoding/tgsToGif'
 import { file as createTempFile } from './temp'
 
 const CACHE_PATH = env.CACHE_DIR
-fs.mkdirSync(CACHE_PATH, { recursive: true })
+let cacheDirInitialized = false
+function ensureCacheDir() {
+  if (!cacheDirInitialized) {
+    fs.mkdirSync(CACHE_PATH, { recursive: true })
+    cacheDirInitialized = true
+  }
+}
 
 // 首先查找缓存，要是缓存中没有的话执行第二个参数的方法转换到缓存的文件
 async function cachedConvert(key: string, convert: (outputPath: string) => Promise<any>) {
+  ensureCacheDir()
   const convertedPath = path.join(CACHE_PATH, key)
   if (!fs.existsSync(convertedPath)) {
     await convert(convertedPath)

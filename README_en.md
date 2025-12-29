@@ -8,10 +8,11 @@
   <a href="https://opensource.org/licenses/MIT"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT" /></a>
   <a href="https://nodejs.org/"><img src="https://img.shields.io/badge/Node.js-25-green.svg" alt="Node.js" /></a>
   <a href="https://www.typescriptlang.org/"><img src="https://img.shields.io/badge/TypeScript-5.0+-blue.svg" alt="TypeScript" /></a>
-  <a href="https://github.com/NapLink/NapGram/actions/workflows/docker-release.yml"><img src="https://img.shields.io/github/actions/workflow/status/NapLink/NapGram/docker-release.yml?branch=main&label=Release%20Build&logo=githubactions" alt="CI/CD" /></a>
+  <a href="https://github.com/NapGram/NapGram/actions/workflows/docker-release.yml"><img src="https://github.com/NapGram/NapGram/actions/workflows/docker-release.yml/badge.svg?event=release&label=Release%20Build" alt="Release Build" /></a>
+  <a href="https://codecov.io/gh/NapGram/NapGram"><img src="https://codecov.io/gh/NapGram/NapGram/branch/dev/graph/badge.svg" alt="Codecov" /></a>
   <a href="https://github.com/NapLink/NapGram/releases"><img src="https://img.shields.io/github/v/release/NapLink/NapGram?display_name=tag&include_prereleases&logo=git&label=Latest" alt="Release" /></a>
   <a href="https://github.com/NapLink/NapGram/releases"><img src="https://img.shields.io/github/downloads/NapLink/NapGram/total?label=Release%20Downloads&logo=github" alt="Downloads" /></a>
-  <a href="https://github.com/NapLink/NapGram/pkgs/container/napgram"><img src="https://img.shields.io/badge/ghcr.io%2Fnaplink%2Fnapgram-blue?logo=docker&label=Container" alt="GHCR Image" /></a>
+  <a href="https://github.com/NapGram/NapGram/pkgs/container/napgram"><img src="https://img.shields.io/badge/ghcr.io%2FNapGram%2Fnapgram-blue?logo=docker&label=Container" alt="GHCR Image" /></a>
   <a href="https://github.com/NapLink/NapGram/commits/main"><img src="https://img.shields.io/github/last-commit/NapLink/NapGram/main?logo=github&label=Last%20Commit" alt="Last Commit" /></a>
   <a href="https://github.com/NapLink/NapGram/pulse"><img src="https://img.shields.io/github/commit-activity/m/NapLink/NapGram?logo=github&label=Commit%20Activity" alt="Commit Activity" /></a>
   <a href="https://github.com/NapLink/NapGram/issues"><img src="https://img.shields.io/github/issues/NapLink/NapGram?logo=github" alt="Issues" /></a>
