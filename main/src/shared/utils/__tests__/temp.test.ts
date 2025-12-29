@@ -23,7 +23,7 @@ describe('temp utils', () => {
     expect(fs.existsSync(temp.path)).toBe(false)
   })
 
-  it('creates temp dir when missing on module init', async () => {
+  it('creates temp dir when missing on createTempFile', async () => {
     vi.resetModules()
     const existsSync = vi.fn().mockReturnValue(false)
     const mkdirSync = vi.fn()
@@ -38,6 +38,7 @@ describe('temp utils', () => {
     }))
 
     const module = await import('../temp')
+    await module.createTempFile()
 
     expect(existsSync).toHaveBeenCalledWith(module.TEMP_PATH)
     expect(mkdirSync).toHaveBeenCalledWith(module.TEMP_PATH, { recursive: true })
