@@ -97,11 +97,9 @@ vi.mock('../ForwardMap', () => ({
 }))
 
 vi.mock('../../../features/FeatureManager', () => ({
-  FeatureManager: vi.fn(() => {
-    return {
-      initialize: featureManagerMocks.initialize,
-    }
-  }),
+  FeatureManager: class {
+    initialize = featureManagerMocks.initialize
+  },
 }))
 
 vi.mock('../../../infrastructure/clients/qq', () => ({
@@ -365,7 +363,7 @@ describe('instance', () => {
 
       // Set to undefined
       ; (qqMocks.client as any).handleFriendRequest = undefined
-    ; (qqMocks.client as any).handleGroupRequest = undefined
+      ; (qqMocks.client as any).handleGroupRequest = undefined
 
     dbMocks.instance.findFirst.mockResolvedValue({})
     await Instance.start(8, 'token')
