@@ -22,7 +22,7 @@ export async function editFlags(params: string[], target: Pair | Instance) {
 
   let operand = Number(params[1])
   if (Number.isNaN(operand)) {
-    operand = flags[params[1].toUpperCase()]
+    operand = (flags as unknown as Record<string, number>)[params[1].toUpperCase()]
   }
   if (Number.isNaN(operand) || operand === undefined)
     return 'flag 格式错误'

@@ -371,15 +371,15 @@ export interface NoticeEvent {
 
 export type NoticeType
   = | 'group-member-increase'
-    | 'group-member-decrease'
-    | 'group-admin'
-    | 'group-ban'
-    | 'group-recall'
-    | 'friend-add'
-    | 'friend-recall'
-    | 'connection-lost'
-    | 'connection-restored'
-    | 'other'
+  | 'group-member-decrease'
+  | 'group-admin'
+  | 'group-ban'
+  | 'group-recall'
+  | 'friend-add'
+  | 'friend-recall'
+  | 'connection-lost'
+  | 'connection-restored'
+  | 'other'
 
 /**
  * 实例状态事件
@@ -410,15 +410,15 @@ export interface PluginReloadEvent {
  */
 export type MessageSegment
   = | TextSegment
-    | AtSegment
-    | ReplySegment
-    | ImageSegment
-    | VideoSegment
-    | AudioSegment
-    | FileSegment
-    | ForwardSegment
-    | FaceSegment
-    | RawSegment
+  | AtSegment
+  | ReplySegment
+  | ImageSegment
+  | VideoSegment
+  | AudioSegment
+  | FileSegment
+  | ForwardSegment
+  | FaceSegment
+  | RawSegment
 
 export interface TextSegment {
   type: 'text'
@@ -800,7 +800,7 @@ export interface PluginSpec {
    * - 返回值允许是 NapGramPlugin（原生插件对象）或任意"模块导出对象"
    * - 具体类型识别与验证在 PluginLoader 中完成
    */
-  load: () => Promise<any>
+  load?: () => Promise<any>
 }
 
 // ============================================================================

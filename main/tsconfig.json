@@ -41,6 +41,10 @@
         "../packages/web-interfaces/src/index.ts"
       ]
     },
+    "types": [
+      "node",
+      "vitest/globals"
+    ],
     "plugins": [
       {
         "name": "@kitajs/ts-html-plugin"

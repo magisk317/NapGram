@@ -22,7 +22,7 @@ export default class Instance {
   private _workMode = ''
   private _botSessionId = 0
   private _qq: any
-  private _flags: number
+  private _flags = 0
 
   private readonly log: AppLogger
 
@@ -63,7 +63,7 @@ export default class Instance {
 
     this._owner = Number(dbEntry.owner)
     this._qq = dbEntry.qqBot
-    this._botSessionId = dbEntry.botSessionId
+    this._botSessionId = dbEntry.botSessionId ?? 0
     this._isSetup = dbEntry.isSetup
     this._workMode = dbEntry.workMode
     this._flags = dbEntry.flags
@@ -93,7 +93,7 @@ export default class Instance {
           botToken: token,
           appName: 'NapGram',
         })
-        this.botSessionId = this.tgBot.sessionId
+        this.botSessionId = this.tgBot.sessionId ?? 0
       }
       this.log.info('TG Bot ✓ 登录完成')
 

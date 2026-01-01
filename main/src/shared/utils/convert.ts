@@ -155,7 +155,8 @@ const convert = {
     // file not found
     const data = await imageData() as Buffer
     const fileType = (await fileTypeFromBuffer(data))?.mime || 'image/'
-    let pathPngOrig: string, pathGifOrig: string
+    let pathPngOrig = ''
+    let pathGifOrig = ''
     if (fileType.startsWith('image/')) {
       pathPngOrig = await convert.png(key, () => Promise.resolve(data))
     }

@@ -32,10 +32,11 @@ import { getLogger } from './shared/logger';
       log.info(`Login URL: ${env.WEB_ENDPOINT || 'http://localhost:8080'}/login`)
     }
     else {
-      const maskedToken = env.ADMIN_TOKEN.length > 12
-        ? `${'*'.repeat(env.ADMIN_TOKEN.length - 8)}${env.ADMIN_TOKEN.slice(-8)}`
-        : env.ADMIN_TOKEN
-      log.info(`ADMIN_TOKEN: ${maskedToken} (use this to login to /login`)
+      const tokenValue = env.ADMIN_TOKEN ?? ''
+      const maskedToken = tokenValue.length > 12
+        ? `${'*'.repeat(tokenValue.length - 8)}${tokenValue.slice(-8)}`
+        : tokenValue
+      log.info(`ADMIN_TOKEN: ${maskedToken} (use this to login to /login)`)
     }
   }
   else {
