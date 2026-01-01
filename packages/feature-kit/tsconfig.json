@@ -13,7 +13,13 @@
         "forceConsistentCasingInFileNames": true,
         "moduleResolution": "node",
         "resolveJsonModule": true,
-        "declaration": true
+        "declaration": true,
+        "baseUrl": ".",
+        "paths": {
+            "@napgram/message-kit": [
+                "../message-kit/src/index.ts"
+            ]
+        }
     },
     "include": [
         "src/**/*"

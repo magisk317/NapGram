@@ -56,7 +56,8 @@
   },
   "include": [
     "src/**/*",
-    "vitest.setup.ts"
+    "vitest.setup.ts",
+    "build.ts"
   ],
   "exclude": [
     "node_modules",

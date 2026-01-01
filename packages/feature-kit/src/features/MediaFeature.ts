@@ -307,7 +307,7 @@ export class MediaFeature {
       }
 
       // 使用 Image-JS 读取图片
-      const image = decode(buffer)
+      let image = decode(buffer)
 
       // 计算压缩目标
       let quality = 80
@@ -328,7 +328,7 @@ export class MediaFeature {
           height = MAX_DIMENSION
         }
         logger.info(`Resizing image to ${width}x${height}`)
-        image.resize({ width, height })
+        image = image.resize({ width, height })
       }
 
       // 尝试压缩循环
