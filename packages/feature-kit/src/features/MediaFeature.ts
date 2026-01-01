@@ -1,4 +1,4 @@
-import type { AudioContent, ImageContent, VideoContent } from '../../../../main/src/domain/message'
+import type { AudioContent, ImageContent, VideoContent } from '@napgram/message-kit'
 import type Instance from '../../../../main/src/domain/models/Instance'
 import type { IQQClient } from '../../../../main/src/infrastructure/clients/qq'
 import type Telegram from '../../../../main/src/infrastructure/clients/telegram/client'
