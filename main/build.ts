@@ -2,6 +2,9 @@ import { fileURLToPath } from 'node:url'
 import esbuild from 'esbuild'
 import packageJson from './package.json'
 
+const __filename = fileURLToPath(import.meta.url)
+const __dirname = path.dirname(__filename)
+
 const banner = {
   js: `
     import { createRequire } from 'module';
@@ -13,6 +16,29 @@ const banner = {
   `,
 }
 
+import fs from 'node:fs'
+import path from 'node:path'
+
+const packagesDir = path.resolve(__dirname, '../packages')
+const packages = fs.readdirSync(packagesDir).filter(f => fs.statSync(path.join(packagesDir, f)).isDirectory())
+
+const workspaceAliases: Record<string, string> = {}
+packages.forEach(pkg => {
+  const srcIndex = path.join(packagesDir, pkg, 'src/index.ts')
+  const pkgJsonPath = path.join(packagesDir, pkg, 'package.json')
+
+  if (fs.existsSync(srcIndex) && fs.existsSync(pkgJsonPath)) {
+    try {
+      const pkgJson = JSON.parse(fs.readFileSync(pkgJsonPath, 'utf-8'))
+      workspaceAliases[pkgJson.name] = srcIndex
+    } catch (e) {
+      console.warn(`Failed to parse package.json for ${pkg}`, e)
+    }
+  }
+})
+
+console.log('Resolved workspace aliases:', Object.keys(workspaceAliases).length)
+
 esbuild.buildSync({
   bundle: true,
   entryPoints: ['src/index.ts'],
@@ -21,17 +47,6 @@ esbuild.buildSync({
   platform: 'node',
   format: 'esm',
   banner,
-  alias: {
-    '@napgram/feature-kit': fileURLToPath(new URL('../packages/feature-kit/src/index.ts', import.meta.url)),
-    '@napgram/gateway-kit': fileURLToPath(new URL('../packages/gateway-kit/src/index.ts', import.meta.url)),
-    '@napgram/infra-kit': fileURLToPath(new URL('../packages/infra-kit/src/index.ts', import.meta.url)),
-    '@napgram/auth-kit': fileURLToPath(new URL('../packages/auth-kit/src/index.ts', import.meta.url)),
-    '@napgram/media-kit': fileURLToPath(new URL('../packages/media-kit/src/index.ts', import.meta.url)),
-    '@napgram/message-kit': fileURLToPath(new URL('../packages/message-kit/src/index.ts', import.meta.url)),
-    '@napgram/marketplace-kit': fileURLToPath(new URL('../packages/marketplace-kit/src/index.ts', import.meta.url)),
-    '@napgram/request-kit': fileURLToPath(new URL('../packages/request-kit/src/index.ts', import.meta.url)),
-    '@napgram/runtime-kit': fileURLToPath(new URL('../packages/runtime-kit/src/index.ts', import.meta.url)),
-    '@napgram/web-interfaces': fileURLToPath(new URL('../packages/web-interfaces/src/index.ts', import.meta.url)),
-  },
-  external: Object.keys(packageJson.dependencies),
+  alias: workspaceAliases,
+  external: Object.keys(packageJson.dependencies).filter(dep => !workspaceAliases[dep]),
 })
