@@ -16,6 +16,9 @@
         "declaration": true,
         "baseUrl": ".",
         "paths": {
+            "@napgram/feature-kit": [
+                "./src/index.ts"
+            ],
             "@napgram/message-kit": [
                 "../message-kit/src/index.ts"
             ]

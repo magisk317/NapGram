@@ -6,17 +6,32 @@
             "ES2022"
         ],
         "outDir": "./dist",
-        "rootDir": "./src",
         "strict": true,
         "esModuleInterop": true,
         "skipLibCheck": true,
         "forceConsistentCasingInFileNames": true,
         "moduleResolution": "node",
         "resolveJsonModule": true,
-        "declaration": true
+        "declaration": true,
+        "baseUrl": ".",
+        "paths": {
+            "@napgram/message-kit": [
+                "./src/index.ts"
+            ],
+            "@napgram/feature-kit": [
+                "../feature-kit/src/index.ts"
+            ],
+            "@napgram/media-kit": [
+                "../media-kit/src/index.ts"
+            ]
+        },
+        "types": [
+            "node"
+        ]
     },
     "include": [
-        "src/**/*"
+        "src/**/*",
+        "../../main/src/**/*.ts"
     ],
     "exclude": [
         "node_modules",
