@@ -14,6 +14,9 @@ importers:
 
   external/sdk/packages/core:
     devDependencies:
+      '@types/node':
+        specifier: ^25.0.3
+        version: 25.0.3
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
@@ -27,6 +30,9 @@ importers:
         specifier: workspace:*
         version: link:../utils
     devDependencies:
+      '@types/node':
+        specifier: ^25.0.3
+        version: 25.0.3
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
@@ -37,6 +43,9 @@ importers:
         specifier: workspace:*
         version: link:../core
     devDependencies:
+      '@types/node':
+        specifier: ^25.0.3
+        version: 25.0.3
       typescript:
         specifier: ^5.9.3
         version: 5.9.3
@@ -67,12 +76,42 @@ importers:
       '@mtcute/node':
         specifier: ^0.27.4
         version: 0.27.4(ws@8.18.3)
+      '@napgram/auth-kit':
+        specifier: workspace:*
+        version: link:../packages/auth-kit
+      '@napgram/feature-kit':
+        specifier: workspace:*
+        version: link:../packages/feature-kit
+      '@napgram/gateway-kit':
+        specifier: workspace:*
+        version: link:../packages/gateway-kit
+      '@napgram/infra-kit':
+        specifier: workspace:*
+        version: link:../packages/infra-kit
+      '@napgram/marketplace-kit':
+        specifier: workspace:*
+        version: link:../packages/marketplace-kit
+      '@napgram/media-kit':
+        specifier: workspace:*
+        version: link:../packages/media-kit
+      '@napgram/message-kit':
+        specifier: workspace:*
+        version: link:../packages/message-kit
       '@napgram/qq-client':
         specifier: workspace:*
         version: link:../packages/qq-client
+      '@napgram/request-kit':
+        specifier: workspace:*
+        version: link:../packages/request-kit
+      '@napgram/runtime-kit':
+        specifier: workspace:*
+        version: link:../packages/runtime-kit
       '@napgram/telegram-client':
         specifier: workspace:*
         version: link:../packages/telegram-client
+      '@napgram/web-interfaces':
+        specifier: workspace:*
+        version: link:../packages/web-interfaces
       '@naplink/naplink':
         specifier: ^0.0.3
         version: 0.0.3

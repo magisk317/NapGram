@@ -3,12 +3,13 @@
     "version": "1.0.0",
     "description": "NapGram QQ interaction plugin: poke, nick, like, honor",
     "main": "./dist/index.js",
-    "types": "./dist/index.d.ts",
+            "types": "./src/index.ts",
     "type": "module",
     "exports": {
         ".": {
-            "types": "./dist/index.d.ts",
-            "import": "./dist/index.js"
+            "types": "./src/index.ts",
+            "import": "./src/index.ts",
+            "default": "./dist/index.js"
         },
         "./package.json": "./package.json"
     },
