@@ -23,14 +23,27 @@ const plugin: NapGramPlugin = {
 
         const adminQQ = normalizeId(config?.adminQQ);
         const adminTG = normalizeId(config?.adminTG);
-        const cooldownMs = typeof config?.cooldownMs === 'number' ? config.cooldownMs : 3600000;
+
+        // Backoff configuration
+        const BACKOFF_INTERVALS = [
+            0,              // 1st: Immediate
+            1000 * 60 * 1,  // 2nd: 1 min
+            1000 * 60 * 2,  // 3rd: 2 mins
+            1000 * 60 * 5,  // 4th: 5 mins
+            1000 * 60 * 10, // 5th: 10 mins
+            1000 * 60 * 30, // 6th: 30 mins
+            1000 * 60 * 60, // 7th: 60 mins
+        ];
+        const RESET_THRESHOLD = 1000 * 60 * 60 * 2; // Reset after 2 hours of stability
+
+        let backoffLevel = 0;
+        let lastNotifyTime = 0;
+        let isNotifiedDown = false; // Tracks if the current outage has been notified
 
         if (!adminQQ && !adminTG) {
             ctx.logger.warn('Notifications disabled: no admin targets configured');
             return;
         }
-
-        let lastLostAt = 0;
 
         ctx.on('notice', async (event: NoticeEvent) => {
             if (event.noticeType !== 'connection-lost' && event.noticeType !== 'connection-restored') {
@@ -38,9 +51,36 @@ const plugin: NapGramPlugin = {
             }
 
             const now = Date.now();
-            if (event.noticeType === 'connection-lost' && now - lastLostAt < cooldownMs) {
-                ctx.logger.debug('Notification suppressed due to cooldown');
-                return;
+
+            // Logic for Connection Lost
+            if (event.noticeType === 'connection-lost') {
+                // Check if we should reset backoff due to long stability
+                if (now - lastNotifyTime > RESET_THRESHOLD) {
+                    backoffLevel = 0;
+                }
+
+                const requiredWait = BACKOFF_INTERVALS[Math.min(backoffLevel, BACKOFF_INTERVALS.length - 1)];
+
+                if (now - lastNotifyTime < requiredWait) {
+                    ctx.logger.debug(`Notification suppressed (Backoff: Level ${backoffLevel}, Wait ${requiredWait}ms)`);
+                    isNotifiedDown = false; // Suppress this outage
+                    return;
+                }
+
+                // Allowed to notify
+                backoffLevel++;
+                lastNotifyTime = now;
+                isNotifiedDown = true;
+            }
+
+            // Logic for Connection Restored
+            if (event.noticeType === 'connection-restored') {
+                if (!isNotifiedDown) {
+                    ctx.logger.debug('Restored notification suppressed because loss was silent');
+                    return;
+                }
+                // If loss was notified, we notify recovery and clear the "Down" flag
+                isNotifiedDown = false;
             }
 
             const time = new Date(event.timestamp || now).toLocaleString('zh-CN', {
@@ -51,10 +91,6 @@ const plugin: NapGramPlugin = {
             const message = event.noticeType === 'connection-lost'
                 ? `⚠️ NapCat 连接已断开\n时间: ${time}\n\n系统将自动尝试重连...`
                 : `✅ NapCat 连接已恢复\n时间: ${time}`;
-
-            if (event.noticeType === 'connection-lost') {
-                lastLostAt = now;
-            }
 
             await sendAdminNotifications(ctx, event.instanceId, adminQQ, adminTG, message);
         });
