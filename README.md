@@ -101,12 +101,15 @@
 
 ## 📚 文档
 
-- 📖 **项目文档（Wiki）**：https://github.com/NapGram/NapGram/wiki
-- 📝 **更新日志**：https://github.com/NapGram/NapGram/wiki/Changelog
-- 🧩 **插件系统**：https://github.com/NapGram/NapGram/wiki/Operations-Plugins
-- ⬆️ **升级与迁移（FAQ）**：https://github.com/NapGram/NapGram/wiki/Operations-Upgrade
-- 💬 **常用命令**：https://github.com/NapGram/NapGram/wiki/Guide-Commands
-- 🔗 **相关项目**：NapCat SDK（TypeScript）[NapLink](https://github.com/NapGram/NapLink)
+- 📖 **项目文档(Wiki)**:https://github.com/NapGram/NapGram/wiki
+- 📝 **更新日志**:https://github.com/NapGram/NapGram/wiki/Changelog
+- 🧩 **插件系统**:https://github.com/NapGram/NapGram/wiki/Operations-Plugins
+- 🔌 **插件开发指南**:https://github.com/NapGram/NapGram/wiki/Guide-Plugin-Development
+- 📦 **插件市场**:https://github.com/NapGram/napgram-marketplace
+- 🎨 **插件模板**:https://github.com/NapGram/napgram-plugin-template
+- ⬆️ **升级与迁移(FAQ)**:https://github.com/NapGram/NapGram/wiki/Operations-Upgrade
+- 💬 **常用命令**:https://github.com/NapGram/NapGram/wiki/Guide-Commands
+- 🔗 **相关项目**:NapCat SDK(TypeScript)[NapLink](https://github.com/NapGram/NapLink)
 
 ## 📅 更新日志
 
