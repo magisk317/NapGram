@@ -206,6 +206,9 @@ importers:
       '@napgram/infra-kit':
         specifier: workspace:*
         version: link:../infra-kit
+      '@napgram/qq-client':
+        specifier: workspace:*
+        version: link:../qq-client
       fastify:
         specifier: ^5.6.2
         version: 5.6.2
@@ -231,15 +234,27 @@ importers:
       '@mtcute/node':
         specifier: ^0.27.4
         version: 0.27.4(ws@8.18.3)
+      '@napgram/auth-kit':
+        specifier: workspace:*
+        version: link:../auth-kit
       '@napgram/infra-kit':
         specifier: workspace:*
         version: link:../infra-kit
+      '@napgram/media-kit':
+        specifier: workspace:*
+        version: link:../media-kit
       '@napgram/message-kit':
         specifier: workspace:*
         version: link:../message-kit
+      '@napgram/qq-client':
+        specifier: workspace:*
+        version: link:../qq-client
       '@napgram/runtime-kit':
         specifier: workspace:*
         version: link:../runtime-kit
+      '@napgram/telegram-client':
+        specifier: workspace:*
+        version: link:../telegram-client
       file-type:
         specifier: ^21.2.0
         version: 21.2.0
