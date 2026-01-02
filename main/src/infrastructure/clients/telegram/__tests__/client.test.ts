@@ -187,7 +187,7 @@ describe('telegram client', () => {
     envMock.PROXY_IP = undefined
     envMock.PROXY_PORT = undefined
     fsMocks.existsSync.mockReturnValue(true)
-      ; (Telegram as any).existedBots = {}
+    ; (Telegram as any).existedBots = {}
   })
 
   it('creates a new bot and imports session', async () => {
@@ -216,7 +216,7 @@ describe('telegram client', () => {
     const cached = { cached: true }
       ; (Telegram as any).existedBots = { 5: cached }
 
-    const result = await Telegram.connect(5, "NapGram")
+    const result = await Telegram.connect(5, 'NapGram')
 
     expect(result).toBe(cached)
     expect(sessionMocks.load).not.toHaveBeenCalled()

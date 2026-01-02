@@ -222,10 +222,10 @@ describe('napCatAdapter', () => {
   })
 
   it('should initialize correctly', () => {
-    expect(adapter.clientType).toBe('napcat');
-    expect(mockNapLinkInstance.on).toHaveBeenCalledWith('connect', expect.any(Function));
-    expect(mockNapLinkInstance.on).toHaveBeenCalledWith('disconnect', expect.any(Function));
-    expect(mockNapLinkInstance.on).toHaveBeenCalledWith('message', expect.any(Function));
+    expect(adapter.clientType).toBe('napcat')
+    expect(mockNapLinkInstance.on).toHaveBeenCalledWith('connect', expect.any(Function))
+    expect(mockNapLinkInstance.on).toHaveBeenCalledWith('disconnect', expect.any(Function))
+    expect(mockNapLinkInstance.on).toHaveBeenCalledWith('message', expect.any(Function))
   })
 
   it('should forward NapLink warn/error logs', () => {
@@ -233,8 +233,8 @@ describe('napCatAdapter', () => {
     config.logging.logger.warn('warn-msg', { detail: 'w' })
     config.logging.logger.error('error-msg', new Error('boom'))
 
-    expect(mockLogger.warn).toHaveBeenCalledWith('warn-msg', { detail: 'w' });
-    expect(mockLogger.error).toHaveBeenCalledWith('error-msg', expect.any(Error));
+    expect(mockLogger.warn).toHaveBeenCalledWith('warn-msg', { detail: 'w' })
+    expect(mockLogger.error).toHaveBeenCalledWith('error-msg', expect.any(Error))
   })
 
   it('should handle connect event', () => {
@@ -245,8 +245,8 @@ describe('napCatAdapter', () => {
 
     triggerClientEvent('connect')
 
-    expect(onOnline).toHaveBeenCalled();
-    expect(mockNapLinkInstance.getLoginInfo).toHaveBeenCalled();
+    expect(onOnline).toHaveBeenCalled()
+    expect(mockNapLinkInstance.getLoginInfo).toHaveBeenCalled()
     // We can't check adapter.uin directly unless getting it via getter
     expect(adapter.uin).toBe(0) // It's async, so initially 0. Wait for promise?
   })
@@ -258,48 +258,48 @@ describe('napCatAdapter', () => {
     // Wait for async refreshSelfInfo
     await waitTick()
 
-    expect(adapter.uin).toBe(9991);
-    expect(adapter.nickname).toBe('Updated1');
-    expect(mockLogger.info).toHaveBeenCalledWith(expect.stringContaining('Logged in as Updated1'));
+    expect(adapter.uin).toBe(9991)
+    expect(adapter.nickname).toBe('Updated1')
+    expect(mockLogger.info).toHaveBeenCalledWith(expect.stringContaining('Logged in as Updated1'))
   })
 
   it('should handle getLoginInfo failure', async () => {
     mockNapLinkInstance.getLoginInfo.mockRejectedValue(new Error('Login fail'))
     triggerClientEvent('connect')
     await new Promise(process.nextTick)
-    expect(mockLogger.error).toHaveBeenCalledWith(expect.stringContaining('Failed to get login info'), expect.any(Error));
+    expect(mockLogger.error).toHaveBeenCalledWith(expect.stringContaining('Failed to get login info'), expect.any(Error))
   })
 
   it('should handle disconnect event', () => {
     const onOffline = vi.fn()
     adapter.on('offline', onOffline)
     triggerClientEvent('disconnect')
-    expect(onOffline).toHaveBeenCalled();
+    expect(onOffline).toHaveBeenCalled()
   })
 
   it('should handle connection lost', () => {
     const onLost = vi.fn()
     adapter.on('connection:lost', onLost)
     triggerClientEvent('connection:lost', { timestamp: 1000, attempts: 5 })
-    expect(onLost).toHaveBeenCalledWith({ timestamp: 1000, reason: expect.stringContaining('exceeded (5)') });
+    expect(onLost).toHaveBeenCalledWith({ timestamp: 1000, reason: expect.stringContaining('exceeded (5)') })
   })
 
   it('should handle connection restored', () => {
     const onRestored = vi.fn()
     adapter.on('connection:restored', onRestored)
     triggerClientEvent('connection:restored', { timestamp: 2000 })
-    expect(onRestored).toHaveBeenCalledWith({ timestamp: 2000 });
+    expect(onRestored).toHaveBeenCalledWith({ timestamp: 2000 })
   })
 
   it('should check isOnline status', async () => {
     mockNapLinkInstance.getStatus.mockResolvedValue({ online: true })
-    expect(await adapter.isOnline()).toBe(true);
+    expect(await adapter.isOnline()).toBe(true)
 
     mockNapLinkInstance.getStatus.mockResolvedValue({ online: false })
-    expect(await adapter.isOnline()).toBe(false);
+    expect(await adapter.isOnline()).toBe(false)
 
     mockNapLinkInstance.getStatus.mockRejectedValue(new Error('fail'))
-    expect(await adapter.isOnline()).toBe(false);
+    expect(await adapter.isOnline()).toBe(false)
   })
 
   describe('message Events', () => {
@@ -315,9 +315,9 @@ describe('napCatAdapter', () => {
       triggerClientEvent('message', rawMsg)
       await waitTick()
 
-      expect(mockNapLinkInstance.hydrateMessage).toHaveBeenCalled();
-      expect(mockMessageConverter.fromNapCat).toHaveBeenCalledWith(rawMsg);
-      expect(onMessage).toHaveBeenCalledWith({ id: 'msg1', content: 'hello' });
+      expect(mockNapLinkInstance.hydrateMessage).toHaveBeenCalled()
+      expect(mockMessageConverter.fromNapCat).toHaveBeenCalledWith(rawMsg)
+      expect(onMessage).toHaveBeenCalledWith({ id: 'msg1', content: 'hello' })
     })
 
     it('should normalize media IDs in message', async () => {
@@ -335,17 +335,17 @@ describe('napCatAdapter', () => {
       await waitTick()
 
       // Check side effects on rawMsg (since it's passed by reference)
-      expect((rawMsg.message[0].data as any).file).toBe('img.png');
-      expect((rawMsg.message[1].data as any).file_id).toBe('file.doc');
-      expect((rawMsg.message[2].data as any).file).toBe('path/clean.mp4');
-      expect((rawMsg.message[4].data as any).file).toBe('/tmp/nested/file.bin');
+      expect((rawMsg.message[0].data as any).file).toBe('img.png')
+      expect((rawMsg.message[1].data as any).file_id).toBe('file.doc')
+      expect((rawMsg.message[2].data as any).file).toBe('path/clean.mp4')
+      expect((rawMsg.message[4].data as any).file).toBe('/tmp/nested/file.bin')
     })
 
     it('should handle message processing error', async () => {
       mockNapLinkInstance.hydrateMessage.mockRejectedValue(new Error('Hydrate failed'))
       triggerClientEvent('message', {})
       await waitTick()
-      expect(mockLogger.error).toHaveBeenCalledWith(expect.stringContaining('Failed to handle message event'), expect.any(Error));
+      expect(mockLogger.error).toHaveBeenCalledWith(expect.stringContaining('Failed to handle message event'), expect.any(Error))
     })
   })
 
@@ -390,17 +390,17 @@ describe('napCatAdapter', () => {
       adapter.on('group.decrease', onGroupDecrease)
 
       triggerClientEvent('notice.group_increase', { group_id: 10, user_id: 11 })
-      expect(onGroupIncrease).toHaveBeenCalledWith('10', { id: '11', name: '' });
+      expect(onGroupIncrease).toHaveBeenCalledWith('10', { id: '11', name: '' })
 
       triggerClientEvent('notice.group_decrease', { group_id: 10, user_id: 12 })
-      expect(onGroupDecrease).toHaveBeenCalledWith('10', '12');
+      expect(onGroupDecrease).toHaveBeenCalledWith('10', '12')
     })
 
     it('should handle friend add', () => {
       const onFriendIncrease = vi.fn()
       adapter.on('friend.increase', onFriendIncrease)
       triggerClientEvent('notice.friend_add', { user_id: 20 })
-      expect(onFriendIncrease).toHaveBeenCalledWith({ id: '20', name: '' });
+      expect(onFriendIncrease).toHaveBeenCalledWith({ id: '20', name: '' })
     })
 
     it('should handle poke', () => {
@@ -408,11 +408,11 @@ describe('napCatAdapter', () => {
       adapter.on('poke', onPoke)
       // Group poke
       triggerClientEvent('notice.notify.poke', { group_id: 50, user_id: 60, target_id: 70 })
-      expect(onPoke).toHaveBeenCalledWith('50', '60', '70');
+      expect(onPoke).toHaveBeenCalledWith('50', '60', '70')
 
       // Private poke (group_id missing)
       triggerClientEvent('notice.notify.poke', { user_id: 60, target_id: 70 })
-      expect(onPoke).toHaveBeenCalledWith('60', '60', '70');
+      expect(onPoke).toHaveBeenCalledWith('60', '60', '70')
     })
   })
 
@@ -452,12 +452,12 @@ describe('napCatAdapter', () => {
 
       const receipt = await adapter.sendMessage('100', msg)
 
-      expect(mockMessageConverter.toNapCat).toHaveBeenCalledWith(msg);
+      expect(mockMessageConverter.toNapCat).toHaveBeenCalledWith(msg)
       expect(mockNapLinkInstance.sendMessage).toHaveBeenCalledWith({
         group_id: 100,
         message: ['converted'],
       })
-      expect(receipt).toEqual({ messageId: '12345', timestamp: expect.any(Number), success: true });
+      expect(receipt).toEqual({ messageId: '12345', timestamp: expect.any(Number), success: true })
     })
 
     it('should send private message with pre-converted segments', async () => {
@@ -466,12 +466,12 @@ describe('napCatAdapter', () => {
 
       const receipt = await adapter.sendMessage('200', msg)
 
-      expect(mockMessageConverter.toNapCat).not.toHaveBeenCalled();
+      expect(mockMessageConverter.toNapCat).not.toHaveBeenCalled()
       expect(mockNapLinkInstance.sendMessage).toHaveBeenCalledWith({
         user_id: 200,
         message: ['pre'],
       })
-      expect(receipt).toEqual({ messageId: '67890', timestamp: expect.any(Number), success: true });
+      expect(receipt).toEqual({ messageId: '67890', timestamp: expect.any(Number), success: true })
     })
 
     it('should handle sendMessage error', async () => {
@@ -479,23 +479,23 @@ describe('napCatAdapter', () => {
       mockNapLinkInstance.sendMessage.mockRejectedValue(new Error('Send fail'))
 
       const receipt = await adapter.sendMessage('300', { chat: { type: 'private' }, content: [], __napCatSegments: true } as any)
-      expect(receipt).toEqual({ messageId: '', timestamp: expect.any(Number), success: false, error: 'Send fail' });
+      expect(receipt).toEqual({ messageId: '', timestamp: expect.any(Number), success: false, error: 'Send fail' })
     })
 
     it('should send group forward message', async () => {
       mockNapLinkInstance.sendGroupForwardMessage.mockResolvedValue({ message_id: 111 })
       const receipt = await adapter.sendGroupForwardMsg('400', [])
-      expect(mockNapLinkInstance.sendGroupForwardMessage).toHaveBeenCalledWith('400', []);
-      expect(receipt).toEqual({ messageId: '111', timestamp: expect.any(Number), success: true });
+      expect(mockNapLinkInstance.sendGroupForwardMessage).toHaveBeenCalledWith('400', [])
+      expect(receipt).toEqual({ messageId: '111', timestamp: expect.any(Number), success: true })
 
       mockNapLinkInstance.sendGroupForwardMessage.mockRejectedValue(new Error('Fail'))
       const receipt2 = await adapter.sendGroupForwardMsg('400', [])
-      expect(receipt2.success).toBe(false);
+      expect(receipt2.success).toBe(false)
     })
 
     it('should recall message', async () => {
       await adapter.recallMessage('555')
-      expect(mockNapLinkInstance.deleteMessage).toHaveBeenCalledWith('555');
+      expect(mockNapLinkInstance.deleteMessage).toHaveBeenCalledWith('555')
     })
 
     it('should get message', async () => {
@@ -503,13 +503,13 @@ describe('napCatAdapter', () => {
       mockMessageConverter.fromNapCat.mockReturnValue({ id: 'mapped' })
 
       const res = await adapter.getMessage('666')
-      expect(mockNapLinkInstance.getMessage).toHaveBeenCalledWith('666');
-      expect(mockMessageConverter.fromNapCat).toHaveBeenCalledWith({ raw: 'msg' });
-      expect(res).toEqual({ id: 'mapped' });
+      expect(mockNapLinkInstance.getMessage).toHaveBeenCalledWith('666')
+      expect(mockMessageConverter.fromNapCat).toHaveBeenCalledWith({ raw: 'msg' })
+      expect(res).toEqual({ id: 'mapped' })
 
       mockNapLinkInstance.getMessage.mockRejectedValue(new Error('Not found'))
       const res2 = await adapter.getMessage('777')
-      expect(res2).toBeNull();
+      expect(res2).toBeNull()
     })
 
     it('should get forward message with hydration', async () => {
@@ -539,17 +539,17 @@ describe('napCatAdapter', () => {
 
       // normalizeMediaIds and hydrateMessage should be called
       // normalizeMediaIds modifies 'message' in place, hard to check directly unless we check hydrate call arg
-      expect(mockNapLinkInstance.hydrateMessage).toHaveBeenCalled();
-      expect(res).toEqual(expected);
+      expect(mockNapLinkInstance.hydrateMessage).toHaveBeenCalled()
+      expect(res).toEqual(expected)
     })
 
     it('should get file', async () => {
       mockNapLinkInstance.getFile.mockResolvedValue({ url: 'u' })
       await adapter.getFile('/path') // normalized
-      expect(mockNapLinkInstance.getFile).toHaveBeenCalledWith('path');
+      expect(mockNapLinkInstance.getFile).toHaveBeenCalledWith('path')
 
       mockNapLinkInstance.getFile.mockRejectedValue(new Error('e'))
-      expect(await adapter.getFile('p')).toBeNull();
+      expect(await adapter.getFile('p')).toBeNull()
     })
   })
 
@@ -559,7 +559,7 @@ describe('napCatAdapter', () => {
         { user_id: 1, nickname: 'n1', remark: 'r1' },
       ])
       const list = await adapter.getFriendList()
-      expect(list).toEqual([{ id: '1', name: 'n1' }]);
+      expect(list).toEqual([{ id: '1', name: 'n1' }])
     })
 
     it('should get group list', async () => {
@@ -567,7 +567,7 @@ describe('napCatAdapter', () => {
         { group_id: 10, group_name: 'g1' },
       ])
       const list = await adapter.getGroupList()
-      expect(list).toEqual([{ id: '10', type: 'group', name: 'g1' }]);
+      expect(list).toEqual([{ id: '10', type: 'group', name: 'g1' }])
     })
 
     it('should get group member list', async () => {
@@ -575,90 +575,90 @@ describe('napCatAdapter', () => {
         { user_id: 2, card: 'c2', nickname: 'n2' },
       ])
       const list = await adapter.getGroupMemberList('10')
-      expect(mockNapLinkInstance.getGroupMemberList).toHaveBeenCalledWith('10');
-      expect(list).toEqual([{ id: '2', name: 'c2' }]);
+      expect(mockNapLinkInstance.getGroupMemberList).toHaveBeenCalledWith('10')
+      expect(list).toEqual([{ id: '2', name: 'c2' }])
     })
 
     it('should get friend info', async () => {
       mockNapLinkInstance.getStrangerInfo.mockResolvedValue({ user_id: 3, nickname: 'n3' })
       const info = await adapter.getFriendInfo('3')
-      expect(info).toEqual({ id: '3', name: 'n3' });
+      expect(info).toEqual({ id: '3', name: 'n3' })
 
       mockNapLinkInstance.getStrangerInfo.mockRejectedValue(new Error('no'))
-      expect(await adapter.getFriendInfo('4')).toBeNull();
+      expect(await adapter.getFriendInfo('4')).toBeNull()
     })
 
     it('should get group info', async () => {
       mockNapLinkInstance.getGroupInfo.mockResolvedValue({ group_id: 11, group_name: 'g11' })
       const info = await adapter.getGroupInfo('11')
-      expect(info).toEqual({ id: '11', type: 'group', name: 'g11' });
+      expect(info).toEqual({ id: '11', type: 'group', name: 'g11' })
 
       mockNapLinkInstance.getGroupInfo.mockRejectedValue(new Error('no'))
-      expect(await adapter.getGroupInfo('12')).toBeNull();
+      expect(await adapter.getGroupInfo('12')).toBeNull()
     })
 
     it('should pass through basic API calls', async () => {
       await adapter.getGroupMemberInfo('1', '2')
-      expect(mockNapLinkInstance.getGroupMemberInfo).toHaveBeenCalledWith('1', '2');
+      expect(mockNapLinkInstance.getGroupMemberInfo).toHaveBeenCalledWith('1', '2')
 
       await adapter.getUserInfo('3')
-      expect(mockNapLinkInstance.getStrangerInfo).toHaveBeenCalledWith('3');
+      expect(mockNapLinkInstance.getStrangerInfo).toHaveBeenCalledWith('3')
 
       await adapter.login()
-      expect(mockNapLinkInstance.connect).toHaveBeenCalled();
+      expect(mockNapLinkInstance.connect).toHaveBeenCalled()
 
       await adapter.logout()
-      expect(mockNapLinkInstance.disconnect).toHaveBeenCalled();
+      expect(mockNapLinkInstance.disconnect).toHaveBeenCalled()
 
       await adapter.destroy()
-      expect(mockNapLinkInstance.disconnect).toHaveBeenCalled();
+      expect(mockNapLinkInstance.disconnect).toHaveBeenCalled()
 
       await adapter.callApi('method', { a: 1 })
-      expect(mockNapLinkInstance.callApi).toHaveBeenCalledWith('method', { a: 1 });
+      expect(mockNapLinkInstance.callApi).toHaveBeenCalledWith('method', { a: 1 })
     })
 
     it('should handle ban/kick user', async () => {
       await adapter.banUser('g', 'u', 100)
-      expect(mockNapLinkInstance.setGroupBan).toHaveBeenCalledWith('g', 'u', 100);
+      expect(mockNapLinkInstance.setGroupBan).toHaveBeenCalledWith('g', 'u', 100)
 
       await adapter.unbanUser('g', 'u')
-      expect(mockNapLinkInstance.unsetGroupBan).toHaveBeenCalledWith('g', 'u');
+      expect(mockNapLinkInstance.unsetGroupBan).toHaveBeenCalledWith('g', 'u')
 
       await adapter.kickUser('g', 'u', true)
-      expect(mockNapLinkInstance.setGroupKick).toHaveBeenCalledWith('g', 'u', true);
+      expect(mockNapLinkInstance.setGroupKick).toHaveBeenCalledWith('g', 'u', true)
 
       await adapter.setGroupCard('g', 'u', 'card')
-      expect(mockNapLinkInstance.setGroupCard).toHaveBeenCalledWith('g', 'u', 'card');
+      expect(mockNapLinkInstance.setGroupCard).toHaveBeenCalledWith('g', 'u', 'card')
     })
 
     it('should handle advanced group config', async () => {
       await adapter.setGroupWholeBan('g', true)
-      expect(mockNapLinkInstance.setGroupWholeBan).toHaveBeenCalledWith('g', true);
+      expect(mockNapLinkInstance.setGroupWholeBan).toHaveBeenCalledWith('g', true)
 
       await adapter.setGroupAdmin('g', 'u', true)
-      expect(mockNapLinkInstance.setGroupAdmin).toHaveBeenCalledWith('g', 'u', true);
+      expect(mockNapLinkInstance.setGroupAdmin).toHaveBeenCalledWith('g', 'u', true)
 
       await adapter.setGroupName('g', 'name')
-      expect(mockNapLinkInstance.setGroupName).toHaveBeenCalledWith('g', 'name');
+      expect(mockNapLinkInstance.setGroupName).toHaveBeenCalledWith('g', 'name')
 
       await adapter.setGroupSpecialTitle('g', 'u', 'title', 10)
-      expect(mockNapLinkInstance.setGroupSpecialTitle).toHaveBeenCalledWith('g', 'u', 'title', 10);
+      expect(mockNapLinkInstance.setGroupSpecialTitle).toHaveBeenCalledWith('g', 'u', 'title', 10)
     })
 
     it('should handle requests', async () => {
       await adapter.handleFriendRequest('f', true, 'rem')
-      expect(mockNapLinkInstance.handleFriendRequest).toHaveBeenCalledWith('f', true, 'rem');
+      expect(mockNapLinkInstance.handleFriendRequest).toHaveBeenCalledWith('f', true, 'rem')
 
       await adapter.handleGroupRequest('g', 'add', false, 'reason')
-      expect(mockNapLinkInstance.handleGroupRequest).toHaveBeenCalledWith('g', 'add', false, 'reason');
+      expect(mockNapLinkInstance.handleGroupRequest).toHaveBeenCalledWith('g', 'add', false, 'reason')
     })
 
     it('should send like and get honor', async () => {
       await adapter.sendLike('u', 5)
-      expect(mockNapLinkInstance.sendLike).toHaveBeenCalledWith('u', 5);
+      expect(mockNapLinkInstance.sendLike).toHaveBeenCalledWith('u', 5)
 
       await adapter.getGroupHonorInfo('g', 'all')
-      expect(mockNapLinkInstance.getGroupHonorInfo).toHaveBeenCalledWith('g', 'all');
+      expect(mockNapLinkInstance.getGroupHonorInfo).toHaveBeenCalledWith('g', 'all')
     })
     it('should delegate all API methods', async () => {
       const methods = [
@@ -754,15 +754,15 @@ describe('napCatAdapter', () => {
         // Ensure mock exists
         expect(mockNapLinkInstance.api).toHaveProperty(method);
 
-          // Mock return value
-          (mockNapLinkInstance.api as any)[method].mockResolvedValue('success')
+        // Mock return value
+        (mockNapLinkInstance.api as any)[method].mockResolvedValue('success')
 
         // Call adapter method (safely cast to any)
         const res = await (adapter as any)[method]('arg')
 
         // Verify delegation
-        expect((mockNapLinkInstance.api as any)[method]).toHaveBeenCalled();
-        expect(res).toBe('success');
+        expect((mockNapLinkInstance.api as any)[method]).toHaveBeenCalled()
+        expect(res).toBe('success')
       }
     })
   })
@@ -770,80 +770,80 @@ describe('napCatAdapter', () => {
   describe('wrapper Error Handling', () => {
     it('should handle banUser error', async () => {
       mockNapLinkInstance.setGroupBan.mockRejectedValue(new Error('fail'))
-      await expect(adapter.banUser('g', 'u', 100)).rejects.toThrow('fail');
-      expect(mockLogger.error).toHaveBeenCalled();
+      await expect(adapter.banUser('g', 'u', 100)).rejects.toThrow('fail')
+      expect(mockLogger.error).toHaveBeenCalled()
     })
 
     it('should handle unbanUser error', async () => {
       mockNapLinkInstance.unsetGroupBan.mockRejectedValue(new Error('fail'))
-      await expect(adapter.unbanUser('g', 'u')).rejects.toThrow('fail');
-      expect(mockLogger.error).toHaveBeenCalled();
+      await expect(adapter.unbanUser('g', 'u')).rejects.toThrow('fail')
+      expect(mockLogger.error).toHaveBeenCalled()
     })
 
     it('should handle kickUser error', async () => {
       mockNapLinkInstance.setGroupKick.mockRejectedValue(new Error('fail'))
-      await expect(adapter.kickUser('g', 'u')).rejects.toThrow('fail');
-      expect(mockLogger.error).toHaveBeenCalled();
+      await expect(adapter.kickUser('g', 'u')).rejects.toThrow('fail')
+      expect(mockLogger.error).toHaveBeenCalled()
     })
 
     it('should handle setGroupCard error', async () => {
       mockNapLinkInstance.setGroupCard.mockRejectedValue(new Error('fail'))
-      await expect(adapter.setGroupCard('g', 'u', '')).rejects.toThrow('fail');
-      expect(mockLogger.error).toHaveBeenCalled();
+      await expect(adapter.setGroupCard('g', 'u', '')).rejects.toThrow('fail')
+      expect(mockLogger.error).toHaveBeenCalled()
     })
 
     it('should handle setGroupWholeBan error', async () => {
       mockNapLinkInstance.setGroupWholeBan.mockRejectedValue(new Error('upstream'))
-      await expect(adapter.setGroupWholeBan('g', true)).rejects.toThrow('设置全员禁言失败: upstream');
-      expect(mockLogger.error).toHaveBeenCalled();
+      await expect(adapter.setGroupWholeBan('g', true)).rejects.toThrow('设置全员禁言失败: upstream')
+      expect(mockLogger.error).toHaveBeenCalled()
     })
 
     it('should handle setGroupAdmin error', async () => {
       mockNapLinkInstance.setGroupAdmin.mockRejectedValue(new Error('upstream'))
-      await expect(adapter.setGroupAdmin('g', 'u', true)).rejects.toThrow('设置管理员失败: upstream');
-      expect(mockLogger.error).toHaveBeenCalled();
+      await expect(adapter.setGroupAdmin('g', 'u', true)).rejects.toThrow('设置管理员失败: upstream')
+      expect(mockLogger.error).toHaveBeenCalled()
     })
 
     it('should handle setGroupName error', async () => {
       mockNapLinkInstance.setGroupName.mockRejectedValue(new Error('upstream'))
-      await expect(adapter.setGroupName('g', 'n')).rejects.toThrow('修改群名失败: upstream');
-      expect(mockLogger.error).toHaveBeenCalled();
+      await expect(adapter.setGroupName('g', 'n')).rejects.toThrow('修改群名失败: upstream')
+      expect(mockLogger.error).toHaveBeenCalled()
     })
 
     it('should handle setGroupSpecialTitle error', async () => {
       mockNapLinkInstance.setGroupSpecialTitle.mockRejectedValue(new Error('upstream'))
-      await expect(adapter.setGroupSpecialTitle('g', 'u', 't')).rejects.toThrow('设置专属头衔失败: upstream');
-      expect(mockLogger.error).toHaveBeenCalled();
+      await expect(adapter.setGroupSpecialTitle('g', 'u', 't')).rejects.toThrow('设置专属头衔失败: upstream')
+      expect(mockLogger.error).toHaveBeenCalled()
     })
 
     it('should handle handleFriendRequest error', async () => {
       mockNapLinkInstance.handleFriendRequest.mockRejectedValue(new Error('upstream'))
-      await expect(adapter.handleFriendRequest('f', true)).rejects.toThrow('处理好友申请失败: upstream');
-      expect(mockLogger.error).toHaveBeenCalled();
+      await expect(adapter.handleFriendRequest('f', true)).rejects.toThrow('处理好友申请失败: upstream')
+      expect(mockLogger.error).toHaveBeenCalled()
     })
 
     it('should handle handleGroupRequest error', async () => {
       mockNapLinkInstance.handleGroupRequest.mockRejectedValue(new Error('upstream'))
-      await expect(adapter.handleGroupRequest('g', 'add', true)).rejects.toThrow('处理加群申请失败: upstream');
-      expect(mockLogger.error).toHaveBeenCalled();
+      await expect(adapter.handleGroupRequest('g', 'add', true)).rejects.toThrow('处理加群申请失败: upstream')
+      expect(mockLogger.error).toHaveBeenCalled()
     })
 
     it('should handle sendLike error', async () => {
       mockNapLinkInstance.sendLike.mockRejectedValue(new Error('upstream'))
-      await expect(adapter.sendLike('u', 1)).rejects.toThrow('点赞失败: upstream');
-      expect(mockLogger.error).toHaveBeenCalled();
+      await expect(adapter.sendLike('u', 1)).rejects.toThrow('点赞失败: upstream')
+      expect(mockLogger.error).toHaveBeenCalled()
     })
 
     it('should validate sendLike times', async () => {
-      await expect(adapter.sendLike('u', 0)).rejects.toThrow('点赞次数必须在1-10之间');
-      await expect(adapter.sendLike('u', 11)).rejects.toThrow('点赞次数必须在1-10之间');
+      await expect(adapter.sendLike('u', 0)).rejects.toThrow('点赞次数必须在1-10之间')
+      await expect(adapter.sendLike('u', 11)).rejects.toThrow('点赞次数必须在1-10之间')
     })
 
     it('should handle getGroupHonorInfo error', async () => {
       mockNapLinkInstance.getGroupHonorInfo.mockRejectedValue(new Error('upstream'))
-      await expect(adapter.getGroupHonorInfo('g')).rejects.toThrow('获取群荣誉信息失败: upstream');
-      await expect(adapter.getGroupHonorInfo('g')).rejects.toThrow('获取群荣誉信息失败: upstream');
-      expect(mockLogger.error).toHaveBeenCalled();
+      await expect(adapter.getGroupHonorInfo('g')).rejects.toThrow('获取群荣誉信息失败: upstream')
+      await expect(adapter.getGroupHonorInfo('g')).rejects.toThrow('获取群荣誉信息失败: upstream')
+      expect(mockLogger.error).toHaveBeenCalled()
     })
   })
 
@@ -910,10 +910,10 @@ describe('napCatAdapter', () => {
           }
 
           if (args) {
-            expect(mockNapLinkInstance.callApi).toHaveBeenCalledWith(apiName, expect.objectContaining(args));
+            expect(mockNapLinkInstance.callApi).toHaveBeenCalledWith(apiName, expect.objectContaining(args))
           }
           else {
-            expect(mockNapLinkInstance.callApi).toHaveBeenCalledWith(apiName);
+            expect(mockNapLinkInstance.callApi).toHaveBeenCalledWith(apiName)
           }
         }
         catch (e) {
@@ -929,241 +929,241 @@ describe('napCatAdapter', () => {
       (mockNapLinkInstance.api as any).delGroupNotice = undefined
       await adapter.delGroupNotice('g', '123')
       expect(mockNapLinkInstance.callApi).toHaveBeenCalledWith('_del_group_notice', { group_id: 'g', notice_id: 123 });
-        (mockNapLinkInstance.api as any).delGroupNotice = vi.fn()
+      (mockNapLinkInstance.api as any).delGroupNotice = vi.fn()
     })
 
     it('should fallback for setOnlineStatus', async () => {
       (mockNapLinkInstance.api as any).setOnlineStatus = undefined
       await adapter.setOnlineStatus(1, 2, 3)
       expect(mockNapLinkInstance.callApi).toHaveBeenCalledWith('set_online_status', { status: 1, ext_status: 2, battery_status: 3 });
-        (mockNapLinkInstance.api as any).setOnlineStatus = vi.fn()
+      (mockNapLinkInstance.api as any).setOnlineStatus = vi.fn()
     })
 
     it('should fallback for setDiyOnlineStatus', async () => {
       (mockNapLinkInstance.api as any).setDiyOnlineStatus = undefined
       await adapter.setDiyOnlineStatus(1, 'w', 2)
       expect(mockNapLinkInstance.callApi).toHaveBeenCalledWith('set_diy_online_status', { face_id: 1, wording: 'w', face_type: 2 });
-        (mockNapLinkInstance.api as any).setDiyOnlineStatus = vi.fn()
+      (mockNapLinkInstance.api as any).setDiyOnlineStatus = vi.fn()
     })
 
     it('should fallback for setGroupRemark', async () => {
       (mockNapLinkInstance.api as any).setGroupRemark = undefined
       await adapter.setGroupRemark('g', 'remark')
       expect(mockNapLinkInstance.callApi).toHaveBeenCalledWith('set_group_remark', { group_id: 'g', remark: 'remark' });
-        (mockNapLinkInstance.api as any).setGroupRemark = vi.fn()
+      (mockNapLinkInstance.api as any).setGroupRemark = vi.fn()
     })
 
     it('should fallback for getGroupInfoEx', async () => {
       (mockNapLinkInstance.api as any).getGroupInfoEx = undefined
       await adapter.getGroupInfoEx('g')
       expect(mockNapLinkInstance.callApi).toHaveBeenCalledWith('get_group_info_ex', { group_id: 'g' });
-        (mockNapLinkInstance.api as any).getGroupInfoEx = vi.fn()
+      (mockNapLinkInstance.api as any).getGroupInfoEx = vi.fn()
     })
 
     it('should fallback for getGroupDetailInfo', async () => {
       (mockNapLinkInstance.api as any).getGroupDetailInfo = undefined
       await adapter.getGroupDetailInfo('g')
       expect(mockNapLinkInstance.callApi).toHaveBeenCalledWith('get_group_detail_info', { group_id: 'g' });
-        (mockNapLinkInstance.api as any).getGroupDetailInfo = vi.fn()
+      (mockNapLinkInstance.api as any).getGroupDetailInfo = vi.fn()
     })
 
     it('should fallback for getGroupIgnoredNotifies', async () => {
       (mockNapLinkInstance.api as any).getGroupIgnoredNotifies = undefined
       await adapter.getGroupIgnoredNotifies()
       expect(mockNapLinkInstance.callApi).toHaveBeenCalledWith('get_group_ignored_notifies');
-        (mockNapLinkInstance.api as any).getGroupIgnoredNotifies = vi.fn()
+      (mockNapLinkInstance.api as any).getGroupIgnoredNotifies = vi.fn()
     })
 
     it('should fallback for getRkeyEx', async () => {
       (mockNapLinkInstance.api as any).getRkeyEx = undefined
       await adapter.getRkeyEx()
       expect(mockNapLinkInstance.callApi).toHaveBeenCalledWith('get_rkey');
-        (mockNapLinkInstance.api as any).getRkeyEx = vi.fn()
+      (mockNapLinkInstance.api as any).getRkeyEx = vi.fn()
     })
 
     it('should fallback for getRkeyServer', async () => {
       (mockNapLinkInstance.api as any).getRkeyServer = undefined
       await adapter.getRkeyServer()
       expect(mockNapLinkInstance.callApi).toHaveBeenCalledWith('get_rkey_server');
-        (mockNapLinkInstance.api as any).getRkeyServer = vi.fn()
+      (mockNapLinkInstance.api as any).getRkeyServer = vi.fn()
     })
 
     it('should fallback for getRkey', async () => {
       (mockNapLinkInstance.api as any).getRkey = undefined
       await adapter.getRkey()
       expect(mockNapLinkInstance.callApi).toHaveBeenCalledWith('nc_get_rkey');
-        (mockNapLinkInstance.api as any).getRkey = vi.fn()
+      (mockNapLinkInstance.api as any).getRkey = vi.fn()
     })
 
     it('should fallback for setFriendRemark', async () => {
       (mockNapLinkInstance.api as any).setFriendRemark = undefined
       await adapter.setFriendRemark('u', 'remark')
       expect(mockNapLinkInstance.callApi).toHaveBeenCalledWith('set_friend_remark', { user_id: 'u', remark: 'remark' });
-        (mockNapLinkInstance.api as any).setFriendRemark = vi.fn()
+      (mockNapLinkInstance.api as any).setFriendRemark = vi.fn()
     })
 
     it('should fallback for deleteFriend', async () => {
       (mockNapLinkInstance.api as any).deleteFriend = undefined
       await adapter.deleteFriend('u')
       expect(mockNapLinkInstance.callApi).toHaveBeenCalledWith('delete_friend', { user_id: 'u' });
-        (mockNapLinkInstance.api as any).deleteFriend = vi.fn()
+      (mockNapLinkInstance.api as any).deleteFriend = vi.fn()
     })
 
     it('should fallback for getUnidirectionalFriendList', async () => {
       (mockNapLinkInstance.api as any).getUnidirectionalFriendList = undefined
       await adapter.getUnidirectionalFriendList()
       expect(mockNapLinkInstance.callApi).toHaveBeenCalledWith('get_unidirectional_friend_list');
-        (mockNapLinkInstance.api as any).getUnidirectionalFriendList = vi.fn()
+      (mockNapLinkInstance.api as any).getUnidirectionalFriendList = vi.fn()
     })
 
     it('should fallback for handleQuickOperation', async () => {
       (mockNapLinkInstance.api as any).handleQuickOperation = undefined
       await adapter.handleQuickOperation({ ctx: 'test' }, { op: 'approve' })
       expect(mockNapLinkInstance.callApi).toHaveBeenCalledWith('.handle_quick_operation', { context: { ctx: 'test' }, operation: { op: 'approve' } });
-        (mockNapLinkInstance.api as any).handleQuickOperation = vi.fn()
+      (mockNapLinkInstance.api as any).handleQuickOperation = vi.fn()
     })
 
     it('should fallback for getModelShow', async () => {
       (mockNapLinkInstance.api as any).getModelShow = undefined
       await adapter.getModelShow('model1')
       expect(mockNapLinkInstance.callApi).toHaveBeenCalledWith('_get_model_show', { model: 'model1' });
-        (mockNapLinkInstance.api as any).getModelShow = vi.fn()
+      (mockNapLinkInstance.api as any).getModelShow = vi.fn()
     })
 
     it('should fallback for setModelShow', async () => {
       (mockNapLinkInstance.api as any).setModelShow = undefined
       await adapter.setModelShow('model1', 'show1')
       expect(mockNapLinkInstance.callApi).toHaveBeenCalledWith('_set_model_show', { model: 'model1', model_show: 'show1' });
-        (mockNapLinkInstance.api as any).setModelShow = vi.fn()
+      (mockNapLinkInstance.api as any).setModelShow = vi.fn()
     })
 
     it('should fallback for getPacketStatus', async () => {
       (mockNapLinkInstance.api as any).getPacketStatus = undefined
       await adapter.getPacketStatus()
       expect(mockNapLinkInstance.callApi).toHaveBeenCalledWith('nc_get_packet_status');
-        (mockNapLinkInstance.api as any).getPacketStatus = vi.fn()
+      (mockNapLinkInstance.api as any).getPacketStatus = vi.fn()
     })
 
     it('should fallback for setInputStatus', async () => {
       (mockNapLinkInstance.api as any).setInputStatus = undefined
       await adapter.setInputStatus('u', 1)
       expect(mockNapLinkInstance.callApi).toHaveBeenCalledWith('set_input_status', { user_id: 'u', event_type: 1, eventType: 1 });
-        (mockNapLinkInstance.api as any).setInputStatus = vi.fn()
+      (mockNapLinkInstance.api as any).setInputStatus = vi.fn()
     })
 
     it('should fallback for ocrImage', async () => {
       (mockNapLinkInstance.api as any).ocrImage = undefined
       await adapter.ocrImage('img.jpg', false)
       expect(mockNapLinkInstance.callApi).toHaveBeenCalledWith('ocr_image', { image: 'img.jpg' });
-        (mockNapLinkInstance.api as any).ocrImage = vi.fn()
+      (mockNapLinkInstance.api as any).ocrImage = vi.fn()
     })
 
     it('should fallback for translateEn2zh', async () => {
       (mockNapLinkInstance.api as any).translateEn2zh = undefined
       await adapter.translateEn2zh(['hello', 'world'])
       expect(mockNapLinkInstance.callApi).toHaveBeenCalledWith('translate_en2zh', { words: ['hello', 'world'] });
-        (mockNapLinkInstance.api as any).translateEn2zh = vi.fn()
+      (mockNapLinkInstance.api as any).translateEn2zh = vi.fn()
     })
 
     it('should fallback for checkUrlSafely', async () => {
       (mockNapLinkInstance.api as any).checkUrlSafely = undefined
       await adapter.checkUrlSafely('https://example.com')
       expect(mockNapLinkInstance.callApi).toHaveBeenCalledWith('check_url_safely', { url: 'https://example.com' });
-        (mockNapLinkInstance.api as any).checkUrlSafely = vi.fn()
+      (mockNapLinkInstance.api as any).checkUrlSafely = vi.fn()
     })
 
     it('should fallback for canSendRecord', async () => {
       (mockNapLinkInstance.api as any).canSendRecord = undefined
       await adapter.canSendRecord()
       expect(mockNapLinkInstance.callApi).toHaveBeenCalledWith('can_send_record');
-        (mockNapLinkInstance.api as any).canSendRecord = vi.fn()
+      (mockNapLinkInstance.api as any).canSendRecord = vi.fn()
     })
 
     it('should fallback for getCookies', async () => {
       (mockNapLinkInstance.api as any).getCookies = undefined
       await adapter.getCookies('example.com')
       expect(mockNapLinkInstance.callApi).toHaveBeenCalledWith('get_cookies', { domain: 'example.com' });
-        (mockNapLinkInstance.api as any).getCookies = vi.fn()
+      (mockNapLinkInstance.api as any).getCookies = vi.fn()
     })
 
     it('should fallback for getCsrfToken', async () => {
       (mockNapLinkInstance.api as any).getCsrfToken = undefined
       await adapter.getCsrfToken()
       expect(mockNapLinkInstance.callApi).toHaveBeenCalledWith('get_csrf_token');
-        (mockNapLinkInstance.api as any).getCsrfToken = vi.fn()
+      (mockNapLinkInstance.api as any).getCsrfToken = vi.fn()
     })
 
     it('should fallback for getCredentials', async () => {
       (mockNapLinkInstance.api as any).getCredentials = undefined
       await adapter.getCredentials('example.com')
       expect(mockNapLinkInstance.callApi).toHaveBeenCalledWith('get_credentials', { domain: 'example.com' });
-        (mockNapLinkInstance.api as any).getCredentials = vi.fn()
+      (mockNapLinkInstance.api as any).getCredentials = vi.fn()
     })
 
     it('should fallback for getOnlineClients', async () => {
       (mockNapLinkInstance.api as any).getOnlineClients = undefined
       await adapter.getOnlineClients(true)
       expect(mockNapLinkInstance.callApi).toHaveBeenCalledWith('get_online_clients', { no_cache: true });
-        (mockNapLinkInstance.api as any).getOnlineClients = vi.fn()
+      (mockNapLinkInstance.api as any).getOnlineClients = vi.fn()
     })
 
     it('should fallback for getRobotUinRange', async () => {
       (mockNapLinkInstance.api as any).getRobotUinRange = undefined
       await adapter.getRobotUinRange()
       expect(mockNapLinkInstance.callApi).toHaveBeenCalledWith('get_robot_uin_range');
-        (mockNapLinkInstance.api as any).getRobotUinRange = vi.fn()
+      (mockNapLinkInstance.api as any).getRobotUinRange = vi.fn()
     })
 
     it('should fallback for canSendImage', async () => {
       (mockNapLinkInstance.api as any).canSendImage = undefined
       await adapter.canSendImage()
       expect(mockNapLinkInstance.callApi).toHaveBeenCalledWith('can_send_image');
-        (mockNapLinkInstance.api as any).canSendImage = vi.fn()
+      (mockNapLinkInstance.api as any).canSendImage = vi.fn()
     })
 
     it('should throw error for cleanStreamTempFile when not available', async () => {
       (mockNapLinkInstance.api as any).cleanStreamTempFile = undefined
       await expect(adapter.cleanStreamTempFile()).rejects.toThrow('cleanStreamTempFile is not available');
-      (mockNapLinkInstance.api as any).cleanStreamTempFile = vi.fn();
+      (mockNapLinkInstance.api as any).cleanStreamTempFile = vi.fn()
     })
 
     it('should fallback for getRecentContact', async () => {
       (mockNapLinkInstance.api as any).getRecentContact = undefined
       await adapter.getRecentContact(10)
       expect(mockNapLinkInstance.callApi).toHaveBeenCalledWith('get_recent_contact', { count: 10 });
-        (mockNapLinkInstance.api as any).getRecentContact = vi.fn()
+      (mockNapLinkInstance.api as any).getRecentContact = vi.fn()
     })
 
     it('should throw error for downloadFileStreamToFile when not available', async () => {
       (mockNapLinkInstance.api as any).downloadFileStreamToFile = undefined
       await expect(adapter.downloadFileStreamToFile('file123')).rejects.toThrow('downloadFileStreamToFile is not available');
-      (mockNapLinkInstance.api as any).downloadFileStreamToFile = vi.fn();
+      (mockNapLinkInstance.api as any).downloadFileStreamToFile = vi.fn()
     })
 
     it('should throw error for downloadFileImageStreamToFile when not available', async () => {
       (mockNapLinkInstance.api as any).downloadFileImageStreamToFile = undefined
       await expect(adapter.downloadFileImageStreamToFile('img123')).rejects.toThrow('downloadFileImageStreamToFile is not available');
-      (mockNapLinkInstance.api as any).downloadFileImageStreamToFile = vi.fn();
+      (mockNapLinkInstance.api as any).downloadFileImageStreamToFile = vi.fn()
     })
 
     it('should throw error for downloadFileRecordStreamToFile when not available', async () => {
       (mockNapLinkInstance.api as any).downloadFileRecordStreamToFile = undefined
       await expect(adapter.downloadFileRecordStreamToFile('rec123')).rejects.toThrow('downloadFileRecordStreamToFile is not available');
-      (mockNapLinkInstance.api as any).downloadFileRecordStreamToFile = vi.fn();
+      (mockNapLinkInstance.api as any).downloadFileRecordStreamToFile = vi.fn()
     })
 
     it('should fallback for markPrivateMsgAsRead', async () => {
       (mockNapLinkInstance.api as any).markPrivateMsgAsRead = undefined
       await adapter.markPrivateMsgAsRead('u123')
       expect(mockNapLinkInstance.callApi).toHaveBeenCalledWith('mark_private_msg_as_read', { user_id: 'u123' });
-        (mockNapLinkInstance.api as any).markPrivateMsgAsRead = vi.fn()
+      (mockNapLinkInstance.api as any).markPrivateMsgAsRead = vi.fn()
     })
 
     it('should fallback for markAllMsgAsRead', async () => {
       (mockNapLinkInstance.api as any).markAllMsgAsRead = undefined
       await adapter.markAllMsgAsRead()
       expect(mockNapLinkInstance.callApi).toHaveBeenCalledWith('_mark_all_as_read');
-        (mockNapLinkInstance.api as any).markAllMsgAsRead = vi.fn()
+      (mockNapLinkInstance.api as any).markAllMsgAsRead = vi.fn()
     })
 
     it('should fallback for getGroupMsgHistory', async () => {
@@ -1171,7 +1171,7 @@ describe('napCatAdapter', () => {
       const params = { group_id: 'g123', message_seq: 100, count: 20 }
       await adapter.getGroupMsgHistory(params)
       expect(mockNapLinkInstance.callApi).toHaveBeenCalledWith('get_group_msg_history', params);
-        (mockNapLinkInstance.api as any).getGroupMsgHistory = vi.fn()
+      (mockNapLinkInstance.api as any).getGroupMsgHistory = vi.fn()
     })
 
     it('should fallback for getFriendMsgHistory', async () => {
@@ -1179,35 +1179,35 @@ describe('napCatAdapter', () => {
       const params = { user_id: 'u123', message_seq: 100, count: 20 }
       await adapter.getFriendMsgHistory(params)
       expect(mockNapLinkInstance.callApi).toHaveBeenCalledWith('get_friend_msg_history', params);
-        (mockNapLinkInstance.api as any).getFriendMsgHistory = vi.fn()
+      (mockNapLinkInstance.api as any).getFriendMsgHistory = vi.fn()
     })
 
     it('should fallback for sendGroupPoke', async () => {
       (mockNapLinkInstance.api as any).sendGroupPoke = undefined
       await adapter.sendGroupPoke('g123', 'u456')
       expect(mockNapLinkInstance.callApi).toHaveBeenCalledWith('group_poke', { group_id: 'g123', user_id: 'u456' });
-        (mockNapLinkInstance.api as any).sendGroupPoke = vi.fn()
+      (mockNapLinkInstance.api as any).sendGroupPoke = vi.fn()
     })
 
     it('should fallback for sendFriendPoke', async () => {
       (mockNapLinkInstance.api as any).sendFriendPoke = undefined
       await adapter.sendFriendPoke('u123')
       expect(mockNapLinkInstance.callApi).toHaveBeenCalledWith('friend_poke', { user_id: 'u123' });
-        (mockNapLinkInstance.api as any).sendFriendPoke = vi.fn()
+      (mockNapLinkInstance.api as any).sendFriendPoke = vi.fn()
     })
 
     it('should fallback for sendPoke with groupId', async () => {
       (mockNapLinkInstance.api as any).sendPoke = undefined
       await adapter.sendPoke('u123', 'g456')
       expect(mockNapLinkInstance.callApi).toHaveBeenCalledWith('send_poke', { group_id: 'g456', target_id: 'u123' });
-        (mockNapLinkInstance.api as any).sendPoke = vi.fn()
+      (mockNapLinkInstance.api as any).sendPoke = vi.fn()
     })
 
     it('should fallback for markGroupMsgAsRead', async () => {
       (mockNapLinkInstance.api as any).markGroupMsgAsRead = undefined
       await adapter.markGroupMsgAsRead('g123')
       expect(mockNapLinkInstance.callApi).toHaveBeenCalledWith('mark_group_msg_as_read', { group_id: 'g123' });
-        (mockNapLinkInstance.api as any).markGroupMsgAsRead = vi.fn()
+      (mockNapLinkInstance.api as any).markGroupMsgAsRead = vi.fn()
     })
   })
 
@@ -1215,13 +1215,13 @@ describe('napCatAdapter', () => {
     it('should handle getGroupMemberInfo error', async () => {
       mockNapLinkInstance.getGroupMemberInfo.mockRejectedValueOnce(new Error('Not found'))
       const result = await adapter.getGroupMemberInfo('g123', 'u456')
-      expect(result).toBeNull();
+      expect(result).toBeNull()
     })
 
     it('should handle getUserInfo error', async () => {
       mockNapLinkInstance.getStrangerInfo.mockRejectedValueOnce(new Error('Not found'))
       const result = await adapter.getUserInfo('u123')
-      expect(result).toBeNull();
+      expect(result).toBeNull()
     })
   })
 })

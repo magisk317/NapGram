@@ -85,10 +85,10 @@ function createFeature() {
     owner: '999',
   }
 
-  const feature = new ForwardFeature(instance as any, tgBot as any, qqClient as any)
-    ; (feature as any).telegramSender = { sendToTelegram: vi.fn().mockResolvedValue({ id: 321 }) }
-    ; (feature as any).mapper = { saveMessage: vi.fn().mockResolvedValue(undefined) }
-    ; (feature as any).replyResolver = { resolveQQReply: vi.fn().mockResolvedValue(undefined) }
+  const feature = new ForwardFeature(instance as any, tgBot as any, qqClient as any);
+  (feature as any).telegramSender = { sendToTelegram: vi.fn().mockResolvedValue({ id: 321 }) };
+  (feature as any).mapper = { saveMessage: vi.fn().mockResolvedValue(undefined) };
+  (feature as any).replyResolver = { resolveQQReply: vi.fn().mockResolvedValue(undefined) }
 
   return { feature, forwardMap, tgBot, qqClient, instance }
 }
