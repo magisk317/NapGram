@@ -1,6 +1,6 @@
 import type { InputText } from '@mtcute/core'
 import { html } from '@mtcute/node'
-import env from '../../../../../../main/src/domain/models/env'
+import { env } from '@napgram/infra-kit'
 import { md5Hex } from '../../../../../../main/src/shared/utils/hashing'
 
 /**

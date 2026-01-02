@@ -1,6 +1,6 @@
-import type { UnifiedMessage } from '../../../../../../main/src/domain/message'
+import type { UnifiedMessage } from '@napgram/message-kit'
 import type { ForwardMapper } from './MessageMapper'
-import { getLogger } from '../../../../../../main/src/shared/logger'
+import { getLogger } from '@napgram/infra-kit'
 
 const logger = getLogger('ReplyResolver')
 

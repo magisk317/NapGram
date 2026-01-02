@@ -15,6 +15,20 @@
         "baseUrl": ".",
         "types": [
             "node"
-        ]
+        ],
+        "paths": {
+            "@napgram/infra-kit": [
+                "packages/infra-kit/src/index.ts"
+            ],
+            "@napgram/message-kit": [
+                "packages/message-kit/src/index.ts"
+            ],
+            "@napgram/feature-kit": [
+                "packages/feature-kit/src/index.ts"
+            ],
+            "@napgram/runtime-kit": [
+                "packages/runtime-kit/src/index.ts"
+            ]
+        }
     }
 }

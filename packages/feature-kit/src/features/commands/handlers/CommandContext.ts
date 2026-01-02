@@ -1,4 +1,4 @@
-import type { UnifiedMessage } from '../../../../../../main/src/domain/message'
+import type { UnifiedMessage } from '@napgram/message-kit'
 import type ForwardMap from '../../../../../../main/src/domain/models/ForwardMap'
 import type Instance from '../../../../../../main/src/domain/models/Instance'
 import type { IQQClient } from '../../../../../../main/src/infrastructure/clients/qq'
@@ -6,8 +6,8 @@ import type Telegram from '../../../../../../main/src/infrastructure/clients/tel
 import type { CommandRegistry } from '../services/CommandRegistry'
 import type { InteractiveStateManager } from '../services/InteractiveStateManager'
 import type { PermissionChecker } from '../services/PermissionChecker'
-import env from '../../../../../../main/src/domain/models/env'
-import { getLogger } from '../../../../../../main/src/shared/logger'
+import { env } from '@napgram/infra-kit'
+import { getLogger } from '@napgram/infra-kit'
 
 const logger = getLogger('CommandContext')
 

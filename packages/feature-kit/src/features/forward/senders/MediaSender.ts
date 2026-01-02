@@ -1,8 +1,8 @@
-import type { MessageContent } from '../../../../../../main/src/domain/message'
+import type { MessageContent } from '@napgram/message-kit'
 import type { FileNormalizer } from './FileNormalizer'
 import type { RichHeaderBuilder } from './RichHeaderBuilder'
-import env from '../../../../../../main/src/domain/models/env'
-import { getLogger } from '../../../../../../main/src/shared/logger'
+import { env } from '@napgram/infra-kit'
+import { getLogger } from '@napgram/infra-kit'
 
 const ALLOWED_TELEGRAM_DICE = new Set(['🎲', '🎯', '🏀', '⚽️', '🎳', '🎰'])
 

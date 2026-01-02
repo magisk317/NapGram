@@ -3,8 +3,8 @@ import { execFile } from 'node:child_process'
 import fs from 'node:fs'
 import path from 'node:path'
 import { promisify } from 'node:util'
-import env from '../../../../../../main/src/domain/models/env'
-import { getLogger } from '../../../../../../main/src/shared/logger'
+import { env } from '@napgram/infra-kit'
+import { getLogger } from '@napgram/infra-kit'
 import silk from '../../../../../../main/src/shared/utils/encoding/silk'
 
 const execFileAsync = promisify(execFile)

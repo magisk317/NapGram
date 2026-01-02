@@ -1,4 +1,4 @@
-import type { MessageContent } from '../../../../../../main/src/domain/message'
+import type { MessageContent } from '@napgram/message-kit'
 
 export function renderContent(content: MessageContent): string {
   switch (content.type) {

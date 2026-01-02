@@ -7,8 +7,8 @@ import { Buffer } from 'node:buffer'
 import fsP from 'node:fs/promises'
 import { fileTypeFromBuffer } from 'file-type'
 import { decode, encode, Image as ImageJS } from 'image-js'
-import { getLogger } from '../../../../main/src/shared/logger'
-import { file as createTempFile } from '../../../../main/src/shared/utils/temp'
+import { getLogger } from '@napgram/infra-kit'
+import { temp } from '@napgram/infra-kit'
 
 const logger = getLogger('MediaFeature')
 
@@ -265,7 +265,7 @@ export class MediaFeature {
    * 创建临时文件
    */
   async createTempFileFromBuffer(buffer: Buffer, extension: string = '.tmp') {
-    const tempFile = await createTempFile({ postfix: extension })
+    const tempFile = await temp.createTempFile({ postfix: extension })
     await fsP.writeFile(tempFile.path, buffer)
     return tempFile
   }
@@ -301,7 +301,7 @@ export class MediaFeature {
       const mime = type?.mime || 'image/jpeg'
 
       // 简单的格式检查 (Image-JS 支持的 format)
-      if (!['image/jpeg', 'image/png', 'image/bmp', 'image/tiff'].includes(mime)) {
+      if (!['image/jpeg', 'image/png', 'image/bmp', 'image/tiff', 'image/webp'].includes(mime)) {
         logger.warn(`Unsupported/Unnecessary image format for compression: ${mime}`)
         return buffer
       }

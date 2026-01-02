@@ -1,5 +1,5 @@
-import type { UnifiedMessage } from '../../../../../../main/src/domain/message'
-import { getLogger } from '../../../../../../main/src/shared/logger'
+import type { UnifiedMessage } from '@napgram/message-kit'
+import { getLogger } from '@napgram/infra-kit'
 
 const logger = getLogger('ThreadIdExtractor')
 

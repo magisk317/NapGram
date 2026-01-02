@@ -1,4 +1,4 @@
-import type { MessageContent } from '../../../../../../main/src/domain/message'
+import type { MessageContent } from '@napgram/message-kit'
 import type { MediaFeature } from '../../MediaFeature'
 import { Buffer } from 'node:buffer'
 import fs from 'node:fs'
@@ -6,7 +6,7 @@ import { readdir } from 'node:fs/promises'
 import path from 'node:path'
 import { Readable } from 'node:stream'
 import { fileTypeFromBuffer } from 'file-type'
-import { getLogger } from '../../../../../../main/src/shared/logger'
+import { getLogger } from '@napgram/infra-kit'
 
 export interface NormalizedFile {
   fileName: string
