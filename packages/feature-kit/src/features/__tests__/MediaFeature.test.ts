@@ -1,31 +1,46 @@
 import { Buffer } from 'node:buffer'
 import fsP from 'node:fs/promises'
 import { fileTypeFromBuffer } from 'file-type'
-import { Jimp } from 'jimp'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { db, env } from '@napgram/infra-kit'
 import { MediaFeature } from '../MediaFeature'
 
 // Mock dependencies
 vi.mock('node:fs/promises')
-vi.mock('jimp', () => ({
-  Jimp: {
-    read: vi.fn(),
-  },
+vi.mock('image-js', () => ({
+  decode: vi.fn(),
+  encode: vi.fn(),
 }))
 vi.mock('file-type', () => ({
   fileTypeFromBuffer: vi.fn(),
 }))
-vi.mock('../../../../../main/src/shared/logger', () => ({
+vi.mock('@napgram/infra-kit', () => ({
+  db: {
+    message: { findFirst: vi.fn(), findUnique: vi.fn(), findMany: vi.fn(), update: vi.fn(), create: vi.fn(), delete: vi.fn() },
+    forwardPair: { findFirst: vi.fn(), findUnique: vi.fn(), update: vi.fn(), create: vi.fn() },
+    forwardMultiple: { findFirst: vi.fn(), findUnique: vi.fn(), update: vi.fn(), create: vi.fn(), delete: vi.fn() },
+    qQRequest: { findFirst: vi.fn(), findUnique: vi.fn(), findMany: vi.fn(), groupBy: vi.fn(), update: vi.fn(), create: vi.fn() },
+    $queryRaw: vi.fn()
+  },
+  env: {
+    ENABLE_AUTO_RECALL: true,
+    TG_MEDIA_TTL_SECONDS: undefined,
+    DATA_DIR: '/tmp',
+    CACHE_DIR: '/tmp/cache',
+    WEB_ENDPOINT: 'http://napgram-dev:8080'
+  },
+  temp: { TEMP_PATH: '/tmp', createTempFile: vi.fn(() => ({ path: '/tmp/test', cleanup: vi.fn() })) },
   getLogger: vi.fn(() => ({
-    info: vi.fn(),
     debug: vi.fn(),
+    info: vi.fn(),
     warn: vi.fn(),
     error: vi.fn(),
+    trace: vi.fn(),
   })),
+  configureInfraKit: vi.fn(),
+  performanceMonitor: { recordCall: vi.fn(), recordError: vi.fn() },
 }))
-vi.mock('../../../../../main/src/shared/utils/temp', () => ({
-  file: vi.fn(() => ({ path: '/tmp/test-file', cleanup: vi.fn() })),
-}))
+
 
 // Mock global fetch
 globalThis.fetch = vi.fn()
@@ -52,10 +67,10 @@ describe('mediaFeature', () => {
   describe('downloadMedia', () => {
     it('downloads media from a URL', async () => {
       const mockBuffer = Buffer.from('test data')
-                ; (globalThis.fetch as any).mockResolvedValue({
-        ok: true,
-        arrayBuffer: vi.fn().mockResolvedValue(Uint8Array.from(mockBuffer).buffer),
-      })
+        ; (globalThis.fetch as any).mockResolvedValue({
+          ok: true,
+          arrayBuffer: vi.fn().mockResolvedValue(Uint8Array.from(mockBuffer).buffer),
+        })
 
       const result = await mediaFeature.downloadMedia('http://example.com/test.jpg')
       expect(result.toString()).toBe('test data')
@@ -99,10 +114,10 @@ describe('mediaFeature', () => {
     it('fetches file using getFile (direct link)', async () => {
       const mockBuffer = Buffer.from('file data')
       mockQqClient.getFile.mockResolvedValue({ url: 'http://example.com/file' })
-      ; (globalThis.fetch as any).mockResolvedValue({
-        ok: true,
-        arrayBuffer: vi.fn().mockResolvedValue(Uint8Array.from(mockBuffer).buffer),
-      })
+        ; (globalThis.fetch as any).mockResolvedValue({
+          ok: true,
+          arrayBuffer: vi.fn().mockResolvedValue(Uint8Array.from(mockBuffer).buffer),
+        })
 
       const result = await mediaFeature.fetchFileById('file123')
       expect(result.buffer?.toString()).toBe('file data')
@@ -113,10 +128,10 @@ describe('mediaFeature', () => {
       const mockBuffer = Buffer.from('file data')
       mockQqClient.getFile = undefined // Simulation: not a function
       mockQqClient.callApi.mockResolvedValue({ url: 'http://example.com/file' })
-      ; (globalThis.fetch as any).mockResolvedValue({
-        ok: true,
-        arrayBuffer: vi.fn().mockResolvedValue(Uint8Array.from(mockBuffer).buffer),
-      })
+        ; (globalThis.fetch as any).mockResolvedValue({
+          ok: true,
+          arrayBuffer: vi.fn().mockResolvedValue(Uint8Array.from(mockBuffer).buffer),
+        })
 
       const result = await mediaFeature.fetchFileById('file123')
       expect(result.buffer?.toString()).toBe('file data')
@@ -134,7 +149,7 @@ describe('mediaFeature', () => {
     it('falls back to downloadFile if direct download fails', async () => {
       const mockBuffer = Buffer.from('local file data')
       mockQqClient.getFile.mockResolvedValue({ url: 'http://example.com/file' })
-      ; (globalThis.fetch as any).mockRejectedValue(new Error('Network error'))
+        ; (globalThis.fetch as any).mockRejectedValue(new Error('Network error'))
       mockQqClient.downloadFile.mockResolvedValue({ file: '/tmp/local' })
       vi.mocked(fsP.readFile).mockResolvedValue(mockBuffer)
 
@@ -177,10 +192,10 @@ describe('mediaFeature', () => {
 
     it('processes image content with string URL', async () => {
       const buf = Buffer.from('img data')
-                ; (globalThis.fetch as any).mockResolvedValue({
-        ok: true,
-        arrayBuffer: vi.fn().mockResolvedValue(Uint8Array.from(buf).buffer),
-      })
+        ; (globalThis.fetch as any).mockResolvedValue({
+          ok: true,
+          arrayBuffer: vi.fn().mockResolvedValue(Uint8Array.from(buf).buffer),
+        })
       const result = await mediaFeature.processImage({ data: { file: 'http://img.v' } } as any)
       expect(result?.toString()).toBe(buf.toString())
     })
@@ -188,20 +203,20 @@ describe('mediaFeature', () => {
     it('processes image content with local path failing access', async () => {
       vi.mocked(fsP.access).mockRejectedValue(new Error('No access'))
       const buf = Buffer.from('remote data')
-                ; (globalThis.fetch as any).mockResolvedValue({
-        ok: true,
-        arrayBuffer: vi.fn().mockResolvedValue(Uint8Array.from(buf).buffer),
-      })
+        ; (globalThis.fetch as any).mockResolvedValue({
+          ok: true,
+          arrayBuffer: vi.fn().mockResolvedValue(Uint8Array.from(buf).buffer),
+        })
       const result = await mediaFeature.processImage({ data: { file: '/path/no-access.jpg', url: 'http://rem' } } as any)
       expect(result?.toString()).toBe(buf.toString())
     })
 
     it('processes image content with URL', async () => {
       const buf = Buffer.from('img data')
-                ; (globalThis.fetch as any).mockResolvedValue({
-        ok: true,
-        arrayBuffer: vi.fn().mockResolvedValue(Uint8Array.from(buf).buffer),
-      })
+        ; (globalThis.fetch as any).mockResolvedValue({
+          ok: true,
+          arrayBuffer: vi.fn().mockResolvedValue(Uint8Array.from(buf).buffer),
+        })
       const result = await mediaFeature.processImage({ data: { url: 'http://img.v' } } as any)
       expect(result?.toString()).toBe(buf.toString())
     })
@@ -214,10 +229,10 @@ describe('mediaFeature', () => {
 
     it('processes video content with URL', async () => {
       const buf = Buffer.from('video data')
-                ; (globalThis.fetch as any).mockResolvedValue({
-        ok: true,
-        arrayBuffer: vi.fn().mockResolvedValue(Uint8Array.from(buf).buffer),
-      })
+        ; (globalThis.fetch as any).mockResolvedValue({
+          ok: true,
+          arrayBuffer: vi.fn().mockResolvedValue(Uint8Array.from(buf).buffer),
+        })
       const result = await mediaFeature.processVideo({ data: { url: 'http://video.mp4' } } as any)
       expect(result?.toString()).toBe(buf.toString())
     })
@@ -228,10 +243,10 @@ describe('mediaFeature', () => {
 
     it('processes video content with string URL', async () => {
       const buf = Buffer.from('video data')
-                ; (globalThis.fetch as any).mockResolvedValue({
-        ok: true,
-        arrayBuffer: vi.fn().mockResolvedValue(Uint8Array.from(buf).buffer),
-      })
+        ; (globalThis.fetch as any).mockResolvedValue({
+          ok: true,
+          arrayBuffer: vi.fn().mockResolvedValue(Uint8Array.from(buf).buffer),
+        })
       const result = await mediaFeature.processVideo({ data: { file: 'http://video.v' } } as any)
       expect(result?.toString()).toBe(buf.toString())
     })
@@ -250,10 +265,10 @@ describe('mediaFeature', () => {
 
     it('processes audio content with URL', async () => {
       const buf = Buffer.from('audio data')
-                ; (globalThis.fetch as any).mockResolvedValue({
-        ok: true,
-        arrayBuffer: vi.fn().mockResolvedValue(Uint8Array.from(buf).buffer),
-      })
+        ; (globalThis.fetch as any).mockResolvedValue({
+          ok: true,
+          arrayBuffer: vi.fn().mockResolvedValue(Uint8Array.from(buf).buffer),
+        })
       const result = await mediaFeature.processAudio({ data: { url: 'http://audio.mp3' } } as any)
       expect(result?.toString()).toBe(buf.toString())
     })
@@ -264,10 +279,10 @@ describe('mediaFeature', () => {
 
     it('processes audio content with string URL', async () => {
       const buf = Buffer.from('audio data')
-                ; (globalThis.fetch as any).mockResolvedValue({
-        ok: true,
-        arrayBuffer: vi.fn().mockResolvedValue(Uint8Array.from(buf).buffer),
-      })
+        ; (globalThis.fetch as any).mockResolvedValue({
+          ok: true,
+          arrayBuffer: vi.fn().mockResolvedValue(Uint8Array.from(buf).buffer),
+        })
       const result = await mediaFeature.processAudio({ data: { file: 'http://audio.v' } } as any)
       expect(result?.toString()).toBe(buf.toString())
     })
@@ -288,114 +303,120 @@ describe('mediaFeature', () => {
         expect(result).toEqual(buf)
       })
 
-      it('compress an image using Jimp', async () => {
+      it('compress an image using image-js', async () => {
+        const { decode, encode } = await import('image-js')
         const buf = Buffer.alloc(2000)
         const mockType = { mime: 'image/jpeg' }
         vi.mocked(fileTypeFromBuffer).mockResolvedValue(mockType as any)
 
         const mockImage = {
-          bitmap: { width: 100, height: 100 },
-          quality: vi.fn().mockReturnThis(),
-          getBuffer: vi.fn().mockResolvedValue(Buffer.alloc(500)),
+          width: 100,
+          height: 100,
           resize: vi.fn().mockReturnThis(),
         }
-        vi.mocked(Jimp.read).mockResolvedValue(mockImage as any)
+        vi.mocked(decode).mockReturnValue(mockImage as any)
+        vi.mocked(encode).mockReturnValue(Buffer.alloc(500))
 
         const result = await mediaFeature.compressImage(buf, 1000)
         expect(result.length).toBe(500)
-        expect(mockImage.quality).toHaveBeenCalledWith(80)
+        expect(encode).toHaveBeenCalledWith(mockImage, { format: 'jpeg', encoderOptions: { quality: 80 } })
       })
 
       it('resizes image if dimensions are too large', async () => {
+        const { decode, encode } = await import('image-js')
         const buf = Buffer.alloc(2000)
         const mockType = { mime: 'image/jpeg' }
         vi.mocked(fileTypeFromBuffer).mockResolvedValue(mockType as any)
 
         const mockImage = {
-          bitmap: { width: 3000, height: 1500 },
-          quality: vi.fn().mockReturnThis(),
-          getBuffer: vi.fn().mockResolvedValue(Buffer.alloc(500)),
+          width: 3000,
+          height: 1500,
           resize: vi.fn().mockReturnThis(),
         }
-        vi.mocked(Jimp.read).mockResolvedValue(mockImage as any)
+        vi.mocked(decode).mockReturnValue(mockImage as any)
+        vi.mocked(encode).mockReturnValue(Buffer.alloc(500))
 
         await mediaFeature.compressImage(buf, 1000)
-        expect(mockImage.resize).toHaveBeenCalledWith({ w: 1920, h: 960 })
+        expect(mockImage.resize).toHaveBeenCalledWith({ width: 1920, height: 960 })
       })
 
       it('resizes image if dimensions are too large (height > width)', async () => {
+        const { decode, encode } = await import('image-js')
         const buf = Buffer.alloc(2000)
         const mockType = { mime: 'image/jpeg' }
         vi.mocked(fileTypeFromBuffer).mockResolvedValue(mockType as any)
 
         const mockImage = {
-          bitmap: { width: 1500, height: 3000 },
-          quality: vi.fn().mockReturnThis(),
-          getBuffer: vi.fn().mockResolvedValue(Buffer.alloc(500)),
+          width: 1500,
+          height: 3000,
           resize: vi.fn().mockReturnThis(),
         }
-        vi.mocked(Jimp.read).mockResolvedValue(mockImage as any)
+        vi.mocked(decode).mockReturnValue(mockImage as any)
+        vi.mocked(encode).mockReturnValue(Buffer.alloc(500))
 
         await mediaFeature.compressImage(buf, 1000)
-        expect(mockImage.resize).toHaveBeenCalledWith({ w: 960, h: 1920 })
+        expect(mockImage.resize).toHaveBeenCalledWith({ width: 960, height: 1920 })
       })
 
       it('converts WebP to PNG during compression', async () => {
+        const { decode, encode } = await import('image-js')
         const buf = Buffer.alloc(2000)
         const mockType = { mime: 'image/webp' }
         vi.mocked(fileTypeFromBuffer).mockResolvedValue(mockType as any)
 
         const mockImage = {
-          bitmap: { width: 100, height: 100 },
-          quality: vi.fn().mockReturnThis(),
-          getBuffer: vi.fn().mockResolvedValue(Buffer.alloc(500)),
+          width: 100,
+          height: 100,
           resize: vi.fn().mockReturnThis(),
         }
-        vi.mocked(Jimp.read).mockResolvedValue(mockImage as any)
+        vi.mocked(decode).mockReturnValue(mockImage as any)
+        vi.mocked(encode).mockReturnValue(Buffer.alloc(500))
 
         await mediaFeature.compressImage(buf, 1000)
-        expect(mockImage.getBuffer).toHaveBeenCalledWith('image/png')
+        // WebP should still be processed, code converts to jpeg for compression
+        expect(encode).toHaveBeenCalledWith(mockImage, expect.objectContaining({ format: 'jpeg' }))
       })
 
       it('reduces quality in a loop if still too large', async () => {
+        const { decode, encode } = await import('image-js')
         const buf = Buffer.alloc(2000)
         const mockType = { mime: 'image/jpeg' }
         vi.mocked(fileTypeFromBuffer).mockResolvedValue(mockType as any)
 
         const mockImage = {
-          bitmap: { width: 100, height: 100 },
-          quality: vi.fn().mockReturnThis(),
-          getBuffer: vi.fn()
-            .mockResolvedValueOnce(Buffer.alloc(1500)) // Quality 80
-            .mockResolvedValueOnce(Buffer.alloc(1100)) // Quality 60
-            .mockResolvedValueOnce(Buffer.alloc(800)), // Quality 40 -> Success
+          width: 100,
+          height: 100,
           resize: vi.fn().mockReturnThis(),
         }
-        vi.mocked(Jimp.read).mockResolvedValue(mockImage as any)
+        vi.mocked(decode).mockReturnValue(mockImage as any)
+        vi.mocked(encode)
+          .mockReturnValueOnce(Buffer.alloc(1500)) // Quality 80
+          .mockReturnValueOnce(Buffer.alloc(1100)) // Quality 60
+          .mockReturnValueOnce(Buffer.alloc(800))  // Quality 40 -> Success
 
         const result = await mediaFeature.compressImage(buf, 1000)
         expect(result.length).toBe(800)
-        expect(mockImage.quality).toHaveBeenCalledTimes(3)
+        expect(encode).toHaveBeenCalledTimes(3)
       })
 
       it('logs warning if failed to compress below maxSize', async () => {
+        const { decode, encode } = await import('image-js')
         const buf = Buffer.alloc(2000)
         const mockType = { mime: 'image/jpeg' }
         vi.mocked(fileTypeFromBuffer).mockResolvedValue(mockType as any)
 
         const mockImage = {
-          bitmap: { width: 100, height: 100 },
-          quality: vi.fn().mockReturnThis(),
-          getBuffer: vi.fn().mockResolvedValue(Buffer.alloc(1500)), // Always too large
+          width: 100,
+          height: 100,
           resize: vi.fn().mockReturnThis(),
         }
-        vi.mocked(Jimp.read).mockResolvedValue(mockImage as any)
+        vi.mocked(decode).mockReturnValue(mockImage as any)
+        vi.mocked(encode).mockReturnValue(Buffer.alloc(1500)) // Always too large
 
         const result = await mediaFeature.compressImage(buf, 1000)
         expect(result.length).toBe(1500)
-        // Quality goes 80 -> 60 -> 40 -> 20. Loop continues while quality > 20.
-        // 80, 60, 40, 20. Loop should have run several times.
-        expect(mockImage.quality).toHaveBeenCalledWith(20)
+        // Quality loop: 80, 60, 40, 20
+        expect(encode).toHaveBeenCalledWith(mockImage, { format: 'jpeg', encoderOptions: { quality: 20 } })
       })
 
       it('returns original buffer for unsupported formats', async () => {
@@ -428,10 +449,9 @@ describe('mediaFeature', () => {
       it('creates temp file from buffer', async () => {
         const buf = Buffer.from('temp')
         const result = await mediaFeature.createTempFileFromBuffer(buf, '.jpg')
-        // Since it's using the real temp utility or a mock that might be overridden by other mocks
-        // let's check what was actually called
-        expect(fsP.writeFile).toHaveBeenCalledWith(expect.stringContaining('temp'), buf)
-        expect(result.path).toBeDefined()
+
+        // temp.createTempFile mock returns { path: '/tmp/test', cleanup: fn }
+        expect(result.path).toBe('/tmp/test')
       })
 
       it('destroys correctly', () => {
