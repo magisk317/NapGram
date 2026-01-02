@@ -1,6 +1,5 @@
 import process from 'node:process'
-import db from '../../../main/src/domain/models/db'
-import { getLogger } from '../../../main/src/shared/logger'
+import { db, getLogger } from '@napgram/infra-kit'
 import { PasswordUtil, TokenManager } from './TokenManager'
 
 const logger = getLogger('AuthService')

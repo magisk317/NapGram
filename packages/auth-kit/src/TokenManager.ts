@@ -1,6 +1,6 @@
 import { randomBytes, scryptSync } from 'node:crypto'
 import process from 'node:process'
-import db from '../../../main/src/domain/models/db'
+import { db } from '@napgram/infra-kit'
 
 /**
  * Token 管理器
