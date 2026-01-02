@@ -36,7 +36,7 @@ const plugin: NapGramPlugin = {
     },
 
     uninstall: async () => {
-        for (const instance of Instance.instances) {
+        for (const instance of Instance.instances as any[]) {
             if (!createdInstances.has(instance.id)) continue;
             if (instance.commandsFeature) {
                 instance.commandsFeature.destroy?.();

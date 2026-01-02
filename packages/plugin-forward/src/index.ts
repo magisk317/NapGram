@@ -36,7 +36,7 @@ const plugin: NapGramPlugin = {
     },
 
     uninstall: async () => {
-        for (const instance of Instance.instances) {
+        for (const instance of Instance.instances as any[]) {
             if (instance.forwardFeature) {
                 instance.forwardFeature.destroy?.();
                 instance.forwardFeature = undefined;
