@@ -5,7 +5,7 @@ export {
   readPluginsConfig,
   removePluginConfig,
   upsertPluginConfig,
-  PluginsConfigFile,
+  type PluginsConfigFile,
 } from './internal/store'
 
 export const __coverage_anchor__ = true
