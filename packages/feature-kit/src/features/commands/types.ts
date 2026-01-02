@@ -1,4 +1,4 @@
-import type { UnifiedMessage } from '../../../../../main/src/domain/message'
+import type { UnifiedMessage } from '@napgram/message-kit'
 
 /**
  * 命令处理函数类型

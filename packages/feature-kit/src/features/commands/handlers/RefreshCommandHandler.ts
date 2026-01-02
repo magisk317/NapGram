@@ -1,8 +1,8 @@
-import type { UnifiedMessage } from '../../../../../../main/src/domain/message'
+import type { UnifiedMessage } from '@napgram/message-kit'
 import type ForwardMap from '../../../../../../main/src/domain/models/ForwardMap'
 import type { CommandContext } from './CommandContext'
 import { Buffer } from 'node:buffer'
-import { getLogger } from '../../../../../../main/src/shared/logger'
+import { getLogger } from '@napgram/infra-kit'
 
 const logger = getLogger('RefreshCommandHandler')
 

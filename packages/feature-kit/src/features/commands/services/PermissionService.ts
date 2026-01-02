@@ -1,5 +1,5 @@
 import type Instance from '../../../../../../main/src/domain/models/Instance'
-import env from '../../../../../../main/src/domain/models/env'
+import { env } from '@napgram/infra-kit'
 
 /**
  * 权限检查服务

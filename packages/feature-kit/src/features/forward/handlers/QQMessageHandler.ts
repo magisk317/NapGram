@@ -1,4 +1,4 @@
-import type { UnifiedMessage } from '../../../../../../main/src/domain/message'
+import type { UnifiedMessage } from '@napgram/message-kit'
 import type ForwardMap from '../../../../../../main/src/domain/models/ForwardMap'
 import type Instance from '../../../../../../main/src/domain/models/Instance'
 import type { TelegramSender } from '../senders/TelegramSender'
@@ -6,7 +6,7 @@ import type { ForwardModeService } from '../services/ForwardModeService'
 import type { ForwardMapper } from '../services/MessageMapper'
 import type { ReplyResolver } from '../services/ReplyResolver'
 import { getEventPublisher } from '../../../../../../main/src/plugins/core/event-publisher'
-import { getLogger } from '../../../../../../main/src/shared/logger'
+import { getLogger } from '@napgram/infra-kit'
 
 const logger = getLogger('QQMessageHandler')
 

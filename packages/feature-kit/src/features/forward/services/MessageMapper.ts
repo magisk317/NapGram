@@ -1,7 +1,7 @@
-import type { MessageContent, UnifiedMessage } from '../../../../../../main/src/domain/message'
+import type { MessageContent, UnifiedMessage } from '@napgram/message-kit'
 import process from 'node:process'
-import db from '../../../../../../main/src/domain/models/db'
-import { getLogger } from '../../../../../../main/src/shared/logger'
+import { db } from '@napgram/infra-kit'
+import { getLogger } from '@napgram/infra-kit'
 import { renderContent } from '../utils/render'
 
 export class ForwardMapper {

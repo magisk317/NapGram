@@ -1,11 +1,11 @@
 import type { Message } from '@mtcute/core'
-import type { UnifiedMessage } from '../../../../../../main/src/domain/message'
+import type { UnifiedMessage } from '@napgram/message-kit'
 import type { IQQClient } from '../../../../../../main/src/infrastructure/clients/qq'
 import type { ReplyResolver } from '../services/ReplyResolver'
 import type { MediaGroupHandler } from './MediaGroupHandler'
-import { messageConverter } from '../../../../../../main/src/domain/message'
-import db from '../../../../../../main/src/domain/models/db'
-import { getLogger } from '../../../../../../main/src/shared/logger'
+import { messageConverter } from '@napgram/message-kit'
+import { db } from '@napgram/infra-kit'
+import { getLogger } from '@napgram/infra-kit'
 
 const logger = getLogger('ForwardFeature')
 

@@ -1,5 +1,6 @@
 import { Buffer } from 'node:buffer'
 import { describe, expect, it, vi } from 'vitest'
+import { db, env } from '@napgram/infra-kit'
 
 const envMock = vi.hoisted(() => ({
   TG_MEDIA_TTL_SECONDS: 10,
@@ -13,13 +14,22 @@ const loggerMocks = vi.hoisted(() => ({
   error: vi.fn(),
 }))
 
-vi.mock('../../../../../main/src/domain/models/env', () => ({
-  default: envMock,
+vi.mock('@napgram/infra-kit', () => ({
+  db: {
+    message: { findFirst: vi.fn(), findUnique: vi.fn(), findMany: vi.fn(), update: vi.fn(), create: vi.fn(), delete: vi.fn() },
+    forwardPair: { findFirst: vi.fn(), findUnique: vi.fn(), update: vi.fn(), create: vi.fn() },
+    forwardMultiple: { findFirst: vi.fn(), findUnique: vi.fn(), update: vi.fn(), create: vi.fn(), delete: vi.fn() },
+    qQRequest: { findFirst: vi.fn(), findUnique: vi.fn(), findMany: vi.fn(), groupBy: vi.fn(), update: vi.fn(), create: vi.fn() },
+    $queryRaw: vi.fn()
+  },
+  get env() { return envMock }, // 使用hoisted的envMock
+  temp: { TEMP_PATH: '/tmp', createTempFile: vi.fn(() => ({ path: '/tmp/test', cleanup: vi.fn() })) },
+  getLogger: vi.fn(() => loggerMocks),
+  configureInfraKit: vi.fn(),
+  performanceMonitor: { recordCall: vi.fn(), recordError: vi.fn() },
 }))
 
-vi.mock('../../../../../main/src/shared/logger', () => ({
-  getLogger: vi.fn(() => loggerMocks),
-}))
+
 
 describe('telegram media TTL', () => {
   it('adds ttlSeconds to media-group items when configured', async () => {

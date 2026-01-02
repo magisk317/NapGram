@@ -1,41 +1,47 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { db, env } from '@napgram/infra-kit'
 import { RecallFeature } from '../RecallFeature'
 
 // Mock dependencies
-vi.mock('../../../../../main/src/domain/models/db', () => ({
-  default: {
-    message: {
-      findFirst: vi.fn(),
-      update: vi.fn(),
-    },
+vi.mock('@napgram/infra-kit', () => ({
+  db: {
+    message: { findFirst: vi.fn(), findUnique: vi.fn(), findMany: vi.fn(), update: vi.fn(), create: vi.fn(), delete: vi.fn() },
+    forwardPair: { findFirst: vi.fn(), findUnique: vi.fn(), update: vi.fn(), create: vi.fn() },
+    forwardMultiple: { findFirst: vi.fn(), findUnique: vi.fn(), update: vi.fn(), create: vi.fn(), delete: vi.fn() },
+    qQRequest: { findFirst: vi.fn(), findUnique: vi.fn(), findMany: vi.fn(), groupBy: vi.fn(), update: vi.fn(), create: vi.fn() },
+    $queryRaw: vi.fn()
   },
-}))
-
-vi.mock('../../../../../main/src/domain/models/env', () => ({
-  default: {
-    ENABLE_AUTO_RECALL: true,
+  env: { 
+    ENABLE_AUTO_RECALL: true, 
+    TG_MEDIA_TTL_SECONDS: undefined, 
+    DATA_DIR: '/tmp', 
+    CACHE_DIR: '/tmp/cache',
+    WEB_ENDPOINT: 'http://napgram-dev:8080'
   },
-}))
-
-vi.mock('../../../../../main/src/shared/logger', () => ({
+  temp: { TEMP_PATH: '/tmp', createTempFile: vi.fn(() => ({ path: '/tmp/test', cleanup: vi.fn() })) },
   getLogger: vi.fn(() => ({
-    info: vi.fn(),
     debug: vi.fn(),
+    info: vi.fn(),
     warn: vi.fn(),
     error: vi.fn(),
+    trace: vi.fn(),
   })),
+  configureInfraKit: vi.fn(),
+  performanceMonitor: { recordCall: vi.fn(), recordError: vi.fn() },
 }))
+
+
+
+
 
 describe('recallFeature', () => {
   let recallFeature: RecallFeature
   let mockInstance: any
   let mockTgBot: any
   let mockQqClient: any
-  let db: any
-
+  
   beforeEach(async () => {
     vi.clearAllMocks()
-    db = (await import('../../../../../main/src/domain/models/db')).default
     mockInstance = { id: 1 }
     mockTgBot = {
       addDeletedMessageEventHandler: vi.fn(),
@@ -57,7 +63,7 @@ describe('recallFeature', () => {
 
   describe('handleQQRecall', () => {
     it('skips recall if auto-recall is disabled', async () => {
-      const env = (await import('../../../../../main/src/domain/models/env')).default
+      
       env.ENABLE_AUTO_RECALL = false
 
       // Get the handleQQRecall listener
