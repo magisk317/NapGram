@@ -36,6 +36,7 @@ export class ForwardFeature {
   private mediaGroupHandler: MediaGroupHandler
   private tgMessageHandler: TelegramMessageHandler
   private mediaPreparer: ForwardMediaPreparer
+  private processedMsgIds = new Set<string>()
   private handleTgMessage = async (tgMsg: Message) => {
     const rawText = tgMsg.text || ''
     logger.debug('[Forward][TG->QQ] incoming', {
@@ -332,6 +333,18 @@ export class ForwardFeature {
       .map(c => (c.data as any).text || '')
       .join('')
       .trim()
+
+    // Deduplication check
+    if (this.processedMsgIds.has(String(msg.id))) {
+      logger.info(`[Forward] Duplicate QQ message ignored: ${msg.id}`)
+      return
+    }
+    this.processedMsgIds.add(String(msg.id))
+    // Clear cache after 30 seconds
+    setTimeout(() => {
+      this.processedMsgIds.delete(String(msg.id))
+    }, 30 * 1000)
+
     const isCommand = text.startsWith('/')
 
     try {

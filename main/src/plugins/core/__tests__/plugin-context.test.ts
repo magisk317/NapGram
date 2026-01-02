@@ -163,7 +163,6 @@ describe('pluginContextImpl', () => {
     await context.group.muteUser({ instanceId: 1, groupId: 'g1', userId: 'u1', duration: 60 })
     await context.group.kickUser({ instanceId: 1, groupId: 'g1', userId: 'u1' })
 
-
     // WebAPI
     context.web.registerRoutes(vi.fn())
     expect(mockLogger.warn).toHaveBeenCalledWith('WebAPI not yet integrated (Phase 3)')

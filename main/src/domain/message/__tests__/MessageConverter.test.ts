@@ -1,6 +1,6 @@
+import type { UnifiedMessage } from '../converter'
 import { Buffer } from 'node:buffer'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import type { UnifiedMessage } from '../converter'
 import { MessageConverter } from '../converter'
 
 const fsMocks = vi.hoisted(() => ({

@@ -85,10 +85,10 @@ function createFeature() {
     owner: '999',
   }
 
-  const feature = new ForwardFeature(instance as any, tgBot as any, qqClient as any)
-  ;(feature as any).telegramSender = { sendToTelegram: vi.fn().mockResolvedValue({ id: 321 }) }
-  ;(feature as any).mapper = { saveMessage: vi.fn().mockResolvedValue(undefined) }
-  ;(feature as any).replyResolver = { resolveQQReply: vi.fn().mockResolvedValue(undefined) }
+  const feature = new ForwardFeature(instance as any, tgBot as any, qqClient as any);
+  (feature as any).telegramSender = { sendToTelegram: vi.fn().mockResolvedValue({ id: 321 }) };
+  (feature as any).mapper = { saveMessage: vi.fn().mockResolvedValue(undefined) };
+  (feature as any).replyResolver = { resolveQQReply: vi.fn().mockResolvedValue(undefined) }
 
   return { feature, forwardMap, tgBot, qqClient, instance }
 }
@@ -98,12 +98,12 @@ let publishMessage: ReturnType<typeof vi.fn>
 beforeEach(() => {
   vi.clearAllMocks()
   publishMessage = vi.fn()
-  vi.mocked(getEventPublisher).mockReturnValue({ publishMessage })
+  vi.mocked(getEventPublisher).mockReturnValue({ publishMessage } as any)
   vi.mocked(db.forwardPair.update).mockResolvedValue({
     id: 1,
     forwardMode: '11',
     nicknameMode: '11',
-  })
+  } as any)
 })
 
 describe('forwardFeature', () => {
@@ -328,7 +328,7 @@ describe('forwardFeature', () => {
         { type: 'audio', data: { file: 'audio.mp3' } },
         { type: 'file', data: { file: 'file.bin', filename: 'file.bin' } },
         { type: 'forward', data: { messages: [forwardMsg] } },
-        { type: 'mystery', data: { value: 1 } },
+        { type: 'mystery', data: { value: 1 } } as any,
       ],
     })
 
@@ -433,5 +433,22 @@ describe('forwardFeature', () => {
     await (feature as any).handleQQMessage(msg)
 
     expect((feature as any).telegramSender.sendToTelegram).not.toHaveBeenCalled()
+  })
+  it('deduplicates identical messages within time window', async () => {
+    const { feature, forwardMap } = createFeature()
+    forwardMap.findByQQ.mockReturnValue(createPair())
+
+    const msg = createMessage({
+      id: 'dup-1',
+      content: [{ type: 'text', data: { text: 'hello' } }],
+    })
+
+    // First call
+    await (feature as any).handleQQMessage(msg)
+    // Second call with same message ID
+    await (feature as any).handleQQMessage(msg)
+
+    // Should only forward once
+    expect((feature as any).telegramSender.sendToTelegram).toHaveBeenCalledTimes(1)
   })
 })

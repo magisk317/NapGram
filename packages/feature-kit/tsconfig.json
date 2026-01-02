@@ -10,7 +10,10 @@
             "@napgram/message-kit": [
                 "../message-kit/src/index.ts"
             ]
-        }
+        },
+        "types": [
+            "vitest/globals"
+        ]
     },
     "include": [
         "src/**/*",
