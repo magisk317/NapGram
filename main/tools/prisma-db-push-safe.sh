@@ -20,7 +20,7 @@ BEGIN
 END $$;
 SQL
 
-ACCEPT_DATA_LOSS="${PRISMA_ACCEPT_DATA_LOSS:-0}"
+ACCEPT_DATA_LOSS="${PLUGIN_PRISMA_ACCEPT_DATA_LOSS:-${PRISMA_ACCEPT_DATA_LOSS:-0}}"
 if [ "$ACCEPT_DATA_LOSS" = "1" ]; then
   echo "[prisma] db push (accept data loss)..."
   if ! pnpm exec prisma db push --accept-data-loss; then

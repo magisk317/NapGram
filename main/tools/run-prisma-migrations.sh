@@ -61,7 +61,14 @@ fi
 if grep -Eq 'relation .* does not exist|P3009|invalid input value for enum|invalid input value for type|invalid input value for.*enum' "$deploy_log"; then
   echo "Detected migration failure that suggests schema drift; falling back to prisma db push."
   rm -f "$deploy_log"
-  pnpm --filter ./main exec prisma db push --schema "$SCHEMA_PATH"
+  
+  PUSH_ARGS=""
+  if [ "${PLUGIN_PRISMA_ACCEPT_DATA_LOSS:-0}" = "1" ] || [ "${PRISMA_ACCEPT_DATA_LOSS:-0}" = "1" ]; then
+    echo "Accepting potential data loss (PLUGIN_PRISMA_ACCEPT_DATA_LOSS=1)"
+    PUSH_ARGS="--accept-data-loss"
+  fi
+
+  pnpm --filter ./main exec prisma db push --schema "$SCHEMA_PATH" $PUSH_ARGS
   exit 0
 fi
 
