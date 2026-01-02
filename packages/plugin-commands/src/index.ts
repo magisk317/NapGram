@@ -1,6 +1,5 @@
 import type { NapGramPlugin, PluginContext, InstanceStatusEvent } from '@napgram/sdk';
-import { CommandsFeature } from '@napgram/feature-kit';
-import type { Instance } from '@napgram/feature-kit';
+import { CommandsFeature, Instance } from '@napgram/feature-kit';
 
 const createdInstances = new Set<number>();
 

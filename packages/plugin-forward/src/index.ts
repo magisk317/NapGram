@@ -1,6 +1,5 @@
 import type { NapGramPlugin, PluginContext, InstanceStatusEvent } from '@napgram/sdk';
-import { ForwardFeature } from '@napgram/feature-kit';
-import type { Instance } from '@napgram/feature-kit';
+import { ForwardFeature, Instance } from '@napgram/feature-kit';
 
 const plugin: NapGramPlugin = {
     id: 'forward',

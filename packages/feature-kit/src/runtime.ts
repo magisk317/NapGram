@@ -1,3 +1,4 @@
+export { Instance } from '@napgram/runtime-kit'
 export type { IInstance as Instance } from '@napgram/runtime-kit'
 export { CommandsFeature } from './features/commands/CommandsFeature'
 export { ForwardFeature } from './features/forward/ForwardFeature'
