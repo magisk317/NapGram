@@ -1,6 +1,6 @@
 {
     "name": "@napgram/gateway-kit",
-    "version": "1.0.0",
+    "version": "0.1.4",
     "description": "Gateway exports for NapGram",
     "main": "./dist/index.js",
     "types": "./src/index.ts",

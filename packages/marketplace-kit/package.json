@@ -1,6 +1,6 @@
 {
     "name": "@napgram/marketplace-kit",
-    "version": "1.0.0",
+    "version": "0.1.4",
     "description": "Marketplace and installer utilities for NapGram plugins",
     "main": "./dist/index.js",
     "types": "./src/index.ts",

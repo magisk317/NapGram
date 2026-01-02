@@ -1,6 +1,6 @@
 {
     "name": "@napgram/web-interfaces",
-    "version": "1.0.0",
+    "version": "0.1.4",
     "description": "Shared web route modules for NapGram",
     "main": "./dist/index.js",
     "types": "./src/index.ts",

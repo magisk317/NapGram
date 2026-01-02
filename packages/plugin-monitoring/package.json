@@ -1,9 +1,9 @@
 {
     "name": "@napgram/plugin-monitoring",
-    "version": "1.0.0",
+    "version": "0.1.4",
     "description": "NapGram monitoring endpoints plugin",
     "main": "./dist/index.js",
-            "types": "./src/index.ts",
+    "types": "./src/index.ts",
     "type": "module",
     "exports": {
         ".": {

@@ -1,9 +1,9 @@
 {
     "name": "@napgram/plugin-web-assets",
-    "version": "1.0.0",
+    "version": "0.1.4",
     "description": "NapGram public assets and avatar routes",
     "main": "./dist/index.js",
-            "types": "./src/index.ts",
+    "types": "./src/index.ts",
     "type": "module",
     "exports": {
         ".": {

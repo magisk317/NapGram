@@ -1,6 +1,6 @@
 {
     "name": "@napgram/feature-kit",
-    "version": "1.0.0",
+    "version": "0.1.4",
     "description": "Feature wiring helpers for NapGram",
     "main": "./dist/index.js",
     "types": "./src/index.ts",

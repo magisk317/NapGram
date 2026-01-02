@@ -1,6 +1,6 @@
 {
     "name": "@napgram/qq-client",
-    "version": "1.0.0",
+    "version": "0.1.4",
     "description": "Shared QQ client for NapGram",
     "main": "./dist/index.js",
     "types": "./src/index.ts",

@@ -1,9 +1,9 @@
 {
     "name": "@napgram/plugin-group-management",
-    "version": "1.0.0",
+    "version": "0.1.4",
     "description": "NapGram group management plugin: ban/kick/admin/title",
     "main": "./dist/index.js",
-            "types": "./src/index.ts",
+    "types": "./src/index.ts",
     "type": "module",
     "exports": {
         ".": {
