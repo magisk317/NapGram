@@ -1,3 +1,3 @@
-export type { IQQClient } from './runtime'
-export { db, getLogger, Instance } from './runtime'
+export type { IQQClient, Instance } from './runtime'
+export { db, getLogger } from './runtime'
 export { RequestAutomationService } from './RequestAutomationService'
