@@ -3,7 +3,7 @@
     "version": "1.0.0",
     "description": "Media conversion utilities for NapGram",
     "main": "./dist/index.js",
-            "types": "./src/index.ts",
+    "types": "./src/index.ts",
     "type": "module",
     "exports": {
         ".": {
@@ -25,7 +25,8 @@
     "author": "NapGram Team",
     "license": "MIT",
     "dependencies": {
-        "silk-wasm": "^3.7.1"
+        "silk-wasm": "^3.7.1",
+        "@napgram/infra-kit": "workspace:*"
     },
     "devDependencies": {
         "@types/node": "^25.0.3",

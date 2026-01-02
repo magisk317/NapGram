@@ -24,7 +24,8 @@
     "author": "NapGram Team",
     "license": "MIT",
     "dependencies": {
-        "fastify": "^5.6.2"
+        "fastify": "^5.6.2",
+        "@napgram/infra-kit": "workspace:*"
     },
     "devDependencies": {
         "@fastify/cookie": "^11.0.2",
