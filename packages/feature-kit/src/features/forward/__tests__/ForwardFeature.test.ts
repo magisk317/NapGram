@@ -98,12 +98,12 @@ let publishMessage: ReturnType<typeof vi.fn>
 beforeEach(() => {
   vi.clearAllMocks()
   publishMessage = vi.fn()
-  vi.mocked(getEventPublisher).mockReturnValue({ publishMessage })
+  vi.mocked(getEventPublisher).mockReturnValue({ publishMessage } as any)
   vi.mocked(db.forwardPair.update).mockResolvedValue({
     id: 1,
     forwardMode: '11',
     nicknameMode: '11',
-  })
+  } as any)
 })
 
 describe('forwardFeature', () => {
