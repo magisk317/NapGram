@@ -3,12 +3,11 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { db, env } from '@napgram/infra-kit'
-import { env } from '@napgram/infra-kit'
-import silk from '../../../../../../../main/src/shared/utils/encoding/silk'
+import { silk } from '../../../../shared-types'
 import { ForwardMediaPreparer } from '../MediaPreparer'
 
-vi.mock('../../../../../../../main/src/shared/utils/encoding/silk', () => ({
-  default: {
+vi.mock('@napgram/media-kit', () => ({
+  silk: {
     encode: vi.fn(),
     decode: vi.fn(),
   },
@@ -22,10 +21,10 @@ vi.mock('@napgram/infra-kit', () => ({
     qQRequest: { findFirst: vi.fn(), findUnique: vi.fn(), findMany: vi.fn(), groupBy: vi.fn(), update: vi.fn(), create: vi.fn() },
     $queryRaw: vi.fn()
   },
-  env: { 
-    ENABLE_AUTO_RECALL: true, 
-    TG_MEDIA_TTL_SECONDS: undefined, 
-    DATA_DIR: '/tmp', 
+  env: {
+    ENABLE_AUTO_RECALL: true,
+    TG_MEDIA_TTL_SECONDS: undefined,
+    DATA_DIR: '/tmp',
     CACHE_DIR: '/tmp/cache',
     WEB_ENDPOINT: 'http://napgram-dev:8080'
   },

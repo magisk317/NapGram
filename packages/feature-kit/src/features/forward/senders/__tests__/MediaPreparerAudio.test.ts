@@ -4,15 +4,15 @@ import fs from 'node:fs/promises'
 import path from 'node:path'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { env } from '@napgram/infra-kit'
-import silk from '../../../../../../../main/src/shared/utils/encoding/silk'
+import { silk } from '../../../../shared-types'
 import { ForwardMediaPreparer } from '../MediaPreparer'
 
 vi.mock('node:child_process', () => ({
   execFile: vi.fn(),
 }))
 
-vi.mock('../../../../../../../main/src/shared/utils/encoding/silk', () => ({
-  default: {
+vi.mock('@napgram/media-kit', () => ({
+  silk: {
     encode: vi.fn(),
     decode: vi.fn(),
   },
@@ -39,6 +39,7 @@ describe('forwardMediaPreparer audio', () => {
       if (typeof callback === 'function') {
         callback(null, '', '')
       }
+      return {} as any
     })
   })
 
@@ -110,6 +111,7 @@ describe('forwardMediaPreparer audio', () => {
       if (typeof callback === 'function') {
         callback(new Error('ffmpeg failed'), '', '')
       }
+      return {} as any
     })
     silkMock.decode.mockRejectedValueOnce(new Error('silk failed'))
 

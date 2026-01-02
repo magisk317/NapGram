@@ -2,7 +2,6 @@ import type { UnifiedMessage } from '@napgram/message-kit'
 import type { CommandContext } from '../CommandContext'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { db, env } from '@napgram/infra-kit'
-import { db } from '@napgram/infra-kit'
 import { RequestManagementCommandHandler } from '../RequestManagementCommandHandler'
 
 vi.mock('@napgram/infra-kit', () => ({
@@ -13,10 +12,10 @@ vi.mock('@napgram/infra-kit', () => ({
     qQRequest: { findFirst: vi.fn(), findUnique: vi.fn(), findMany: vi.fn(), groupBy: vi.fn(), update: vi.fn(), create: vi.fn() },
     $queryRaw: vi.fn()
   },
-  env: { 
-    ENABLE_AUTO_RECALL: true, 
-    TG_MEDIA_TTL_SECONDS: undefined, 
-    DATA_DIR: '/tmp', 
+  env: {
+    ENABLE_AUTO_RECALL: true,
+    TG_MEDIA_TTL_SECONDS: undefined,
+    DATA_DIR: '/tmp',
     CACHE_DIR: '/tmp/cache',
     WEB_ENDPOINT: 'http://napgram-dev:8080'
   },

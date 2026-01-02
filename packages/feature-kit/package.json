@@ -32,7 +32,11 @@
         "image-js": "^1.3.0",
         "@napgram/message-kit": "workspace:*",
         "@napgram/infra-kit": "workspace:*",
-        "@napgram/runtime-kit": "workspace:*"
+        "@napgram/runtime-kit": "workspace:*",
+        "@napgram/media-kit": "workspace:*",
+        "@napgram/qq-client": "workspace:*",
+        "@napgram/telegram-client": "workspace:*",
+        "@napgram/auth-kit": "workspace:*"
     },
     "devDependencies": {
         "@types/node": "^25.0.3",

@@ -1,5 +1,5 @@
 import type { UnifiedMessage } from '@napgram/message-kit'
-import type { IQQClient } from '../../../../../../../main/src/infrastructure/clients/qq'
+import type { IQQClient } from '../../../../shared-types'
 import type { CommandContext } from '../CommandContext'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { RefreshCommandHandler } from '../RefreshCommandHandler'
@@ -350,7 +350,7 @@ describe('refreshCommandHandler', () => {
       await handler.execute(msg, [], 'refresh_all')
 
       const lastCall
-        = mockContext.replyTG.mock.calls[mockContext.replyTG.mock.calls.length - 1]
+        = (mockContext.replyTG as any).mock.calls[(mockContext.replyTG as any).mock.calls.length - 1]
       expect(lastCall[1]).toContain('成功')
       expect(lastCall[1]).toContain('失败')
       expect(lastCall[1]).toContain('总计: 3')
@@ -361,7 +361,7 @@ describe('refreshCommandHandler', () => {
       await handler.execute(msg, [], 'refresh_all')
 
       const lastCall
-        = mockContext.replyTG.mock.calls[mockContext.replyTG.mock.calls.length - 1]
+        = (mockContext.replyTG as any).mock.calls[(mockContext.replyTG as any).mock.calls.length - 1]
       expect(lastCall[1]).toContain('成功: 3')
       expect(lastCall[1]).toContain('失败: 0')
     })
@@ -376,7 +376,7 @@ describe('refreshCommandHandler', () => {
       await handler.execute(msg, [], 'refresh_all')
 
       const lastCall
-        = mockContext.replyTG.mock.calls[mockContext.replyTG.mock.calls.length - 1]
+        = (mockContext.replyTG as any).mock.calls[(mockContext.replyTG as any).mock.calls.length - 1]
       expect(lastCall[1]).toContain('成功: 2')
       expect(lastCall[1]).toContain('失败: 1')
     })

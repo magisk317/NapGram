@@ -1,5 +1,5 @@
 import type { UnifiedMessage } from '@napgram/message-kit'
-import type { IQQClient } from '../../../../../../../main/src/infrastructure/clients/qq'
+import type { IQQClient } from '../../../../shared-types'
 import type { CommandContext } from '../CommandContext'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { BindCommandHandler } from '../BindCommandHandler'

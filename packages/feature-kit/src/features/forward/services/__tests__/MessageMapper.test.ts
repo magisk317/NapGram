@@ -11,10 +11,10 @@ vi.mock('@napgram/infra-kit', () => ({
     qQRequest: { findFirst: vi.fn(), findUnique: vi.fn(), findMany: vi.fn(), groupBy: vi.fn(), update: vi.fn(), create: vi.fn() },
     $queryRaw: vi.fn()
   },
-  env: { 
-    ENABLE_AUTO_RECALL: true, 
-    TG_MEDIA_TTL_SECONDS: undefined, 
-    DATA_DIR: '/tmp', 
+  env: {
+    ENABLE_AUTO_RECALL: true,
+    TG_MEDIA_TTL_SECONDS: undefined,
+    DATA_DIR: '/tmp',
     CACHE_DIR: '/tmp/cache',
     WEB_ENDPOINT: 'http://napgram-dev:8080'
   },
@@ -47,8 +47,8 @@ describe('forwardMapper', () => {
       const pair: any = { qqRoomId: BigInt(1000), tgChatId: 2000, instanceId: 1 }
 
       await mapper.saveTgToQqMapping(unified, tgMsg, receipt, pair)
-      
-      expect(db.message.create).not.toHaveBeenCalled()
+
+      expect(vi.mocked(db.message.create)).not.toHaveBeenCalled()
     })
 
     it('saves mapping when stubbed env bypasses skip', async () => {
@@ -61,8 +61,8 @@ describe('forwardMapper', () => {
       const pair: any = { qqRoomId: BigInt(1000), tgChatId: 2000, instanceId: 1 }
 
       await mapper.saveTgToQqMapping(unified, tgMsg, receipt, pair)
-      
-      expect(db.message.create).toHaveBeenCalledWith(expect.objectContaining({
+
+      expect(vi.mocked(db.message.create)).toHaveBeenCalledWith(expect.objectContaining({
         data: expect.objectContaining({
           seq: 200,
           tgMsgId: 100,
@@ -73,8 +73,8 @@ describe('forwardMapper', () => {
     it('handles database error in saveTgToQqMapping', async () => {
       vi.stubEnv('NODE_ENV', 'production')
       vi.stubEnv('VITEST', '')
-      
-      db.message.create.mockRejectedValue(new Error('DB Error'))
+
+      vi.mocked(db.message.create).mockRejectedValue(new Error('DB Error'))
 
       const unified: any = { content: [] }
       const tgMsg: any = { id: 100 }
@@ -100,8 +100,8 @@ describe('forwardMapper', () => {
       const tgMsg: any = { id: 500, sender: { id: '67890' } }
 
       await mapper.saveMessage(qqMsg, tgMsg, 1, BigInt(1000), BigInt(2000))
-      
-      expect(db.message.create).toHaveBeenCalled()
+
+      expect(vi.mocked(db.message.create)).toHaveBeenCalled()
     })
 
     it('handles missing metadata in saveMessage', async () => {
@@ -111,8 +111,8 @@ describe('forwardMapper', () => {
       const tgMsg: any = { id: 500 }
 
       await mapper.saveMessage(qqMsg, tgMsg, 1, BigInt(1000), BigInt(2000))
-      
-      expect(db.message.create).toHaveBeenCalledWith(expect.objectContaining({
+
+      expect(vi.mocked(db.message.create)).toHaveBeenCalledWith(expect.objectContaining({
         data: expect.objectContaining({ seq: 0 }),
       }))
     })
@@ -120,12 +120,12 @@ describe('forwardMapper', () => {
 
   describe('findTgMsgId', () => {
     it('returns found msgId by seq', async () => {
-      
-      db.message.findFirst.mockResolvedValue({ tgMsgId: 999 })
+
+      vi.mocked(db.message.findFirst).mockResolvedValue({ tgMsgId: 999 } as any)
 
       const result = await mapper.findTgMsgId(1, BigInt(1000), '123')
       expect(result).toBe(999)
-      expect(db.message.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+      expect(vi.mocked(db.message.findFirst)).toHaveBeenCalledWith(expect.objectContaining({
         where: expect.objectContaining({ seq: 123 }),
       }))
     })
@@ -133,14 +133,14 @@ describe('forwardMapper', () => {
     it('returns found msgId by sender when bypass enabled', async () => {
       vi.stubEnv('NODE_ENV', 'production')
       vi.stubEnv('VITEST', '')
-      
-      db.message.findFirst
+
+      vi.mocked(db.message.findFirst)
         .mockResolvedValueOnce(null) // No match by seq
-        .mockResolvedValueOnce({ tgMsgId: 888 }) // Match by sender
+        .mockResolvedValueOnce({ tgMsgId: 888 } as any) // Match by sender
 
       const result = await mapper.findTgMsgId(1, BigInt(1000), '456')
       expect(result).toBe(888)
-      expect(db.message.findFirst).toHaveBeenCalledTimes(2)
+      expect(vi.mocked(db.message.findFirst)).toHaveBeenCalledTimes(2)
     })
   })
 
@@ -148,9 +148,9 @@ describe('forwardMapper', () => {
     it('finds QQ source mapping when bypass enabled', async () => {
       vi.stubEnv('NODE_ENV', 'production')
       vi.stubEnv('VITEST', '')
-      
+
       const mockResult = { seq: 123 }
-      db.message.findFirst.mockResolvedValue(mockResult)
+      vi.mocked(db.message.findFirst).mockResolvedValue(mockResult as any)
 
       const result = await mapper.findQqSource(1, 2000, 100)
       expect(result).toEqual(mockResult)

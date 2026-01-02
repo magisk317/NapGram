@@ -28,6 +28,12 @@ vi.mock('@napgram/infra-kit', () => ({
   })),
   configureInfraKit: vi.fn(),
   performanceMonitor: { recordCall: vi.fn(), recordError: vi.fn() },
+  flags: {
+    DISABLE_RICH_HEADER: 1, // Mock value
+    // Add other flags if needed by tests, but TelegramSender usually accesses specific flags.
+    // If it's an enum in code, we might need to match the enum values or object structure.
+    // Since original was enum, referencing flags.DISABLE_RICH_HEADER works if mocked as object.
+  }
 }))
 
 

@@ -1,6 +1,6 @@
 import type { Message } from '@mtcute/core'
 import type { UnifiedMessage } from '@napgram/message-kit'
-import type { IQQClient } from '../../../../../../main/src/infrastructure/clients/qq'
+import type { IQQClient } from '../../../shared-types'
 import type { ReplyResolver } from '../services/ReplyResolver'
 import type { MediaGroupHandler } from './MediaGroupHandler'
 import { messageConverter } from '@napgram/message-kit'

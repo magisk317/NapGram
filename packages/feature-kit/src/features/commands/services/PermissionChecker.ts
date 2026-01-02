@@ -1,4 +1,4 @@
-import type Instance from '../../../../../../main/src/domain/models/Instance'
+import type { Instance } from '../../../shared-types'
 import { env } from '@napgram/infra-kit'
 
 /**

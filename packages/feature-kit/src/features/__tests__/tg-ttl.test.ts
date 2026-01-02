@@ -27,6 +27,7 @@ vi.mock('@napgram/infra-kit', () => ({
   getLogger: vi.fn(() => loggerMocks),
   configureInfraKit: vi.fn(),
   performanceMonitor: { recordCall: vi.fn(), recordError: vi.fn() },
+  flags: { DISABLE_RICH_HEADER: 1 },
 }))
 
 

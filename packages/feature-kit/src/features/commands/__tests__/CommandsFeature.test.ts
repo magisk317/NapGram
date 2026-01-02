@@ -115,6 +115,11 @@ vi.mock('../../../../../../main/src/domain/message/converter.ts', () => {
 vi.mock('../../../../../../main/src/plugins/core/event-publisher', () => ({
   getEventPublisher: vi.fn().mockReturnValue({
     publishMessage: vi.fn(),
+    eventBus: {},
+    publishFriendRequest: vi.fn(),
+    publishGroupRequest: vi.fn(),
+    publishNotice: vi.fn(),
+    publishInstanceStatus: vi.fn(),
   }),
 }))
 
@@ -274,6 +279,11 @@ describe('commandsFeature', () => {
     vi.doMock('../../../../../../main/src/plugins/core/event-publisher', () => ({
       getEventPublisher: vi.fn().mockReturnValue({
         publishMessage: vi.fn(),
+        eventBus: {},
+        publishFriendRequest: vi.fn(),
+        publishGroupRequest: vi.fn(),
+        publishNotice: vi.fn(),
+        publishInstanceStatus: vi.fn(),
       }),
     }))
 
@@ -443,7 +453,14 @@ describe('commandsFeature', () => {
         capturedEvent = event
       })
       const eventPublisherModule = await import('../../../../../../main/src/plugins/core/event-publisher')
-      vi.mocked(eventPublisherModule.getEventPublisher).mockReturnValue({ publishMessage })
+      vi.mocked(eventPublisherModule.getEventPublisher).mockReturnValue({
+        publishMessage,
+        eventBus: {},
+        publishFriendRequest: vi.fn(),
+        publishGroupRequest: vi.fn(),
+        publishNotice: vi.fn(),
+        publishInstanceStatus: vi.fn(),
+      } as any)
 
       const sendMessage = vi.fn().mockResolvedValue({ id: 321 })
       const deleteMessages = vi.fn().mockResolvedValue(undefined)
@@ -491,7 +508,14 @@ describe('commandsFeature', () => {
         throw new Error('boom')
       })
       const eventPublisherModule = await import('../../../../../../main/src/plugins/core/event-publisher')
-      vi.mocked(eventPublisherModule.getEventPublisher).mockReturnValue({ publishMessage })
+      vi.mocked(eventPublisherModule.getEventPublisher).mockReturnValue({
+        publishMessage,
+        eventBus: {},
+        publishFriendRequest: vi.fn(),
+        publishGroupRequest: vi.fn(),
+        publishNotice: vi.fn(),
+        publishInstanceStatus: vi.fn(),
+      } as any)
 
       const result = await handler({
         id: 99999,

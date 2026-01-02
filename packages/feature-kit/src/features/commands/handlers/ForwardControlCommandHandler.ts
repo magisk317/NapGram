@@ -1,5 +1,5 @@
 import type { UnifiedMessage } from '@napgram/message-kit'
-import type ForwardMap from '../../../../../../main/src/domain/models/ForwardMap'
+import type { ForwardMap } from '../../../shared-types'
 import type { CommandContext } from './CommandContext'
 import { db } from '@napgram/infra-kit'
 import { getLogger } from '@napgram/infra-kit'

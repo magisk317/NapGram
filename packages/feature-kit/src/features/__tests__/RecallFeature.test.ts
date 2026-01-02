@@ -11,10 +11,10 @@ vi.mock('@napgram/infra-kit', () => ({
     qQRequest: { findFirst: vi.fn(), findUnique: vi.fn(), findMany: vi.fn(), groupBy: vi.fn(), update: vi.fn(), create: vi.fn() },
     $queryRaw: vi.fn()
   },
-  env: { 
-    ENABLE_AUTO_RECALL: true, 
-    TG_MEDIA_TTL_SECONDS: undefined, 
-    DATA_DIR: '/tmp', 
+  env: {
+    ENABLE_AUTO_RECALL: true,
+    TG_MEDIA_TTL_SECONDS: undefined,
+    DATA_DIR: '/tmp',
     CACHE_DIR: '/tmp/cache',
     WEB_ENDPOINT: 'http://napgram-dev:8080'
   },
@@ -39,7 +39,7 @@ describe('recallFeature', () => {
   let mockInstance: any
   let mockTgBot: any
   let mockQqClient: any
-  
+
   beforeEach(async () => {
     vi.clearAllMocks()
     mockInstance = { id: 1 }
@@ -63,63 +63,63 @@ describe('recallFeature', () => {
 
   describe('handleQQRecall', () => {
     it('skips recall if auto-recall is disabled', async () => {
-      
+
       env.ENABLE_AUTO_RECALL = false
 
       // Get the handleQQRecall listener
-      const handleQQRecall = mockQqClient.on.mock.calls.find(call => call[0] === 'recall')[1]
-      await handleQQRecall({ messageId: '123', chatId: '456' })
+      const handleQQRecall = mockQqClient.on.mock.calls.find((call: any) => call[0] === 'recall')[1]
+      await handleQQRecall({ messageId: (123 as any), chatId: '456' })
 
-      expect(db.message.findFirst).not.toHaveBeenCalled()
+      expect(vi.mocked(db.message.findFirst)).not.toHaveBeenCalled()
 
       env.ENABLE_AUTO_RECALL = true // Reset
     })
 
     it('deletes TG message and updates DB on QQ recall', async () => {
-      const handleQQRecall = mockQqClient.on.mock.calls.find(call => call[0] === 'recall')[1]
+      const handleQQRecall = mockQqClient.on.mock.calls.find((call: any) => call[0] === 'recall')[1]
 
-      db.message.findFirst.mockResolvedValue({
+      vi.mocked(db.message.findFirst).mockResolvedValue({
         id: 1,
         tgChatId: BigInt(789),
         tgMsgId: 101,
-      })
+      } as any)
 
       const mockChat = { deleteMessages: vi.fn() }
       mockTgBot.getChat.mockResolvedValue(mockChat)
 
-      await handleQQRecall({ messageId: '123', chatId: '456' })
+      await handleQQRecall({ messageId: (123 as any), chatId: '456' })
 
       expect(mockTgBot.getChat).toHaveBeenCalledWith(789)
       expect(mockChat.deleteMessages).toHaveBeenCalledWith([101])
-      expect(db.message.update).toHaveBeenCalledWith({
+      expect(vi.mocked(db.message.update)).toHaveBeenCalledWith({
         where: { id: 1 },
         data: { ignoreDelete: true },
       })
     })
 
     it('handles error in TG message deletion', async () => {
-      const handleQQRecall = mockQqClient.on.mock.calls.find(call => call[0] === 'recall')[1]
-      db.message.findFirst.mockResolvedValue({ id: 1, tgChatId: BigInt(789), tgMsgId: 101 })
+      const handleQQRecall = mockQqClient.on.mock.calls.find((call: any) => call[0] === 'recall')[1]
+      vi.mocked(db.message.findFirst).mockResolvedValue({ id: 1, tgChatId: BigInt(789), tgMsgId: 101 } as any)
       mockTgBot.getChat.mockResolvedValue({ deleteMessages: vi.fn().mockRejectedValue(new Error('TG Error')) })
 
-      await handleQQRecall({ messageId: '123', chatId: '456' })
+      await handleQQRecall({ messageId: (123 as any), chatId: '456' })
       // Should log error but still update DB
-      expect(db.message.update).toHaveBeenCalled()
+      expect(vi.mocked(db.message.update)).toHaveBeenCalled()
     })
 
     it('handles general error in handleQQRecall', async () => {
-      const handleQQRecall = mockQqClient.on.mock.calls.find(call => call[0] === 'recall')[1]
-      db.message.findFirst.mockRejectedValue(new Error('DB Error'))
+      const handleQQRecall = mockQqClient.on.mock.calls.find((call: any) => call[0] === 'recall')[1]
+      vi.mocked(db.message.findFirst).mockRejectedValue(new Error('DB Error'))
 
-      await handleQQRecall({ messageId: '123', chatId: '456' })
+      await handleQQRecall({ messageId: (123 as any), chatId: '456' })
       // Should not crash
     })
 
     it('handles missing DB entry', async () => {
-      const handleQQRecall = mockQqClient.on.mock.calls.find(call => call[0] === 'recall')[1]
-      db.message.findFirst.mockResolvedValue(null)
+      const handleQQRecall = mockQqClient.on.mock.calls.find((call: any) => call[0] === 'recall')[1]
+      vi.mocked(db.message.findFirst).mockResolvedValue(null)
 
-      await handleQQRecall({ messageId: '123', chatId: '456' })
+      await handleQQRecall({ messageId: (123 as any), chatId: '456' })
 
       expect(mockTgBot.getChat).not.toHaveBeenCalled()
     })
@@ -129,15 +129,15 @@ describe('recallFeature', () => {
     it('handles invalid delete update', async () => {
       const handleTGDelete = mockTgBot.addDeletedMessageEventHandler.mock.calls[0][0]
       await handleTGDelete({ channelId: BigInt(456), messages: null })
-      expect(db.message.findFirst).not.toHaveBeenCalled()
+      expect(vi.mocked(db.message.findFirst)).not.toHaveBeenCalled()
     })
 
     it('handles multiple messages and some missing mappings', async () => {
       const handleTGDelete = mockTgBot.addDeletedMessageEventHandler.mock.calls[0][0]
-      db.message.findFirst
-        .mockResolvedValueOnce({ seq: '123' })
+      vi.mocked(db.message.findFirst)
+        .mockResolvedValueOnce({ seq: 123 } as any)
         .mockResolvedValueOnce(null)
-        .mockResolvedValueOnce({ seq: '125' })
+        .mockResolvedValueOnce({ seq: 125 } as any)
 
       await handleTGDelete({
         channelId: BigInt(456),
@@ -152,26 +152,26 @@ describe('recallFeature', () => {
     it('recalls QQ message on TG delete', async () => {
       const handleTGDelete = mockTgBot.addDeletedMessageEventHandler.mock.calls[0][0]
 
-      db.message.findFirst.mockResolvedValue({
-        seq: 'qq-seq-123',
-      })
+      vi.mocked(db.message.findFirst).mockResolvedValue({
+        seq: 123,
+      } as any)
 
       await handleTGDelete({
         channelId: BigInt(456),
         messages: [101],
       })
 
-      expect(db.message.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+      expect(vi.mocked(db.message.findFirst)).toHaveBeenCalledWith(expect.objectContaining({
         where: expect.objectContaining({
           tgMsgId: 101,
         }),
       }))
-      expect(mockQqClient.recallMessage).toHaveBeenCalledWith('qq-seq-123')
+      expect(mockQqClient.recallMessage).toHaveBeenCalledWith('123')
     })
 
     it('handles missing sequence in DB entry', async () => {
       const handleTGDelete = mockTgBot.addDeletedMessageEventHandler.mock.calls[0][0]
-      db.message.findFirst.mockResolvedValue({ seq: null })
+      vi.mocked(db.message.findFirst).mockResolvedValue({ seq: null } as any)
 
       await handleTGDelete({
         channelId: BigInt(456),
@@ -183,7 +183,7 @@ describe('recallFeature', () => {
 
     it('handles error in QQ recall', async () => {
       const handleTGDelete = mockTgBot.addDeletedMessageEventHandler.mock.calls[0][0]
-      db.message.findFirst.mockResolvedValue({ seq: '123' })
+      vi.mocked(db.message.findFirst).mockResolvedValue({ seq: 123 } as any)
       mockQqClient.recallMessage.mockRejectedValue(new Error('QQ Error'))
 
       await handleTGDelete({ channelId: BigInt(456), messages: [101] })
@@ -193,33 +193,33 @@ describe('recallFeature', () => {
 
   describe('handleTGRecall', () => {
     it('handles missing mapping in handleTGRecall', async () => {
-      db.message.findFirst.mockResolvedValue(null)
+      vi.mocked(db.message.findFirst).mockResolvedValue(null)
       await recallFeature.handleTGRecall(456, 101)
       expect(mockQqClient.recallMessage).not.toHaveBeenCalled()
     })
 
     it('manually triggers TG recall to QQ', async () => {
-      db.message.findFirst.mockResolvedValue({
+      vi.mocked(db.message.findFirst).mockResolvedValue({
         id: 1,
-        seq: 'seq123',
-      })
+        seq: 123,
+      } as any)
 
       await recallFeature.handleTGRecall(456, 101)
 
-      expect(mockQqClient.recallMessage).toHaveBeenCalledWith('seq123')
-      expect(db.message.update).toHaveBeenCalledWith({
+      expect(mockQqClient.recallMessage).toHaveBeenCalledWith('123')
+      expect(vi.mocked(db.message.update)).toHaveBeenCalledWith({
         where: { id: 1 },
         data: { ignoreDelete: true },
       })
     })
 
     it('handles error in QQ recall during manual trigger', async () => {
-      db.message.findFirst.mockResolvedValue({ id: 1, seq: '123' })
+      vi.mocked(db.message.findFirst).mockResolvedValue({ id: 1, seq: 123 } as any)
       mockQqClient.recallMessage.mockRejectedValue(new Error('QQ Error'))
 
       await recallFeature.handleTGRecall(456, 101)
       // Should still update DB
-      expect(db.message.update).toHaveBeenCalled()
+      expect(vi.mocked(db.message.update)).toHaveBeenCalled()
     })
   })
 

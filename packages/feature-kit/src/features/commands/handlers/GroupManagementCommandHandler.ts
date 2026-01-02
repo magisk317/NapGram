@@ -1,9 +1,9 @@
 import type { UnifiedMessage } from '@napgram/message-kit'
-import type ForwardMap from '../../../../../../main/src/domain/models/ForwardMap'
+import type { ForwardMap } from '../../../shared-types'
 import type { CommandContext } from './CommandContext'
 import { getLogger } from '@napgram/infra-kit'
-import { DurationParser } from '../../../../../../main/src/shared/utils/duration-parser'
-import { PermissionChecker } from '../../../../../../main/src/shared/utils/permission-checker'
+import { DurationParser } from '../../../shared-types'
+import { PermissionChecker } from '../../../shared-types'
 import { CommandArgsParser } from '../utils/CommandArgsParser'
 
 const logger = getLogger('GroupManagementCommandHandler')
@@ -198,7 +198,7 @@ export class GroupManagementCommandHandler {
     }
     catch (error) {
       logger.error('Failed to execute unban command:', error)
-      await this.context.replyTG(chatId, `❌ 操作失败：${error.message || error}`, threadId)
+      await this.context.replyTG(chatId, `❌ 操作失败：${(error as any).message || error}`, threadId)
     }
   }
 
@@ -262,7 +262,7 @@ export class GroupManagementCommandHandler {
     }
     catch (error) {
       logger.error('Failed to execute kick command:', error)
-      await this.context.replyTG(chatId, `❌ 操作失败：${error.message || error}`, threadId)
+      await this.context.replyTG(chatId, `❌ 操作失败：${(error as any).message || error}`, threadId)
     }
   }
 
@@ -324,7 +324,7 @@ export class GroupManagementCommandHandler {
     }
     catch (error) {
       logger.error('Failed to execute card command:', error)
-      await this.context.replyTG(chatId, `❌ 操作失败：${error.message || error}`, threadId)
+      await this.context.replyTG(chatId, `❌ 操作失败：${(error as any).message || error}`, threadId)
     }
   }
 

@@ -1,7 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { db, env } from '@napgram/infra-kit'
 import { messageConverter } from '@napgram/message-kit'
-import { db } from '@napgram/infra-kit'
 import { TelegramMessageHandler } from '../TelegramMessageHandler'
 
 vi.mock('@napgram/message-kit', () => ({
@@ -20,10 +19,10 @@ vi.mock('@napgram/infra-kit', () => ({
     qQRequest: { findFirst: vi.fn(), findUnique: vi.fn(), findMany: vi.fn(), groupBy: vi.fn(), update: vi.fn(), create: vi.fn() },
     $queryRaw: vi.fn()
   },
-  env: { 
-    ENABLE_AUTO_RECALL: true, 
-    TG_MEDIA_TTL_SECONDS: undefined, 
-    DATA_DIR: '/tmp', 
+  env: {
+    ENABLE_AUTO_RECALL: true,
+    TG_MEDIA_TTL_SECONDS: undefined,
+    DATA_DIR: '/tmp',
     CACHE_DIR: '/tmp/cache',
     WEB_ENDPOINT: 'http://napgram-dev:8080'
   },
@@ -84,14 +83,15 @@ describe('telegramMessageHandler', () => {
     const tgMsg: any = { id: 1, text: 'Hello', chat: { id: 100 }, date: new Date(), sender: { id: 10 } }
     const pair = { instanceId: 1, qqRoomId: '888', tgChatId: '100' }
     const unified = {
+      platform: 'telegram' as const,
       id: '1',
-      sender: { name: 'Alice' },
-      content: [{ type: 'text', data: { text: 'Hello' } }],
-      chat: { id: '888' },
+      sender: { id: 'Alice', name: 'Alice' },
+      content: [{ type: 'text' as const, data: { text: 'Hello' } }],
+      chat: { id: '888', type: 'group' as const },
       timestamp: Date.now(),
     }
-    messageConverter.fromTelegram.mockReturnValueOnce(unified)
-    messageConverter.toNapCat.mockResolvedValueOnce([{ type: 'text', data: { text: 'Hello' } }])
+    vi.mocked(messageConverter.fromTelegram).mockReturnValueOnce(unified)
+    vi.mocked(messageConverter.toNapCat).mockResolvedValueOnce([{ type: 'text', data: { text: 'Hello' } }])
 
     await handler.handleTGMessage(tgMsg, pair)
 
@@ -106,14 +106,15 @@ describe('telegramMessageHandler', () => {
     const tgMsg: any = { id: 1, text: 'Hello', chat: { id: 100 }, date: new Date(), sender: { id: 10 } }
     const pair = { instanceId: 1, qqRoomId: '888', tgChatId: '100' }
     const unified = {
+      platform: 'telegram' as const,
       id: '1',
-      sender: { name: 'Alice' },
-      content: [{ type: 'text', data: { text: 'Hello' } }],
-      chat: { id: '888' },
+      sender: { id: 'Alice', name: 'Alice' },
+      content: [{ type: 'text' as const, data: { text: 'Hello' } }],
+      chat: { id: '888', type: 'group' as const },
       timestamp: Date.now(),
     }
-    messageConverter.fromTelegram.mockReturnValueOnce(unified)
-    messageConverter.toNapCat.mockResolvedValueOnce([{ type: 'text', data: { text: 'Hello' } }])
+    vi.mocked(messageConverter.fromTelegram).mockReturnValueOnce(unified)
+    vi.mocked(messageConverter.toNapCat).mockResolvedValueOnce([{ type: 'text', data: { text: 'Hello' } }])
 
     await handler.handleTGMessage(tgMsg, pair)
 
@@ -125,14 +126,15 @@ describe('telegramMessageHandler', () => {
     const tgMsg: any = { id: 1, text: '', chat: { id: 100 }, date: new Date(), sender: { id: 10 } }
     const pair = { instanceId: 1, qqRoomId: '888', tgChatId: '100' }
     const unified = {
+      platform: 'telegram' as const,
       id: '1',
-      sender: { name: 'Alice' },
-      content: [{ type: 'video', data: { file: 'vid' } }],
-      chat: { id: '888' },
+      sender: { id: 'Alice', name: 'Alice' },
+      content: [{ type: 'video' as const, data: { file: 'vid' } }],
+      chat: { id: '888', type: 'group' as const },
       timestamp: Date.now(),
     }
-    messageConverter.fromTelegram.mockReturnValueOnce(unified)
-    messageConverter.toNapCat.mockResolvedValueOnce([{ type: 'video', data: { file: 'vid' } }])
+    vi.mocked(messageConverter.fromTelegram).mockReturnValueOnce(unified)
+    vi.mocked(messageConverter.toNapCat).mockResolvedValueOnce([{ type: 'video', data: { file: 'vid' } }])
 
     await handler.handleTGMessage(tgMsg, pair)
 
@@ -145,14 +147,15 @@ describe('telegramMessageHandler', () => {
     const tgMsg: any = { id: 1, text: '', chat: { id: 100 }, date: new Date(), sender: { id: 10 } }
     const pair = { instanceId: 1, qqRoomId: '888', tgChatId: '100' }
     const unified = {
+      platform: 'telegram' as const,
       id: '1',
-      sender: { name: 'Alice' },
-      content: [{ type: 'image', data: { file: 'img' } }, { type: 'text', data: { text: 'caption' } }],
-      chat: { id: '888' },
+      sender: { id: 'Alice', name: 'Alice' },
+      content: [{ type: 'image' as const, data: { file: 'img' } }, { type: 'text' as const, data: { text: 'caption' } }],
+      chat: { id: '888', type: 'group' as const },
       timestamp: Date.now(),
     }
-    messageConverter.fromTelegram.mockReturnValueOnce(unified)
-    messageConverter.toNapCat.mockResolvedValueOnce([{ type: 'image', data: { file: 'img' } }, { type: 'text', data: { text: 'caption' } }])
+    vi.mocked(messageConverter.fromTelegram).mockReturnValueOnce(unified)
+    vi.mocked(messageConverter.toNapCat).mockResolvedValueOnce([{ type: 'image', data: { file: 'img' } }, { type: 'text', data: { text: 'caption' } }])
 
     await handler.handleTGMessage(tgMsg, pair)
 
@@ -170,14 +173,15 @@ describe('telegramMessageHandler', () => {
       qqRoomId: '888',
     })
     const unified = {
+      platform: 'telegram' as const,
       id: '1',
-      sender: { name: 'Alice' },
-      content: [{ type: 'text', data: { text: 'Reply' } }],
-      chat: { id: '888' },
+      sender: { id: 'Alice', name: 'Alice' },
+      content: [{ type: 'text' as const, data: { text: 'Reply' } }],
+      chat: { id: '888', type: 'group' as const },
       timestamp: Date.now(),
     }
-    messageConverter.fromTelegram.mockReturnValueOnce(unified)
-    messageConverter.toNapCat.mockResolvedValueOnce([{ type: 'text', data: { text: 'Reply' } }])
+    vi.mocked(messageConverter.fromTelegram).mockReturnValueOnce(unified)
+    vi.mocked(messageConverter.toNapCat).mockResolvedValueOnce([{ type: 'text', data: { text: 'Reply' } }])
 
     await handler.handleTGMessage(tgMsg, pair)
 
@@ -189,14 +193,15 @@ describe('telegramMessageHandler', () => {
     const tgMsg: any = { id: 1, text: 'Hello', chat: { id: 100 }, date: new Date(), sender: { id: 10 } }
     const pair = { instanceId: 1, qqRoomId: '888', tgChatId: '100' }
     const unified = {
+      platform: 'telegram' as const,
       id: '1',
-      sender: { name: 'Alice' },
-      content: [{ type: 'text', data: { text: 'Hello' } }],
-      chat: { id: '888' },
+      sender: { id: 'Alice', name: 'Alice' },
+      content: [{ type: 'text' as const, data: { text: 'Hello' } }],
+      chat: { id: '888', type: 'group' as const },
       timestamp: Date.now(),
     }
-    messageConverter.fromTelegram.mockReturnValueOnce(unified)
-    messageConverter.toNapCat.mockResolvedValueOnce([{ type: 'text', data: { text: 'Hello' } }])
+    vi.mocked(messageConverter.fromTelegram).mockReturnValueOnce(unified)
+    vi.mocked(messageConverter.toNapCat).mockResolvedValueOnce([{ type: 'text', data: { text: 'Hello' } }])
 
     // Mock failure
     qqClient.sendMessage.mockResolvedValueOnce({ success: false, error: 'Send failed' })
@@ -211,14 +216,15 @@ describe('telegramMessageHandler', () => {
     const tgMsg: any = { id: 1, text: 'Hello', chat: { id: 100 }, date: new Date(), sender: { id: 10 } }
     const pair = { instanceId: 1, qqRoomId: '888', tgChatId: '100' }
     const unified = {
+      platform: 'telegram' as const,
       id: '1',
-      sender: { name: 'Alice' },
-      content: [{ type: 'text', data: { text: 'Hello' } }],
-      chat: { id: '888' },
+      sender: { id: 'Alice', name: 'Alice' },
+      content: [{ type: 'text' as const, data: { text: 'Hello' } }],
+      chat: { id: '888', type: 'group' as const },
       timestamp: Date.now(),
     }
-    messageConverter.fromTelegram.mockReturnValueOnce(unified)
-    messageConverter.toNapCat.mockResolvedValueOnce([{ type: 'text', data: { text: 'Hello' } }])
+    vi.mocked(messageConverter.fromTelegram).mockReturnValueOnce(unified)
+    vi.mocked(messageConverter.toNapCat).mockResolvedValueOnce([{ type: 'text', data: { text: 'Hello' } }])
 
     // Mock success but no ID
     qqClient.sendMessage.mockResolvedValueOnce({ success: true })
@@ -233,17 +239,18 @@ describe('telegramMessageHandler', () => {
     const tgMsg: any = { id: 1, text: 'Hello', chat: { id: 100 }, date: new Date(), sender: { id: 10 } }
     const pair = { instanceId: 1, qqRoomId: '888', tgChatId: '100' }
     const unified = {
+      platform: 'telegram' as const,
       id: '1',
-      sender: { name: 'Alice' },
-      content: [{ type: 'text', data: { text: 'Hello' } }],
-      chat: { id: '888' },
+      sender: { id: 'Alice', name: 'Alice' },
+      content: [{ type: 'text' as const, data: { text: 'Hello' } }],
+      chat: { id: '888', type: 'group' as const },
       timestamp: Date.now(),
     }
-    messageConverter.fromTelegram.mockReturnValueOnce(unified)
-    messageConverter.toNapCat.mockResolvedValueOnce([{ type: 'text', data: { text: 'Hello' } }])
+    vi.mocked(messageConverter.fromTelegram).mockReturnValueOnce(unified)
+    vi.mocked(messageConverter.toNapCat).mockResolvedValueOnce([{ type: 'text', data: { text: 'Hello' } }])
 
     // Mock DB failure
-    db.message.create.mockRejectedValueOnce(new Error('DB Error'))
+    vi.mocked(db.message.create).mockRejectedValueOnce(new Error('DB Error'))
 
     await handler.handleTGMessage(tgMsg, pair)
 
@@ -256,14 +263,15 @@ describe('telegramMessageHandler', () => {
     const tgMsg: any = { id: 1, text: '', chat: { id: 100 }, date: new Date(), sender: { id: 10 } }
     const pair = { instanceId: 1, qqRoomId: '888', tgChatId: '100' }
     const unified = {
+      platform: 'telegram' as const,
       id: '1',
-      sender: { name: 'Alice' },
-      content: [{ type: 'video', data: { file: 'vid' } }],
-      chat: { id: '888' },
+      sender: { id: 'Alice', name: 'Alice' },
+      content: [{ type: 'video' as const, data: { file: 'vid' } }],
+      chat: { id: '888', type: 'group' as const },
       timestamp: Date.now(),
     }
-    messageConverter.fromTelegram.mockReturnValueOnce(unified)
-    messageConverter.toNapCat.mockResolvedValueOnce([{ type: 'video', data: { file: 'vid' } }])
+    vi.mocked(messageConverter.fromTelegram).mockReturnValueOnce(unified)
+    vi.mocked(messageConverter.toNapCat).mockResolvedValueOnce([{ type: 'video', data: { file: 'vid' } }])
 
     // Enable nickname mode to trigger hint
     getNicknameMode.mockReturnValueOnce('01')
@@ -282,7 +290,7 @@ describe('telegramMessageHandler', () => {
     const pair = { instanceId: 1, qqRoomId: '888', tgChatId: '100' }
 
     // Mock converter throwing error
-    messageConverter.fromTelegram.mockImplementationOnce(() => {
+    vi.mocked(messageConverter.fromTelegram).mockImplementationOnce(() => {
       throw new Error('Converter Logic Error')
     })
 

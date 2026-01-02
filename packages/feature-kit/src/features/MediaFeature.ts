@@ -1,7 +1,7 @@
 import type { AudioContent, ImageContent, VideoContent } from '@napgram/message-kit'
-import type Instance from '../../../../main/src/domain/models/Instance'
-import type { IQQClient } from '../../../../main/src/infrastructure/clients/qq'
-import type Telegram from '../../../../main/src/infrastructure/clients/telegram/client'
+import type { Instance } from '../shared-types'
+import type { IQQClient } from '../shared-types'
+import type { Telegram } from '../shared-types'
 
 import { Buffer } from 'node:buffer'
 import fsP from 'node:fs/promises'

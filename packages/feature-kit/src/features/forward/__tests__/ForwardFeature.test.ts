@@ -2,7 +2,7 @@ import type { UnifiedMessage } from '@napgram/message-kit'
 import { EventEmitter } from 'node:events'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { db, env } from '@napgram/infra-kit'
-import { getEventPublisher } from '../../../../../../main/src/plugins/core/event-publisher'
+import { getEventPublisher } from '../../../shared-types'
 import { ForwardFeature } from '../ForwardFeature'
 import { MessageUtils } from '../utils/MessageUtils'
 

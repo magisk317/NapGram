@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { db, env } from '@napgram/infra-kit'
-import { env } from '@napgram/infra-kit'
 import { MessageUtils } from '../MessageUtils'
 
 vi.mock('@napgram/infra-kit', () => ({
@@ -11,10 +10,10 @@ vi.mock('@napgram/infra-kit', () => ({
     qQRequest: { findFirst: vi.fn(), findUnique: vi.fn(), findMany: vi.fn(), groupBy: vi.fn(), update: vi.fn(), create: vi.fn() },
     $queryRaw: vi.fn()
   },
-  env: { 
-    ENABLE_AUTO_RECALL: true, 
-    TG_MEDIA_TTL_SECONDS: undefined, 
-    DATA_DIR: '/tmp', 
+  env: {
+    ENABLE_AUTO_RECALL: true,
+    TG_MEDIA_TTL_SECONDS: undefined,
+    DATA_DIR: '/tmp',
     CACHE_DIR: '/tmp/cache',
     WEB_ENDPOINT: 'http://napgram-dev:8080'
   },
@@ -222,14 +221,14 @@ describe('messageUtils', () => {
       (env as any).ADMIN_QQ = '1111'
       const result = MessageUtils.isAdmin('1111', mockInstance)
       expect(result).toBe(true)
-      ; (env as any).ADMIN_QQ = null
+        ; (env as any).ADMIN_QQ = null
     })
 
     it('returns true if matches ADMIN_TG', () => {
       (env as any).ADMIN_TG = '2222'
       const result = MessageUtils.isAdmin('2222', mockInstance)
       expect(result).toBe(true)
-      ; (env as any).ADMIN_TG = null
+        ; (env as any).ADMIN_TG = null
     })
 
     it('returns false for non-admin user', () => {
