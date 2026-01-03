@@ -16,6 +16,8 @@ import env from './env'
 import getLogger, { setConsoleLogLevel } from './logger'
 import type { AppLogger } from './logger'
 import db from './db'
+import { drizzleDb } from '@napgram/database'
+export * from '@napgram/database'
 import * as temp from './temp'
 import { DurationParser } from './utils/duration-parser'
 import * as hashing from './utils/hashing'
@@ -69,6 +71,7 @@ const kit = {
   env,
   getLogger,
   db,
+  drizzleDb,
   temp,
   performanceMonitor,
   CacheManager,

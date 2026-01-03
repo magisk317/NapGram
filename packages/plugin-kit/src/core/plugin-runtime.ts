@@ -35,6 +35,7 @@ export interface RuntimeConfig {
     user?: any
     group?: any
     web?: any
+    database?: any
   }
 }
 
@@ -335,6 +336,10 @@ export class PluginRuntime implements IPluginRuntime {
     // 注册插件
     this.plugins.set(pluginId, instance)
     this.pluginTypes.set(pluginId, loadResult.type)
+
+    if (loadResult.plugin.drizzleSchema) {
+      logger.debug({ id: pluginId }, 'Plugin Drizzle schema detected')
+    }
 
     logger.debug({ id: pluginId, type: loadResult.type }, 'Plugin loaded')
 

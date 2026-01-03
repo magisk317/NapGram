@@ -7,20 +7,20 @@
     "type": "module",
     "exports": {
         ".": {
-            "types": "./dist/src/index.d.ts",
-            "import": "./src/index.ts",
-            "default": "./src/index.ts"
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js",
+            "default": "./dist/index.js"
         },
         "./package.json": "./package.json"
     },
     "publishConfig": {
-        "main": "./dist/src/index.js",
-        "types": "./dist/src/index.d.ts",
+        "main": "./dist/index.js",
+        "types": "./dist/index.d.ts",
         "exports": {
             ".": {
-                "types": "./dist/src/index.d.ts",
-                "import": "./dist/src/index.js",
-                "default": "./dist/src/index.js"
+                "types": "./dist/index.d.ts",
+                "import": "./dist/index.js",
+                "default": "./dist/index.js"
             },
             "./package.json": "./package.json"
         }

@@ -4,7 +4,7 @@
  * 原生插件系统的统一入口
  */
 
-import { getLogger } from '@napgram/infra-kit'
+import { getLogger, drizzleDb } from '@napgram/infra-kit'
 import { IPluginRuntime, setGlobalRuntime, IInstance } from '@napgram/runtime-kit'
 import { createGroupAPI } from './api/group'
 import { createInstanceAPI } from './api/instance'
@@ -66,6 +66,7 @@ export class PluginRuntimeAPI implements IPluginRuntime {
       user: createUserAPI(instanceResolver),
       group: createGroupAPI(instanceResolver),
       web: createWebAPI(this.webRoutes),
+      database: drizzleDb,
     }
 
     getGlobalRuntime({ apis })

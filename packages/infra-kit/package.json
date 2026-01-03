@@ -7,20 +7,20 @@
     "type": "module",
     "exports": {
         ".": {
-            "types": "./dist/src/index.d.ts",
-            "import": "./src/index.ts",
-            "default": "./src/index.ts"
+            "types": "./dist/index.d.ts",
+            "import": "./dist/index.js",
+            "default": "./dist/index.js"
         },
         "./package.json": "./package.json"
     },
     "publishConfig": {
-        "main": "./dist/src/index.js",
-        "types": "./dist/src/index.d.ts",
+        "main": "./dist/index.js",
+        "types": "./dist/index.d.ts",
         "exports": {
             ".": {
-                "types": "./dist/src/index.d.ts",
-                "import": "./dist/src/index.js",
-                "default": "./dist/src/index.js"
+                "types": "./dist/index.d.ts",
+                "import": "./dist/index.js",
+                "default": "./dist/index.js"
             },
             "./package.json": "./package.json"
         }
@@ -38,16 +38,17 @@
     "dependencies": {
         "@napgram/qq-client": "workspace:^",
         "@napgram/telegram-client": "workspace:^",
+        "@napgram/database": "workspace:*",
         "@prisma/adapter-pg": "7.2.0",
         "@prisma/client": "7.2.0",
         "@sentry/node": "10.32.1",
         "fastify": "5.6.2",
-        "pg": "^8.16.3",
         "zod": "^4.3.4"
     },
     "devDependencies": {
         "@types/node": "25.0.3",
         "@types/pg": "^8.16.0",
+        "drizzle-kit": "^0.31.8",
         "typescript": "5.9.3",
         "vitest": "4.0.16"
     }

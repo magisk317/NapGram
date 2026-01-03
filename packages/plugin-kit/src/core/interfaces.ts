@@ -62,6 +62,13 @@ export interface NapGramPlugin {
    * 在插件配置更新时调用
    */
   reload?: () => void | Promise<void>
+
+  /**
+   * Drizzle ORM Schema
+   * 
+   * 用于自动注册插件的数据库表结构
+   */
+  drizzleSchema?: Record<string, unknown>
 }
 
 // ============================================================================
@@ -132,6 +139,9 @@ export interface PluginContext {
 
   /** 存储 API */
   readonly storage: PluginStorage
+
+  /** 数据库 API (Drizzle Client) */
+  readonly database: any
 
   // === 事件监听 ===
 
@@ -371,15 +381,15 @@ export interface NoticeEvent {
 
 export type NoticeType
   = | 'group-member-increase'
-    | 'group-member-decrease'
-    | 'group-admin'
-    | 'group-ban'
-    | 'group-recall'
-    | 'friend-add'
-    | 'friend-recall'
-    | 'connection-lost'
-    | 'connection-restored'
-    | 'other'
+  | 'group-member-decrease'
+  | 'group-admin'
+  | 'group-ban'
+  | 'group-recall'
+  | 'friend-add'
+  | 'friend-recall'
+  | 'connection-lost'
+  | 'connection-restored'
+  | 'other'
 
 /**
  * 实例状态事件
@@ -410,15 +420,15 @@ export interface PluginReloadEvent {
  */
 export type MessageSegment
   = | TextSegment
-    | AtSegment
-    | ReplySegment
-    | ImageSegment
-    | VideoSegment
-    | AudioSegment
-    | FileSegment
-    | ForwardSegment
-    | FaceSegment
-    | RawSegment
+  | AtSegment
+  | ReplySegment
+  | ImageSegment
+  | VideoSegment
+  | AudioSegment
+  | FileSegment
+  | ForwardSegment
+  | FaceSegment
+  | RawSegment
 
 export interface TextSegment {
   type: 'text'
