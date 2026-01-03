@@ -7,7 +7,7 @@ on:
 
 jobs:
   publish:
-    name: Publish dev container image
+    name: Publish dev container image (Alpine)
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -111,14 +111,15 @@ jobs:
           username: ${{ secrets.DOCKERHUB_USERNAME }}
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
-      - name: Build and push
+      - name: Build and push (Alpine multi-platform)
         uses: docker/build-push-action@v5
         with:
           context: .
+          file: ./Dockerfile.alpine
           push: ${{ github.actor != 'dependabot[bot]' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          platforms: linux/amd64
+          platforms: linux/amd64,linux/arm64
           cache-from: type=gha
           cache-to: type=gha,mode=max
           build-args: |
@@ -126,7 +127,7 @@ jobs:
             REF=${{ env.BUILD_REF }}
             COMMIT=${{ env.BUILD_SHA }}
             USE_MIRROR=false
-            NODE_VERSION=25-slim
+            NODE_VERSION=25-alpine
           secrets: |
             npmrc=//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}
 
@@ -137,10 +138,12 @@ jobs:
         run: |
           IMAGES="$(printf '%s\n' "$TAGS" | sed '/^$/d' | sed 's/^/  - /')"
           MESSAGE="$(cat <<EOF
-          ✅ Docker Build Success (dev)
+          ✅ Docker Build Success (dev - Alpine)
 
           Repo: ${{ github.repository }}
           Ref: ${{ env.BUILD_REF_NAME }} @ ${{ env.BUILD_SHA }}
+          Platforms: linux/amd64, linux/arm64
+          Base: Alpine Linux
           Images:
           ${IMAGES}
           EOF

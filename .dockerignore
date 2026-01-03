@@ -1,12 +1,76 @@
+# Node.js dependencies
 **/node_modules
 node_modules
 .pnpm-store
+
+# Git
 .git
+.gitignore
+
+# Environment files
 .env
+.env.*
+!.env.example
+
+# Build outputs (will be generated in container)
 dist
-!web/dist
 build
+!web/dist
+
+# Source files not needed in build
 web/src
-npm-debug.log
+
+# Development files
 main/data
 main/coverage
+main/node_modules
+main/build
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# IDE
+.vscode
+.idea
+*.swp
+*.swo
+*~
+.DS_Store
+
+# Testing
+**/test
+**/__tests__
+**/*.test.js
+**/*.test.ts
+**/*.spec.js
+**/*.spec.ts
+coverage
+.nyc_output
+
+# Documentation
+*.md
+!README.md
+docs
+
+# Docker
+Dockerfile*
+.dockerignore
+docker-compose*.yml
+compose*.yaml
+
+# Scripts (optional - 如果不需要在镜像中)
+build-test.sh
+scripts/*.sh
+
+# GitHub
+.github
+
+# Temporary files
+*.tmp
+.cache
+tmp
+temp

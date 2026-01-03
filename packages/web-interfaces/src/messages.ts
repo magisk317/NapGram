@@ -33,8 +33,8 @@ export default async function (fastify: FastifyInstance) {
     }
 
     const [total, items] = await Promise.all([
-      (db as any).unifiedMessage.count({ where }),
-      (db as any).unifiedMessage.findMany({
+      (db as any).message.count({ where }),
+      (db as any).message.findMany({
         where,
         take,
         skip,
@@ -60,7 +60,7 @@ export default async function (fastify: FastifyInstance) {
       return ErrorResponses.badRequest(reply, 'messageId is required')
     }
 
-    const msg = await (db as any).unifiedMessage.findUnique({
+    const msg = await (db as any).message.findUnique({
       where: { id: messageId },
     })
 
