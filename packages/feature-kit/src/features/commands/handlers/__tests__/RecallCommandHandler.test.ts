@@ -4,32 +4,68 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { db, env } from '@napgram/infra-kit'
 import { RecallCommandHandler } from '../RecallCommandHandler'
 
-vi.mock('@napgram/infra-kit', () => ({
-  db: {
-    message: { findFirst: vi.fn(), findUnique: vi.fn(), findMany: vi.fn(), update: vi.fn(), create: vi.fn(), delete: vi.fn() },
-    forwardPair: { findFirst: vi.fn(), findUnique: vi.fn(), update: vi.fn(), create: vi.fn() },
-    forwardMultiple: { findFirst: vi.fn(), findUnique: vi.fn(), update: vi.fn(), create: vi.fn(), delete: vi.fn() },
-    qQRequest: { findFirst: vi.fn(), findUnique: vi.fn(), findMany: vi.fn(), groupBy: vi.fn(), update: vi.fn(), create: vi.fn() },
-    $queryRaw: vi.fn()
-  },
-  env: {
-    ENABLE_AUTO_RECALL: true,
-    TG_MEDIA_TTL_SECONDS: undefined,
-    DATA_DIR: '/tmp',
-    CACHE_DIR: '/tmp/cache',
-    WEB_ENDPOINT: 'http://napgram-dev:8080'
-  },
-  temp: { TEMP_PATH: '/tmp', createTempFile: vi.fn(() => ({ path: '/tmp/test', cleanup: vi.fn() })) },
-  getLogger: vi.fn(() => ({
-    debug: vi.fn(),
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-    trace: vi.fn(),
-  })),
-  configureInfraKit: vi.fn(),
-  performanceMonitor: { recordCall: vi.fn(), recordError: vi.fn() },
-}))
+vi.mock('@napgram/infra-kit', () => {
+  const mockDb = {
+    query: {
+      message: { findFirst: vi.fn(), findMany: vi.fn() },
+      forwardPair: { findFirst: vi.fn(), findMany: vi.fn() },
+      forwardMultiple: { findFirst: vi.fn(), findMany: vi.fn() },
+      qqRequest: { findFirst: vi.fn(), findMany: vi.fn() },
+    },
+    update: vi.fn(() => ({
+      set: vi.fn(() => ({
+        where: vi.fn().mockResolvedValue({}),
+      })),
+    })),
+    insert: vi.fn(() => ({
+      values: vi.fn(() => ({
+        returning: vi.fn().mockResolvedValue([]),
+      })),
+    })),
+    select: vi.fn(() => ({
+      from: vi.fn(() => ({
+        where: vi.fn(() => ({
+          groupBy: vi.fn().mockResolvedValue([]),
+        })),
+        groupBy: vi.fn().mockResolvedValue([]),
+      })),
+    })),
+    execute: vi.fn().mockResolvedValue({ rows: [] }),
+  }
+
+  return {
+    db: mockDb,
+    schema: {
+      message: { id: 'id', tgChatId: 'tgChatId', tgMsgId: 'tgMsgId', qqRoomId: 'qqRoomId', seq: 'seq', instanceId: 'instanceId' },
+      forwardPair: { id: 'id' },
+      qqRequest: { id: 'id' },
+    },
+    eq: vi.fn(),
+    and: vi.fn(),
+    lt: vi.fn(),
+    desc: vi.fn(),
+    gte: vi.fn(),
+    sql: vi.fn(),
+    count: vi.fn(),
+    env: {
+      ENABLE_AUTO_RECALL: true,
+      TG_MEDIA_TTL_SECONDS: undefined,
+      DATA_DIR: '/tmp',
+      CACHE_DIR: '/tmp/cache',
+      WEB_ENDPOINT: 'http://napgram-dev:8080',
+    },
+    temp: { TEMP_PATH: '/tmp', createTempFile: vi.fn(() => ({ path: '/tmp/test', cleanup: vi.fn() })) },
+    getLogger: vi.fn(() => ({
+      debug: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+      trace: vi.fn(),
+    })),
+    configureInfraKit: vi.fn(),
+    performanceMonitor: { recordCall: vi.fn(), recordError: vi.fn() },
+  }
+})
 
 function createMockContext(): CommandContext {
   return {
@@ -135,7 +171,7 @@ describe('recallCommandHandler', () => {
   })
 
   it('denies recall when sender lacks permission', async () => {
-    vi.mocked(db.message.findFirst).mockResolvedValueOnce({
+    vi.mocked(db.query.message.findFirst).mockResolvedValueOnce({
       tgSenderId: '111111',
     } as any)
 
@@ -150,7 +186,7 @@ describe('recallCommandHandler', () => {
 
   it('recalls a telegram message when authorized', async () => {
     vi.mocked(mockContext.permissionChecker.isAdmin).mockReturnValue(true)
-    vi.mocked(db.message.findFirst).mockResolvedValueOnce({
+    vi.mocked(db.query.message.findFirst).mockResolvedValueOnce({
       tgSenderId: '999999',
       tgMsgId: 42,
       tgChatId: '777777',
@@ -169,7 +205,7 @@ describe('recallCommandHandler', () => {
 
   it('handles batch recall success path', async () => {
     vi.mocked(mockContext.permissionChecker.isAdmin).mockReturnValue(true)
-    vi.mocked(db.message.findMany).mockResolvedValueOnce([
+    vi.mocked(db.query.message.findMany).mockResolvedValueOnce([
       { tgMsgId: 40, seq: '111', tgChatId: '777777' },
       { tgMsgId: 39, seq: '222', tgChatId: '777777' },
     ] as any)
@@ -187,7 +223,7 @@ describe('recallCommandHandler', () => {
   })
 
   it('recalls from QQ platform and removes TG mapping', async () => {
-    vi.mocked(db.message.findFirst).mockResolvedValueOnce({
+    vi.mocked(db.query.message.findFirst).mockResolvedValueOnce({
       tgSenderId: '999999',
       tgMsgId: 88,
       tgChatId: '777777',

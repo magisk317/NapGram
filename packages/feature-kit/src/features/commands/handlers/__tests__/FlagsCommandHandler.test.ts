@@ -6,11 +6,7 @@ import { FlagsCommandHandler } from '../FlagsCommandHandler'
 
 vi.mock('@napgram/infra-kit', () => ({
   db: {
-    message: { findFirst: vi.fn(), findUnique: vi.fn(), findMany: vi.fn(), update: vi.fn(), create: vi.fn(), delete: vi.fn() },
-    forwardPair: { findFirst: vi.fn(), findUnique: vi.fn(), update: vi.fn(), create: vi.fn() },
-    forwardMultiple: { findFirst: vi.fn(), findUnique: vi.fn(), update: vi.fn(), create: vi.fn(), delete: vi.fn() },
-    qQRequest: { findFirst: vi.fn(), findUnique: vi.fn(), findMany: vi.fn(), groupBy: vi.fn(), update: vi.fn(), create: vi.fn() },
-    $queryRaw: vi.fn()
+    execute: vi.fn().mockResolvedValue({ rows: [] }),
   },
   env: {
     ENABLE_AUTO_RECALL: true,
@@ -102,13 +98,13 @@ describe('flagsCommandHandler', () => {
   })
 
   it('lists empty flags when no args', async () => {
-    vi.mocked(db.$queryRaw).mockResolvedValueOnce([])
+    vi.mocked(db.execute).mockResolvedValueOnce({ rows: [] } as any)
     vi.mocked(mockContext.permissionChecker.isAdmin).mockReturnValue(true)
 
     const msg = createMessage('telegram')
     await handler.execute(msg, [])
 
-    expect(db.$queryRaw).toHaveBeenCalled()
+    expect(db.execute).toHaveBeenCalled()
     expect(mockContext.replyTG).toHaveBeenCalledWith(
       '777777',
       expect.stringContaining('当前没有启用任何实验性功能'),
@@ -117,7 +113,7 @@ describe('flagsCommandHandler', () => {
   })
 
   it('falls back to empty flags when query fails', async () => {
-    vi.mocked(db.$queryRaw).mockRejectedValueOnce(new Error('db error'))
+    vi.mocked(db.execute).mockRejectedValueOnce(new Error('db error'))
     vi.mocked(mockContext.permissionChecker.isAdmin).mockReturnValue(true)
 
     const msg = createMessage('telegram')
@@ -197,10 +193,12 @@ describe('flagsCommandHandler', () => {
   })
 
   it('lists flags when using list command', async () => {
-    vi.mocked(db.$queryRaw).mockResolvedValueOnce([
-      { key: 'flag_a', value: true },
-      { key: 'flag_b', value: false },
-    ])
+    vi.mocked(db.execute).mockResolvedValueOnce({
+      rows: [
+        { key: 'flag_a', value: true },
+        { key: 'flag_b', value: false },
+      ]
+    } as any)
     vi.mocked(mockContext.permissionChecker.isAdmin).mockReturnValue(true)
 
     const msg = createMessage('telegram')
@@ -227,7 +225,7 @@ describe('flagsCommandHandler', () => {
   })
 
   it('handles list flags reply failure', async () => {
-    vi.mocked(db.$queryRaw).mockResolvedValueOnce([])
+    vi.mocked(db.execute).mockResolvedValueOnce({ rows: [] } as any)
     vi.mocked(mockContext.permissionChecker.isAdmin).mockReturnValue(true)
     vi.mocked(mockContext.replyTG)
       .mockRejectedValueOnce(new Error('send failed'))

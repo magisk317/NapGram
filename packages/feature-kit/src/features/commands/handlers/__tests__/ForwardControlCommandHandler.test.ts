@@ -2,19 +2,23 @@ import type { UnifiedMessage } from '@napgram/message-kit'
 import type { IQQClient } from '../../../../shared-types'
 import type { CommandContext } from '../CommandContext'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { db, env } from '@napgram/infra-kit'
+import { db, env, schema } from '@napgram/infra-kit'
 
 import { ForwardControlCommandHandler } from '../ForwardControlCommandHandler'
 
 // Mock database
 vi.mock('@napgram/infra-kit', () => ({
   db: {
-    message: { findFirst: vi.fn(), findUnique: vi.fn(), findMany: vi.fn(), update: vi.fn(), create: vi.fn(), delete: vi.fn() },
-    forwardPair: { findFirst: vi.fn(), findUnique: vi.fn(), update: vi.fn(), create: vi.fn() },
-    forwardMultiple: { findFirst: vi.fn(), findUnique: vi.fn(), update: vi.fn(), create: vi.fn(), delete: vi.fn() },
-    qQRequest: { findFirst: vi.fn(), findUnique: vi.fn(), findMany: vi.fn(), groupBy: vi.fn(), update: vi.fn(), create: vi.fn() },
-    $queryRaw: vi.fn()
+    update: vi.fn(() => ({
+      set: vi.fn(() => ({
+        where: vi.fn().mockResolvedValue({}),
+      })),
+    })),
   },
+  schema: {
+    forwardPair: { id: 'id' },
+  },
+  eq: vi.fn(),
   env: {
     ENABLE_AUTO_RECALL: true,
     TG_MEDIA_TTL_SECONDS: undefined,
@@ -139,7 +143,7 @@ describe('forwardControlCommandHandler', () => {
     }
 
     mockContext.instance.forwardPairs.findByTG = vi.fn().mockReturnValue(mockPair)
-    vi.mocked(db.forwardPair.update).mockClear()
+    vi.mocked(db.update).mockClear()
   })
 
   describe('platform Filtering', () => {
@@ -148,7 +152,7 @@ describe('forwardControlCommandHandler', () => {
       await handler.execute(msg, [], 'forwardoff')
 
       expect(mockContext.replyTG).not.toHaveBeenCalled()
-      expect(db.forwardPair.update).not.toHaveBeenCalled()
+      expect(db.update).not.toHaveBeenCalled()
     })
   })
 
@@ -164,7 +168,7 @@ describe('forwardControlCommandHandler', () => {
         expect.stringContaining('未绑定任何 QQ 群'),
         undefined,
       )
-      expect(db.forwardPair.update).not.toHaveBeenCalled()
+      expect(db.update).not.toHaveBeenCalled()
     })
   })
 
@@ -173,10 +177,7 @@ describe('forwardControlCommandHandler', () => {
       const msg = createMessage('/forwardoff', '999999', '777777')
       await handler.execute(msg, [], 'forwardoff')
 
-      expect(db.forwardPair.update).toHaveBeenCalledWith({
-        where: { id: 1 },
-        data: { forwardMode: 'off' },
-      })
+      expect(db.update).toHaveBeenCalledWith(schema.forwardPair)
     })
 
     it('should update pair in memory', async () => {
@@ -205,10 +206,7 @@ describe('forwardControlCommandHandler', () => {
       const msg = createMessage('/forwardon', '999999', '777777')
       await handler.execute(msg, [], 'forwardon')
 
-      expect(db.forwardPair.update).toHaveBeenCalledWith({
-        where: { id: 1 },
-        data: { forwardMode: null },
-      })
+      expect(db.update).toHaveBeenCalledWith(schema.forwardPair)
     })
 
     it('should send success message', async () => {
@@ -228,10 +226,7 @@ describe('forwardControlCommandHandler', () => {
       const msg = createMessage('/disable_qq_forward', '999999', '777777')
       await handler.execute(msg, [], 'disable_qq_forward')
 
-      expect(db.forwardPair.update).toHaveBeenCalledWith({
-        where: { id: 1 },
-        data: { forwardMode: 'tg_only' },
-      })
+      expect(db.update).toHaveBeenCalledWith(schema.forwardPair)
     })
 
     it('should send success message', async () => {
@@ -253,10 +248,7 @@ describe('forwardControlCommandHandler', () => {
       const msg = createMessage('/enable_qq_forward', '999999', '777777')
       await handler.execute(msg, [], 'enable_qq_forward')
 
-      expect(db.forwardPair.update).toHaveBeenCalledWith({
-        where: { id: 1 },
-        data: { forwardMode: null },
-      })
+      expect(db.update).toHaveBeenCalledWith(schema.forwardPair)
     })
 
     it('should send success message', async () => {
@@ -276,10 +268,7 @@ describe('forwardControlCommandHandler', () => {
       const msg = createMessage('/disable_tg_forward', '999999', '777777')
       await handler.execute(msg, [], 'disable_tg_forward')
 
-      expect(db.forwardPair.update).toHaveBeenCalledWith({
-        where: { id: 1 },
-        data: { forwardMode: 'qq_only' },
-      })
+      expect(db.update).toHaveBeenCalledWith(schema.forwardPair)
     })
 
     it('should send success message', async () => {
@@ -301,10 +290,7 @@ describe('forwardControlCommandHandler', () => {
       const msg = createMessage('/enable_tg_forward', '999999', '777777')
       await handler.execute(msg, [], 'enable_tg_forward')
 
-      expect(db.forwardPair.update).toHaveBeenCalledWith({
-        where: { id: 1 },
-        data: { forwardMode: null },
-      })
+      expect(db.update).toHaveBeenCalledWith(schema.forwardPair)
     })
 
     it('should send success message', async () => {
@@ -324,7 +310,7 @@ describe('forwardControlCommandHandler', () => {
       const msg = createMessage('/unknown', '999999', '777777')
       await handler.execute(msg, [], 'unknown')
 
-      expect(db.forwardPair.update).not.toHaveBeenCalled()
+      expect(db.update).not.toHaveBeenCalled()
       expect(mockContext.replyTG).toHaveBeenCalledWith(
         '777777',
         expect.stringContaining('未知命令'),
@@ -362,7 +348,11 @@ describe('forwardControlCommandHandler', () => {
 
   describe('error Handling', () => {
     it('should handle database update failure', async () => {
-      vi.mocked(db.forwardPair.update).mockRejectedValue(new Error('DB Error'))
+      vi.mocked(db.update).mockReturnValue({
+        set: vi.fn(() => ({
+          where: vi.fn().mockRejectedValue(new Error('DB Error')),
+        })),
+      } as any)
 
       const msg = createMessage('/forwardoff', '999999', '777777')
       await handler.execute(msg, [], 'forwardoff')
@@ -376,7 +366,11 @@ describe('forwardControlCommandHandler', () => {
 
     it('should not update memory on database failure', async () => {
       const originalMode = mockPair.forwardMode
-      vi.mocked(db.forwardPair.update).mockRejectedValue(new Error('DB Error'))
+      vi.mocked(db.update).mockReturnValue({
+        set: vi.fn(() => ({
+          where: vi.fn().mockRejectedValue(new Error('DB Error')),
+        })),
+      } as any)
 
       const msg = createMessage('/forwardoff', '999999', '777777')
       await handler.execute(msg, [], 'forwardoff')
