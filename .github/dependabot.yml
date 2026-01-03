@@ -5,9 +5,9 @@
 
 version: 2
 updates:
-  # main 服务 (Root workspace)
+  # main 应用 (使用 npm lockfile)
   - package-ecosystem: "npm"
-    directory: "/"
+    directory: "/main"
     schedule:
       interval: "daily"
     open-pull-requests-limit: 10
@@ -18,17 +18,30 @@ updates:
       prefix: "chore(deps)"
       prefix-development: "chore(deps-dev)"
     
-    # Temporarily disabled: grouped updates cause failures in complex workspace
-    # See: https://github.com/NapGram/NapGram/actions/runs/20653950893
-    # groups:
-    #   all-deps:
-    #     patterns:
-    #       - "*"
-    #     # 排除内部包
-    #     exclude-patterns:
-    #       - "@napgram/*"
-    #       - "@naplink/*"
+    # 依赖分组
+    groups:
+      production-deps:
+        patterns:
+          - "@fastify/*"
+          - "@mtcute/*"
+          - "@prisma/*"
+          - "fastify"
+          - "prisma"
+        update-types:
+          - "minor"
+          - "patch"
+      
+      dev-deps:
+        patterns:
+          - "@types/*"
+          - "typescript"
+          - "vitest"
+          - "eslint"
+        dependency-type: "development"
+        update-types:
+          - "minor"
+          - "patch"
     
+    # 只忽略外部链接的包
     ignore:
       - dependency-name: "@naplink/naplink"
-      - dependency-name: "@napgram/*"
