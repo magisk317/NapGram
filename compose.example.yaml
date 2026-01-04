@@ -149,12 +149,10 @@ services:
       COMMIT: "Local Build"
 
       # -----------------------------------------------------------------------------
-      # 数据库连接（Prisma 使用；需与下方 postgres 服务凭据一致）
+      # 数据库连接（Drizzle 使用；需与下方 postgres 服务凭据一致）
       # -----------------------------------------------------------------------------
       # PostgreSQL 连接串（注意用户名/密码/库名需与 postgres 服务一致）
       DATABASE_URL: "postgres://napgram_user:secure_password_here@postgres:5432/napgram"
-      # 插件 Prisma schema 同步允许数据丢失提示（默认 1）
-      PLUGIN_PRISMA_ACCEPT_DATA_LOSS: "1"
 
       # 时区（可选；影响日志与定时任务）
       TZ: "Asia/Shanghai"
@@ -166,8 +164,7 @@ services:
     depends_on:
       # 依赖数据库服务，先启动 postgres
       - postgres
-    # 启动命令：首次运行创建/同步数据表，然后启动应用
-    command: sh -c "npx prisma db push $$( [ \"$$PLUGIN_PRISMA_ACCEPT_DATA_LOSS\" = \"1\" ] && echo \"--accept-data-loss\" ) && node build/index.js"
+    # 启动命令：容器 entrypoint 会执行 Drizzle 迁移并启动应用
     networks:
       - napgram_net
     restart: always

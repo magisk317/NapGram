@@ -12,7 +12,12 @@ fi
 
 # 尝试运行数据库迁移
 echo "正在运行数据库迁移..."
-if ! bash ./main/tools/run-drizzle-migrations.sh; then
+if [ -z "${DATABASE_URL:-}" ]; then
+  echo "ERROR: DATABASE_URL is not set"
+  exit 1
+fi
+
+if ! /app/node_modules/.bin/drizzle-kit migrate --config /app/database/drizzle.config.ts; then
   echo "Database migration failed; aborting."
   exit 1
 fi

@@ -79,6 +79,7 @@ COPY --from=build --chown=node:node /app/external/sdk /app/external/sdk
 COPY --from=build --chown=node:node /app/main/build /app/build
 COPY --from=build --chown=node:node /app/main/package.json /app/package.json
 COPY --from=build --chown=node:node /app/web/dist /app/public
+COPY --from=build --chown=node:node /app/packages/database /app/database
 
 # 确保 ESM 兼容
 RUN echo '{ "type": "module" }' > /app/build/package.json && \

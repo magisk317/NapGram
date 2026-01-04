@@ -127,7 +127,8 @@
 │   │   ├── infrastructure/# 协议适配与外部依赖（QQ/TG 客户端等）
 │   │   ├── interfaces/   # Web API + Web 控制台托管（Fastify）
 │   │   └── shared/       # 通用工具、日志、服务
-│   ├── prisma/           # Prisma schema & migrations
+├── packages/             # Monorepo packages
+│   └── database/         # Drizzle schema & migrations
 ├── web/                  # Web 控制台静态资源（Docker 镜像内置 dist）
 │   └── dist/             # 前端构建产物（提供 SPA）
 ├── Dockerfile            # 容器构建（默认启用 Web 控制台）
