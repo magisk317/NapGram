@@ -290,11 +290,16 @@ export async function loadPluginSpecs(builtins = []) {
     }
     await loadLocalPluginSpecs();
     // 加载内置插件（低优先级：仅当外部未提供同名 id）
-    for (const builtin of builtins) {
-        addSpec(builtin, 'builtin');
-        if (specsById.get(builtin.id)?.spec === builtin) {
-            logger.debug({ id: builtin.id, module: builtin.module }, 'Builtin plugin added');
+    try {
+        for (const builtin of builtins) {
+            addSpec(builtin, 'builtin');
+            if (specsById.get(builtin.id)?.spec === builtin) {
+                logger.debug({ id: builtin.id, module: builtin.module }, 'Builtin plugin added');
+            }
         }
+    }
+    catch (error) {
+        logger.error({ error }, 'Failed to load builtin plugins');
     }
     return Array.from(specsById.values())
         .sort((a, b) => a.order - b.order)

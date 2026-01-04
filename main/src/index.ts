@@ -73,8 +73,8 @@ import { InstanceRegistry } from '@napgram/runtime-kit'
     sentry.captureException(error, { type: 'uncaughtException' })
   })
 
-  const instanceEntries = await db.instance.findMany()
-  const targets = instanceEntries.length ? instanceEntries.map(it => it.id) : [0]
+  const instanceEntries = await db.query.instance.findMany()
+  const targets = instanceEntries.length ? instanceEntries.map(entry => entry.id) : [0]
 
   // Configure PluginRuntime (Phase 2 Modularization)
   PluginRuntime.setInstanceResolvers(
@@ -88,7 +88,7 @@ import { InstanceRegistry } from '@napgram/runtime-kit'
   api.startListening()
 
   // 再启动实例（包括 FeatureManager 中的 CommandsFeature）
-  await Promise.all(targets.map(id => Instance.start(id)))
+  await Promise.all(targets.map((id) => Instance.start(id)))
 
   sentry.captureMessage('启动完成', { instanceCount: targets.length })
 })()

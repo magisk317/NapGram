@@ -1,4 +1,4 @@
-import { db } from '@napgram/request-kit';
+import { db, schema, eq, and, desc, gte, sql } from '@napgram/request-kit';
 const plugin = {
     id: 'request-management',
     name: 'Request Management',
@@ -43,15 +43,17 @@ const plugin = {
             try {
                 const filter = args[0];
                 const instanceId = getInstanceId(event);
-                const where = { instanceId, status: 'pending' };
-                if (filter === 'friend')
-                    where.type = 'friend';
-                if (filter === 'group')
-                    where.type = 'group';
-                const requests = await db.qQRequest.findMany({
-                    where,
-                    orderBy: { createdAt: 'desc' },
-                    take: 10,
+                const conditions = [
+                    eq(schema.qqRequest.instanceId, instanceId),
+                    eq(schema.qqRequest.status, 'pending'),
+                ];
+                if (filter === 'friend' || filter === 'group') {
+                    conditions.push(eq(schema.qqRequest.type, filter));
+                }
+                const requests = await db.query.qqRequest.findMany({
+                    where: and(...conditions),
+                    orderBy: [desc(schema.qqRequest.createdAt)],
+                    limit: 10,
                 });
                 if (requests.length === 0) {
                     const label = getFilterLabel(filter);
@@ -88,7 +90,9 @@ const plugin = {
                     await event.reply('❌ 请指定请求flag\n\n使用方式：/approve <flag>');
                     return;
                 }
-                const request = await db.qQRequest.findUnique({ where: { flag } });
+                const request = await db.query.qqRequest.findFirst({
+                    where: eq(schema.qqRequest.flag, flag),
+                });
                 if (!request || request.instanceId !== getInstanceId(event)) {
                     await event.reply(`❌ 未找到请求：${flag}`);
                     return;
@@ -112,14 +116,13 @@ const plugin = {
                         throw new Error('请求缺少 subType，无法处理加群申请');
                     await qqClient.handleGroupRequest(flag, request.subType, true);
                 }
-                await db.qQRequest.update({
-                    where: { id: request.id },
-                    data: {
-                        status: 'approved',
-                        handledBy: parseSenderId(event),
-                        handledAt: new Date(),
-                    },
-                });
+                await db.update(schema.qqRequest)
+                    .set({
+                    status: 'approved',
+                    handledBy: parseSenderId(event),
+                    handledAt: new Date(),
+                })
+                    .where(eq(schema.qqRequest.id, request.id));
                 const typeText = request.type === 'friend' ? '好友' : '加群';
                 await event.reply(`✅ 已同意${typeText}申请\n用户：${request.userId}`);
                 ctx.logger.info(`Approved ${request.type} request: ${flag}`);
@@ -137,7 +140,9 @@ const plugin = {
                     await event.reply('❌ 请指定请求flag\n\n使用方式：/reject <flag> [理由]');
                     return;
                 }
-                const request = await db.qQRequest.findUnique({ where: { flag } });
+                const request = await db.query.qqRequest.findFirst({
+                    where: eq(schema.qqRequest.flag, flag),
+                });
                 if (!request || request.instanceId !== getInstanceId(event)) {
                     await event.reply(`❌ 未找到请求：${flag}`);
                     return;
@@ -161,15 +166,14 @@ const plugin = {
                         throw new Error('请求缺少 subType，无法处理加群申请');
                     await qqClient.handleGroupRequest(flag, request.subType, false, reason);
                 }
-                await db.qQRequest.update({
-                    where: { id: request.id },
-                    data: {
-                        status: 'rejected',
-                        handledBy: parseSenderId(event),
-                        handledAt: new Date(),
-                        rejectReason: reason,
-                    },
-                });
+                await db.update(schema.qqRequest)
+                    .set({
+                    status: 'rejected',
+                    handledBy: parseSenderId(event),
+                    handledAt: new Date(),
+                    rejectReason: reason,
+                })
+                    .where(eq(schema.qqRequest.id, request.id));
                 const typeText = request.type === 'friend' ? '好友' : '加群';
                 await event.reply(`✅ 已拒绝${typeText}申请\n用户：${request.userId}${reason ? `\n理由：${reason}` : ''}`);
                 ctx.logger.info(`Rejected ${request.type} request: ${flag}`);
@@ -198,20 +202,24 @@ const plugin = {
                     default:
                         startDate = undefined;
                 }
-                const where = { instanceId };
-                if (startDate)
-                    where.createdAt = { gte: startDate };
-                const stats = await db.qQRequest.groupBy({
-                    by: ['type', 'status'],
-                    where,
-                    _count: { id: true },
-                });
+                const statsConditions = [eq(schema.qqRequest.instanceId, instanceId)];
+                if (startDate) {
+                    statsConditions.push(gte(schema.qqRequest.createdAt, startDate));
+                }
+                const stats = await db.select({
+                    type: schema.qqRequest.type,
+                    status: schema.qqRequest.status,
+                    count: sql`count(${schema.qqRequest.id})`,
+                })
+                    .from(schema.qqRequest)
+                    .where(statsConditions.length > 1 ? and(...statsConditions) : statsConditions[0])
+                    .groupBy(schema.qqRequest.type, schema.qqRequest.status);
                 const summary = {
                     friend: { total: 0, pending: 0, approved: 0, rejected: 0 },
                     group: { total: 0, pending: 0, approved: 0, rejected: 0 },
                 };
                 for (const stat of stats) {
-                    const count = stat._count.id;
+                    const count = stat.count;
                     const type = stat.type;
                     summary[type].total += count;
                     if (stat.status === 'pending')
@@ -255,10 +263,17 @@ const plugin = {
             try {
                 const filter = args[0];
                 const instanceId = getInstanceId(event);
-                const where = { instanceId, status: 'pending' };
-                if (filter === 'friend' || filter === 'group')
-                    where.type = filter;
-                const requests = await db.qQRequest.findMany({ where, take: 50 });
+                const conditions = [
+                    eq(schema.qqRequest.instanceId, instanceId),
+                    eq(schema.qqRequest.status, 'pending'),
+                ];
+                if (filter === 'friend' || filter === 'group') {
+                    conditions.push(eq(schema.qqRequest.type, filter));
+                }
+                const requests = await db.query.qqRequest.findMany({
+                    where: and(...conditions),
+                    limit: 50,
+                });
                 if (requests.length === 0) {
                     await event.reply('📭 没有待处理的请求');
                     return;
@@ -282,14 +297,13 @@ const plugin = {
                                 throw new Error('请求缺少 subType，无法处理加群申请');
                             await qqClient.handleGroupRequest(request.flag, request.subType, true);
                         }
-                        await db.qQRequest.update({
-                            where: { id: request.id },
-                            data: {
-                                status: 'approved',
-                                handledBy: parseSenderId(event),
-                                handledAt: new Date(),
-                            },
-                        });
+                        await db.update(schema.qqRequest)
+                            .set({
+                            status: 'approved',
+                            handledBy: parseSenderId(event),
+                            handledAt: new Date(),
+                        })
+                            .where(eq(schema.qqRequest.id, request.id));
                         successCount++;
                     }
                     catch (error) {
@@ -310,10 +324,17 @@ const plugin = {
                 const filter = args[0];
                 const reason = args.slice(1).join(' ') || '批量拒绝';
                 const instanceId = getInstanceId(event);
-                const where = { instanceId, status: 'pending' };
-                if (filter === 'friend' || filter === 'group')
-                    where.type = filter;
-                const requests = await db.qQRequest.findMany({ where, take: 50 });
+                const conditions = [
+                    eq(schema.qqRequest.instanceId, instanceId),
+                    eq(schema.qqRequest.status, 'pending'),
+                ];
+                if (filter === 'friend' || filter === 'group') {
+                    conditions.push(eq(schema.qqRequest.type, filter));
+                }
+                const requests = await db.query.qqRequest.findMany({
+                    where: and(...conditions),
+                    limit: 50,
+                });
                 if (requests.length === 0) {
                     await event.reply('📭 没有待处理的请求');
                     return;
@@ -337,15 +358,14 @@ const plugin = {
                                 throw new Error('请求缺少 subType，无法处理加群申请');
                             await qqClient.handleGroupRequest(request.flag, request.subType, false, reason);
                         }
-                        await db.qQRequest.update({
-                            where: { id: request.id },
-                            data: {
-                                status: 'rejected',
-                                handledBy: parseSenderId(event),
-                                handledAt: new Date(),
-                                rejectReason: reason,
-                            },
-                        });
+                        await db.update(schema.qqRequest)
+                            .set({
+                            status: 'rejected',
+                            handledBy: parseSenderId(event),
+                            handledAt: new Date(),
+                            rejectReason: reason,
+                        })
+                            .where(eq(schema.qqRequest.id, request.id));
                         successCount++;
                     }
                     catch (error) {

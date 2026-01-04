@@ -3,7 +3,7 @@ import type { Instance } from '../../../shared-types'
 import type { MediaFeature } from '../../MediaFeature'
 import path from 'node:path'
 import { flags } from '../../../shared-types'
-import { db } from '@napgram/infra-kit'
+import { db, schema } from '@napgram/infra-kit'
 import { env } from '@napgram/infra-kit'
 import { getLogger } from '@napgram/infra-kit'
 import { renderContent } from '../utils/render'
@@ -369,18 +369,18 @@ export class TelegramSender {
         const isVenue = Boolean((loc.title && loc.title.trim()) || (loc.address && loc.address.trim()))
         mediaInput = isVenue
           ? {
-              type: 'venue',
-              latitude: loc.latitude,
-              longitude: loc.longitude,
-              title: loc.title || '位置',
-              address: loc.address || '',
-              source: { provider: 'qq', id: '', type: '' },
-            }
+            type: 'venue',
+            latitude: loc.latitude,
+            longitude: loc.longitude,
+            title: loc.title || '位置',
+            address: loc.address || '',
+            source: { provider: 'qq', id: '', type: '' },
+          }
           : {
-              type: 'geo',
-              latitude: loc.latitude,
-              longitude: loc.longitude,
-            }
+            type: 'geo',
+            latitude: loc.latitude,
+            longitude: loc.longitude,
+          }
       }
       else if (content.type === 'dice') {
         const emoji = (content as any).data.emoji || '🎲'
@@ -455,13 +455,12 @@ export class TelegramSender {
     }
 
     try {
-      const entry = await db.forwardMultiple.create({
-        data: {
-          resId: String(content.data.id),
-          fileName: 'Forwarded Message',
-          fromPairId: pair.id,
-        },
-      })
+      const entryArr = await db.insert(schema.forwardMultiple).values({
+        resId: String(content.data.id),
+        fileName: 'Forwarded Message',
+        fromPairId: pair.id,
+      }).returning()
+      const entry = entryArr[0]
 
       const baseUrl = env.WEB_ENDPOINT
       let messageText = richHeaderUsed ? '[转发消息]' : `${header}[转发消息]`

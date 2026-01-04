@@ -1,4 +1,4 @@
-import db from '../db'
+import db, { schema, eq, and } from '../db'
 import getLogger from '../logger'
 
 const logger = getLogger('ForwardMap')
@@ -38,10 +38,7 @@ export class ForwardMap {
     }
 
     static async load(instanceId: number) {
-        const rows = await db.forwardPair.findMany({
-            where: { instanceId },
-            select: { id: true, qqRoomId: true, tgChatId: true, tgThreadId: true, flags: true, instanceId: true, apiKey: true, ignoreRegex: true, ignoreSenders: true, forwardMode: true, nicknameMode: true, commandReplyMode: true, commandReplyFilter: true, commandReplyList: true },
-        })
+        const rows = await db.select().from(schema.forwardPair).where(eq(schema.forwardPair.instanceId, instanceId))
         return new ForwardMap(rows as ForwardPairRecord[], instanceId)
     }
 
@@ -50,25 +47,8 @@ export class ForwardMap {
      * This is used by the web admin panel so changes take effect without restarting the process.
      */
     async reload() {
-        const rows = await db.forwardPair.findMany({
-            where: { instanceId: this.instanceId },
-            select: {
-                id: true,
-                qqRoomId: true,
-                tgChatId: true,
-                tgThreadId: true,
-                flags: true,
-                instanceId: true,
-                apiKey: true,
-                ignoreRegex: true,
-                ignoreSenders: true,
-                forwardMode: true,
-                nicknameMode: true,
-                commandReplyMode: true,
-                commandReplyFilter: true,
-                commandReplyList: true,
-            },
-        })
+        const rows = await db.select().from(schema.forwardPair).where(eq(schema.forwardPair.instanceId, this.instanceId))
+
 
         this.byQQ.clear()
         this.byTG.clear()
@@ -114,31 +94,27 @@ export class ForwardMap {
                 return existingByQQ
             }
 
-            const updated = await db.forwardPair.update({
-                where: { id: existingByQQ.id },
-                data: {
+            const updatedArr = await db.update(schema.forwardPair)
+                .set({
                     tgChatId: BigInt(tgChatId),
                     tgThreadId: normalizedThreadId,
-                },
-                select: { id: true, qqRoomId: true, tgChatId: true, tgThreadId: true, flags: true, instanceId: true, apiKey: true, ignoreRegex: true, ignoreSenders: true, forwardMode: true, nicknameMode: true, commandReplyMode: true, commandReplyFilter: true, commandReplyList: true },
-            })
-            const rec = updated as ForwardPairRecord
+                })
+                .where(eq(schema.forwardPair.id, existingByQQ.id))
+                .returning()
+            const rec = updatedArr[0] as ForwardPairRecord
             this.refreshMaps(existingByQQ, rec)
             return rec
         }
 
-        const row = await db.forwardPair.create({
-            data: {
+        const rowArr = await db.insert(schema.forwardPair)
+            .values({
                 qqRoomId: BigInt(qqRoomId),
                 tgChatId: BigInt(tgChatId),
                 tgThreadId: normalizedThreadId,
-                instance: {
-                    connect: { id: this.instanceId },
-                },
-            },
-            select: { id: true, qqRoomId: true, tgChatId: true, tgThreadId: true, flags: true, instanceId: true, apiKey: true, ignoreRegex: true, ignoreSenders: true, forwardMode: true, nicknameMode: true, commandReplyMode: true, commandReplyFilter: true, commandReplyList: true },
-        })
-        const rec = row as ForwardPairRecord
+                instanceId: this.instanceId,
+            })
+            .returning()
+        const rec = rowArr[0] as ForwardPairRecord
         this.byQQ.set(rec.qqRoomId.toString(), rec)
         this.byTG.set(this.getTgKey(rec.tgChatId, rec.tgThreadId), rec)
         return rec
@@ -148,7 +124,7 @@ export class ForwardMap {
         const rec = this.find(target)
         if (!rec)
             return false
-        await db.forwardPair.delete({ where: { id: rec.id } })
+        await db.delete(schema.forwardPair).where(eq(schema.forwardPair.id, rec.id))
         this.byQQ.delete(rec.qqRoomId.toString())
         this.byTG.delete(this.getTgKey(rec.tgChatId, rec.tgThreadId))
         return true

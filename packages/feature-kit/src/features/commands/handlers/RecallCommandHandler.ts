@@ -1,8 +1,6 @@
 import type { UnifiedMessage } from '@napgram/message-kit'
 import type { CommandContext } from './CommandContext'
-import { db } from '@napgram/infra-kit'
-import { env } from '@napgram/infra-kit'
-import { getLogger } from '@napgram/infra-kit'
+import { db, schema, eq, and, lt, desc, getLogger, env } from '@napgram/infra-kit'
 
 const logger = getLogger('RecallCommandHandler')
 
@@ -60,14 +58,14 @@ export class RecallCommandHandler {
       logger.info(`批量撤回: cmdMsgId=${cmdMsgId}, chatId=${chatId}, count=${count}`)
 
       // 获取命令消息之前的N条消息（不包括命令消息本身）
-      const records = await db.message.findMany({
-        where: {
-          tgChatId: BigInt(chatId),
-          instanceId: this.context.instance.id,
-          tgMsgId: { lt: Number(cmdMsgId) }, // 小于命令消息ID的消息
-        },
-        orderBy: { tgMsgId: 'desc' }, // 从最新到最旧排序
-        take: count,
+      const records = await db.query.message.findMany({
+        where: and(
+          eq(schema.message.tgChatId, BigInt(chatId)),
+          eq(schema.message.instanceId, this.context.instance.id),
+          lt(schema.message.tgMsgId, Number(cmdMsgId)),
+        ),
+        orderBy: [desc(schema.message.tgMsgId)],
+        limit: count,
       })
 
       logger.info(`查询到 ${records.length} 条记录, tgMsgIds: ${records.map(r => r.tgMsgId).join(', ')}`)
@@ -181,22 +179,22 @@ export class RecallCommandHandler {
     let record
     if (msg.platform === 'qq') {
       // QQ 消息：replyToId 是 QQ 的 seq
-      record = await db.message.findFirst({
-        where: {
-          qqRoomId: BigInt(chatId),
-          seq: replyToId,
-          instanceId: this.context.instance.id,
-        },
+      record = await db.query.message.findFirst({
+        where: and(
+          eq(schema.message.qqRoomId, BigInt(chatId)),
+          eq(schema.message.seq, replyToId),
+          eq(schema.message.instanceId, this.context.instance.id),
+        ),
       })
     }
     else {
       // TG 消息：replyToId 是 TG 的 msgId
-      record = await db.message.findFirst({
-        where: {
-          tgChatId: BigInt(chatId),
-          tgMsgId: replyToId,
-          instanceId: this.context.instance.id,
-        },
+      record = await db.query.message.findFirst({
+        where: and(
+          eq(schema.message.tgChatId, BigInt(chatId)),
+          eq(schema.message.tgMsgId, replyToId),
+          eq(schema.message.instanceId, this.context.instance.id),
+        ),
       })
     }
 
@@ -278,12 +276,12 @@ export class RecallCommandHandler {
           logger.info(`级联删除触发命令: TG message ${triggerCommandId} deleted`)
 
           // 同时撤回触发命令对应的 QQ 消息
-          const triggerRecord = await db.message.findFirst({
-            where: {
-              tgChatId: BigInt(chatId),
-              tgMsgId: triggerCommandId,
-              instanceId: this.context.instance.id,
-            },
+          const triggerRecord = await db.query.message.findFirst({
+            where: and(
+              eq(schema.message.tgChatId, BigInt(chatId)),
+              eq(schema.message.tgMsgId, triggerCommandId),
+              eq(schema.message.instanceId, this.context.instance.id),
+            ),
           })
           if (triggerRecord?.seq && env.ENABLE_AUTO_RECALL) {
             try {

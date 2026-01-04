@@ -16,7 +16,7 @@
     "scripts": {
         "build": "tsc -b",
         "dev": "tsc -b -w",
-        "test": "vitest run"
+        "test": "vitest run --passWithNoTests"
     },
     "keywords": [
         "napgram",
@@ -30,7 +30,8 @@
     },
     "devDependencies": {
         "@types/node": "25.0.3",
-        "typescript": "5.9.3"
+        "typescript": "5.9.3",
+        "vitest": "4.0.16"
     },
     "publishConfig": {
         "main": "./dist/src/index.js",

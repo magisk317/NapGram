@@ -9,14 +9,12 @@ import {
   env,
   getLogger,
 } from '@napgram/infra-kit'
-import { getGlobalRuntime } from '@napgram/plugin-kit'
-
 import {
   getPluginVersions,
   installFromMarketplace,
   normalizeModuleSpecifierForPluginsConfig,
   patchPluginConfig,
-  // PluginRuntime, // Interface now, cannot be used as value
+  PluginRuntime,
   readPluginsConfig,
   removePluginConfig,
   rollbackPlugin,
@@ -128,7 +126,7 @@ export default async function (fastify: FastifyInstance) {
       if (!body.success) {
         return reply.code(400).send({ success: false, error: 'Invalid request', details: body.error.issues })
       }
-      const result = await getGlobalRuntime().reload({ defaultInstances: body.data.instances })
+      const result = await PluginRuntime.reload({ defaultInstances: body.data.instances })
       return ApiResponse.success(result)
     }
     catch (error: any) {
@@ -141,7 +139,7 @@ export default async function (fastify: FastifyInstance) {
       const pluginId = String((request.params as any).id || '').trim()
       if (!pluginId)
         return reply.code(400).send(ApiResponse.error('Missing plugin id'))
-      const result = await getGlobalRuntime().reloadPlugin(pluginId)
+      const result = await PluginRuntime.reloadPlugin(pluginId)
       return ApiResponse.success(result)
     }
     catch (error: any) {
@@ -201,7 +199,7 @@ export default async function (fastify: FastifyInstance) {
   })
 
   fastify.get('/api/admin/plugins/status', { preHandler: requirePluginAdmin }, async () => {
-    return ApiResponse.success(getGlobalRuntime().getLastReport())
+    return ApiResponse.success(PluginRuntime.getLastReport())
   })
 
   const pluginCreateSchema = z.object({
@@ -241,10 +239,10 @@ export default async function (fastify: FastifyInstance) {
 
   fastify.get('/api/admin/plugins', { preHandler: requirePluginAdmin }, async () => {
     const { path: configPath, config, exists } = await readPluginsConfig()
-    const report = getGlobalRuntime().getLastReport()
+    const report = PluginRuntime.getLastReport()
     const failed = new Map(report.failed.map((f: any) => [f.id, f.error] as const))
     const loaded = new Set(report.loaded)
-    const runtime = getGlobalRuntime()
+    const runtime = PluginRuntime
     const runtimeActive = runtime.isActive()
 
     const plugins = await Promise.all(config.plugins.map(async (p: any) => {
@@ -295,7 +293,7 @@ export default async function (fastify: FastifyInstance) {
         source: body.data.source,
       })
       if (body.data.reload)
-        await getGlobalRuntime().reload()
+        await PluginRuntime.reload()
       return ApiResponse.success(result)
     }
     catch (error: any) {
@@ -310,7 +308,7 @@ export default async function (fastify: FastifyInstance) {
     }
     try {
       const result = await patchPluginConfig(String((request.params as any).id), body.data)
-      await getGlobalRuntime().reload()
+      await PluginRuntime.reload()
       return ApiResponse.success(result)
     }
     catch (error: any) {
@@ -355,11 +353,11 @@ export default async function (fastify: FastifyInstance) {
       const result = await installFromMarketplace(body.data)
       logger.info({ pluginId: result.id, version: result.version }, 'Plugin install completed')
       if (body.data.reload && !body.data.dryRun)
-        await getGlobalRuntime().reload()
+        await PluginRuntime.reload()
       return ApiResponse.success(result)
     }
     catch (error: any) {
-      logger.error({ error: error?.message || String(error) }, 'Plugin install failed')
+      logger.error({ error: error?.message || String(error), stack: error?.stack, data: body.data }, 'Plugin install failed')
       return reply.code(500).send(ApiResponse.error(error?.message || String(error)))
     }
   })
@@ -388,7 +386,7 @@ export default async function (fastify: FastifyInstance) {
       const result = await upgradePlugin(String((request.params as any).id), body.data)
       logger.info({ pluginId: result.id, version: result.version }, 'Plugin upgrade completed')
       if (body.data.reload && !body.data.dryRun)
-        await getGlobalRuntime().reload()
+        await PluginRuntime.reload()
       return ApiResponse.success(result)
     }
     catch (error: any) {
@@ -413,7 +411,7 @@ export default async function (fastify: FastifyInstance) {
     try {
       const result = await rollbackPlugin(String((request.params as any).id), body.data)
       if (body.data.reload && !body.data.dryRun)
-        await getGlobalRuntime().reload()
+        await PluginRuntime.reload()
       return ApiResponse.success(result)
     }
     catch (error: any) {
@@ -437,10 +435,11 @@ export default async function (fastify: FastifyInstance) {
     try {
       const result = await uninstallPlugin(String((request.params as any).id), body.data)
       if (body.data.reload && !body.data.dryRun)
-        await getGlobalRuntime().reload()
+        await PluginRuntime.reload()
       return ApiResponse.success(result)
     }
     catch (error: any) {
+      logger.error({ error: error?.message || String(error), stack: error?.stack, pluginId: String((request.params as any).id) }, 'Plugin uninstall failed')
       return reply.code(500).send(ApiResponse.error(error?.message || String(error)))
     }
   })

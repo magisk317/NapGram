@@ -29,6 +29,8 @@ vi.mock('@napgram/infra-kit', () => ({
     error: vi.fn(),
     debug: vi.fn(),
   })),
+  temp: { TEMP_PATH: '/tmp/napgram', file: vi.fn(), createTempFile: vi.fn() },
+  hashing: { md5Hex: vi.fn((value: string) => value) },
 }))
 
 vi.mock('../env', () => ({
@@ -47,10 +49,12 @@ describe('store.ts', () => {
     vi.mocked(readStringEnv).mockReturnValue(undefined as any)
     // Set default DATA_DIR
     process.env.DATA_DIR = mockDataDir
+    delete process.env.PLUGINS_CONFIG_PATH
   })
 
   afterEach(() => {
     delete process.env.DATA_DIR
+    delete process.env.PLUGINS_CONFIG_PATH
   })
 
   describe('getManagedPluginsConfigPath', () => {
@@ -60,8 +64,7 @@ describe('store.ts', () => {
     })
 
     it('should use override from environment', async () => {
-      const { readStringEnv } = await import('../env')
-      vi.mocked(readStringEnv).mockReturnValue('/custom/path/config.yaml' as any)
+      process.env.PLUGINS_CONFIG_PATH = '/custom/path/config.yaml'
 
       const configPath = await store.getManagedPluginsConfigPath()
       expect(configPath).toContain('config.yaml')
@@ -170,7 +173,7 @@ describe('store.ts', () => {
       vi.mocked(fs.realpath).mockImplementation(async p => String(p))
 
       // Mock JSON config path inside DATA_DIR
-      vi.mocked(readStringEnv).mockReturnValue(path.join(mockDataDir, 'plugins', 'config.json') as any)
+      process.env.PLUGINS_CONFIG_PATH = path.join(mockDataDir, 'plugins', 'config.json')
 
       const result = await store.readPluginsConfig()
 

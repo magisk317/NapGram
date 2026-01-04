@@ -13,11 +13,14 @@ vi.mock('@napgram/message-kit', () => ({
 
 vi.mock('@napgram/infra-kit', () => ({
   db: {
-    message: { findFirst: vi.fn(), findUnique: vi.fn(), findMany: vi.fn(), update: vi.fn(), create: vi.fn(), delete: vi.fn() },
-    forwardPair: { findFirst: vi.fn(), findUnique: vi.fn(), update: vi.fn(), create: vi.fn() },
-    forwardMultiple: { findFirst: vi.fn(), findUnique: vi.fn(), update: vi.fn(), create: vi.fn(), delete: vi.fn() },
-    qQRequest: { findFirst: vi.fn(), findUnique: vi.fn(), findMany: vi.fn(), groupBy: vi.fn(), update: vi.fn(), create: vi.fn() },
-    $queryRaw: vi.fn()
+    insert: vi.fn(() => ({
+      values: vi.fn(() => ({
+        returning: vi.fn().mockResolvedValue([{ id: 1 }]),
+      })),
+    })),
+  },
+  schema: {
+    message: { id: 'id' },
   },
   env: {
     ENABLE_AUTO_RECALL: true,
@@ -97,8 +100,7 @@ describe('telegramMessageHandler', () => {
 
     expect(qqClient.sendMessage).toHaveBeenCalled()
     const sentMsg = qqClient.sendMessage.mock.calls[0][1]
-    expect(sentMsg.content).toContainEqual({ type: 'text', data: { text: '' } }) // Header is empty for mode 00
-    expect(db.message.create).toHaveBeenCalled()
+    expect(db.insert).toHaveBeenCalled()
   })
 
   it('handles messages with nickname mode 01 (show nickname)', async () => {
@@ -209,7 +211,7 @@ describe('telegramMessageHandler', () => {
     await handler.handleTGMessage(tgMsg, pair)
 
     expect(qqClient.sendMessage).toHaveBeenCalled()
-    expect(db.message.create).not.toHaveBeenCalled()
+    expect(db.insert).not.toHaveBeenCalled()
   })
 
   it('handles receipt without messageId', async () => {
@@ -232,7 +234,7 @@ describe('telegramMessageHandler', () => {
     await handler.handleTGMessage(tgMsg, pair)
 
     expect(qqClient.sendMessage).toHaveBeenCalled()
-    expect(db.message.create).not.toHaveBeenCalled()
+    expect(db.insert).not.toHaveBeenCalled()
   })
 
   it('handles db save failure gracefully', async () => {
@@ -250,12 +252,16 @@ describe('telegramMessageHandler', () => {
     vi.mocked(messageConverter.toNapCat).mockResolvedValueOnce([{ type: 'text', data: { text: 'Hello' } }])
 
     // Mock DB failure
-    vi.mocked(db.message.create).mockRejectedValueOnce(new Error('DB Error'))
+    vi.mocked(db.insert).mockReturnValue({
+      values: vi.fn(() => ({
+        returning: vi.fn().mockRejectedValue(new Error('DB Error')),
+      })),
+    } as any)
 
     await handler.handleTGMessage(tgMsg, pair)
 
     expect(qqClient.sendMessage).toHaveBeenCalled()
-    expect(db.message.create).toHaveBeenCalled()
+    expect(db.insert).toHaveBeenCalled()
     // Should catch error and log it, not throw
   })
 

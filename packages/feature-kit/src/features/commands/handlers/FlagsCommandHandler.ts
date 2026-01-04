@@ -1,6 +1,6 @@
 import type { UnifiedMessage } from '@napgram/message-kit'
 import type { CommandContext } from './CommandContext'
-import { db } from '@napgram/infra-kit'
+import { db, sql } from '@napgram/infra-kit'
 import { getLogger } from '@napgram/infra-kit'
 
 const logger = getLogger('FlagsCommandHandler')
@@ -81,9 +81,9 @@ export class FlagsCommandHandler {
     try {
       // 从environment/config表获取所有flags
       // 这里使用一个简单的键值对方案
-      const flags = await db.$queryRaw<Array<{ key: string, value: boolean }>>`
+      const flags = await db.execute(sql`
                 SELECT key, value FROM instance_flags WHERE instance_id = ${instanceId}
-            `.catch(() => [] as Array<{ key: string, value: boolean }>)
+            `).then(res => res.rows as unknown as Array<{ key: string, value: boolean }>).catch(() => [] as Array<{ key: string, value: boolean }>)
 
       let message = `⚙️ **实验性功能标志**\n\n`
 

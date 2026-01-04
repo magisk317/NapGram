@@ -47,6 +47,9 @@
             "@napgram/plugin-kit": [
                 "packages/plugin-kit/src/index.ts"
             ],
+            "@napgram/sdk": [
+                "external/sdk/packages/sdk/src/index.ts"
+            ],
             "@napgram/app/*": [
                 "main/src/*"
             ]

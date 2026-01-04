@@ -1,6 +1,6 @@
 import { randomBytes, scryptSync } from 'node:crypto'
 import process from 'node:process'
-import { db } from '@napgram/infra-kit'
+import { db, schema, eq, and, or, gt, isNull, lt } from '@napgram/infra-kit'
 
 /**
  * Token 管理器
@@ -20,23 +20,22 @@ export class TokenManager {
    * 验证 Access Token
    */
   static async verifyAccessToken(token: string): Promise<boolean> {
-    const accessToken = await db.accessToken.findFirst({
-      where: {
-        token,
-        isActive: true,
-        OR: [
-          { expiresAt: null },
-          { expiresAt: { gt: new Date() } },
-        ],
-      },
-    })
+    const rows = await db.select().from(schema.accessToken).where(and(
+      eq(schema.accessToken.token, token),
+      eq(schema.accessToken.isActive, true),
+      or(
+        isNull(schema.accessToken.expiresAt),
+        gt(schema.accessToken.expiresAt, new Date())
+      )
+    )).limit(1)
+    const accessToken = rows[0]
 
     if (accessToken) {
       // 更新最后使用时间
-      await db.accessToken.update({
-        where: { id: accessToken.id },
-        data: { lastUsedAt: new Date() },
-      }).catch(() => { })
+      await db.update(schema.accessToken)
+        .set({ lastUsedAt: new Date() })
+        .where(eq(schema.accessToken.id, accessToken.id))
+        .catch(() => { })
       return true
     }
 
@@ -47,12 +46,12 @@ export class TokenManager {
    * 验证 Session Token
    */
   static async verifySessionToken(token: string): Promise<{ userId: number } | null> {
-    const session = await db.adminSession.findFirst({
-      where: {
-        token,
-        expiresAt: { gt: new Date() },
-      },
-      include: {
+    const session = await db.query.adminSession.findFirst({
+      where: and(
+        eq(schema.adminSession.token, token),
+        gt(schema.adminSession.expiresAt, new Date())
+      ),
+      with: {
         user: true,
       },
     })
@@ -74,14 +73,12 @@ export class TokenManager {
   ): Promise<string> {
     const token = this.generateToken()
 
-    await db.accessToken.create({
-      data: {
-        token,
-        description,
-        createdBy,
-        expiresAt,
-        isActive: true,
-      },
+    await db.insert(schema.accessToken).values({
+      token,
+      description,
+      createdBy,
+      expiresAt,
+      isActive: true,
     })
 
     return token
@@ -99,14 +96,12 @@ export class TokenManager {
     const token = this.generateToken()
     const expiresAt = new Date(Date.now() + expiresIn)
 
-    await db.adminSession.create({
-      data: {
-        token,
-        userId,
-        expiresAt,
-        ipAddress,
-        userAgent,
-      },
+    await db.insert(schema.adminSession).values({
+      token,
+      userId,
+      expiresAt,
+      ipAddress,
+      userAgent,
     })
 
     return token
@@ -116,34 +111,31 @@ export class TokenManager {
    * 撤销 Access Token
    */
   static async revokeAccessToken(token: string): Promise<boolean> {
-    const result = await db.accessToken.updateMany({
-      where: { token },
-      data: { isActive: false },
-    })
+    const result = await db.update(schema.accessToken)
+      .set({ isActive: false })
+      .where(eq(schema.accessToken.token, token))
+      .returning()
 
-    return result.count > 0
+    return result.length > 0
   }
 
   /**
    * 撤销 Session Token（登出）
    */
   static async revokeSessionToken(token: string): Promise<boolean> {
-    const result = await db.adminSession.deleteMany({
-      where: { token },
-    })
+    const result = await db.delete(schema.adminSession)
+      .where(eq(schema.adminSession.token, token))
+      .returning()
 
-    return result.count > 0
+    return result.length > 0
   }
 
   /**
    * 清理过期的 tokens
    */
   static async cleanupExpiredTokens(): Promise<void> {
-    await db.adminSession.deleteMany({
-      where: {
-        expiresAt: { lt: new Date() },
-      },
-    })
+    await db.delete(schema.adminSession)
+      .where(lt(schema.adminSession.expiresAt, new Date()))
   }
 
   /**

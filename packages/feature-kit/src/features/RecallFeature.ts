@@ -2,7 +2,7 @@ import type { RecallEvent } from '@napgram/message-kit'
 import type { Instance } from '../shared-types'
 import type { IQQClient } from '../shared-types'
 import type { Telegram } from '../shared-types'
-import { db } from '@napgram/infra-kit'
+import { db, schema, eq, and } from '@napgram/infra-kit'
 import { env } from '@napgram/infra-kit'
 import { getLogger } from '@napgram/infra-kit'
 
@@ -47,12 +47,12 @@ export class RecallFeature {
       }
 
       // 查找对应的 Telegram 消息
-      const dbEntry = await db.message.findFirst({
-        where: {
-          instanceId: this.instance.id,
-          qqRoomId: BigInt(event.chatId),
-          seq: Number(event.messageId),
-        },
+      const dbEntry = await db.query.message.findFirst({
+        where: and(
+          eq(schema.message.instanceId, this.instance.id),
+          eq(schema.message.qqRoomId, BigInt(event.chatId)),
+          eq(schema.message.seq, Number(event.messageId)),
+        ),
       })
 
       if (!dbEntry) {
@@ -71,10 +71,9 @@ export class RecallFeature {
       }
 
       // 更新数据库
-      await db.message.update({
-        where: { id: dbEntry.id },
-        data: { ignoreDelete: true },
-      })
+      await db.update(schema.message)
+        .set({ ignoreDelete: true })
+        .where(eq(schema.message.id, dbEntry.id))
     }
     catch (error) {
       logger.error(error, 'Failed to handle QQ recall:')
@@ -106,12 +105,12 @@ export class RecallFeature {
       for (const tgMsgId of messageIds) {
         try {
           // 查找对应的 QQ 消息
-          const dbEntry = await db.message.findFirst({
-            where: {
-              instanceId: this.instance.id,
-              tgChatId: BigInt(chatId),
-              tgMsgId: Number(tgMsgId),
-            },
+          const dbEntry = await db.query.message.findFirst({
+            where: and(
+              eq(schema.message.instanceId, this.instance.id),
+              eq(schema.message.tgChatId, BigInt(chatId)),
+              eq(schema.message.tgMsgId, Number(tgMsgId)),
+            ),
           })
 
           if (!dbEntry) {
@@ -151,12 +150,12 @@ export class RecallFeature {
       logger.info(`TG message recall requested: ${tgMsgId}`)
 
       // 查找对应的 QQ 消息
-      const dbEntry = await db.message.findFirst({
-        where: {
-          instanceId: this.instance.id,
-          tgChatId: BigInt(tgChatId),
-          tgMsgId,
-        },
+      const dbEntry = await db.query.message.findFirst({
+        where: and(
+          eq(schema.message.instanceId, this.instance.id),
+          eq(schema.message.tgChatId, BigInt(tgChatId)),
+          eq(schema.message.tgMsgId, tgMsgId),
+        ),
       })
 
       if (!dbEntry || !dbEntry.seq) {
@@ -174,10 +173,9 @@ export class RecallFeature {
       }
 
       // 更新数据库
-      await db.message.update({
-        where: { id: dbEntry.id },
-        data: { ignoreDelete: true },
-      })
+      await db.update(schema.message)
+        .set({ ignoreDelete: true })
+        .where(eq(schema.message.id, dbEntry.id))
     }
     catch (error) {
       logger.error('Failed to handle TG recall:', error)

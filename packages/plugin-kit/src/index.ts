@@ -6,6 +6,7 @@ export { PluginRuntime as CorePluginRuntime } from './core/plugin-runtime'
 export * from './core/lifecycle'
 export * from './core/event-bus'
 export * from './core/event-publisher'
+export * from './core/schema-helper'
 export * from './runtime'
 export {
     getPluginVersions,

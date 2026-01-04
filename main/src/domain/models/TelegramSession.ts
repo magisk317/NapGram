@@ -1,6 +1,6 @@
 import type { AppLogger } from '@napgram/infra-kit'
 import { Buffer } from 'node:buffer'
-import { db, env, getLogger } from '@napgram/infra-kit'
+import { db, env, getLogger, schema, eq } from '@napgram/infra-kit'
 
 export default class TelegramSession {
   private log: AppLogger
@@ -23,19 +23,18 @@ export default class TelegramSession {
 
     if (!this._dbId) {
       this.log.debug('Session ID not provided, creating new session entry')
-      const newDbEntry = await db.session.create({
-        data: {
-          dcId: env.TG_INITIAL_DCID || 2,
-          serverAddress: env.TG_INITIAL_SERVER || '149.154.167.50',
-        },
-      })
-      this._dbId = newDbEntry.id
+      const entries = await db.insert(schema.session).values({
+        dcId: env.TG_INITIAL_DCID || 2,
+        serverAddress: env.TG_INITIAL_SERVER || '149.154.167.50',
+      }).returning({ id: schema.session.id })
+      const newDbEntry = entries[0]
+      this._dbId = newDbEntry?.id
       this.log = getLogger(`TelegramSession - ${this._dbId}`)
       return
     }
 
-    const dbEntry = await db.session.findFirst({
-      where: { id: this._dbId },
+    const dbEntry = await db.query.session.findFirst({
+      where: eq(schema.session.id, this._dbId),
     })
 
     if (dbEntry && dbEntry.authKey) {
@@ -59,18 +58,17 @@ export default class TelegramSession {
     this.log.trace('save session string')
     this._sessionString = session
     if (this._dbId) {
-      await db.session.upsert({
-        where: { id: this._dbId },
-        update: {
-          authKey: Buffer.from(session, 'utf-8'),
-        },
-        create: {
+      await db.insert(schema.session)
+        .values({
           id: this._dbId,
           dcId: env.TG_INITIAL_DCID || 2,
           serverAddress: env.TG_INITIAL_SERVER || '149.154.167.50',
           authKey: Buffer.from(session, 'utf-8'),
-        },
-      })
+        })
+        .onConflictDoUpdate({
+          target: schema.session.id,
+          set: { authKey: Buffer.from(session, 'utf-8') },
+        })
     }
   }
 }

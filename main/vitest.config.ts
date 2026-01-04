@@ -38,7 +38,6 @@ export default defineConfig({
         'dist/**',
         '**/*.config.*',
         '**/__tests__/**',
-        '**/prisma/**',
       ],
     },
   },

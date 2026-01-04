@@ -1,7 +1,7 @@
 import type { UnifiedMessage } from '@napgram/message-kit'
 import type { ForwardMap } from '../../../shared-types'
 import type { CommandContext } from './CommandContext'
-import { db } from '@napgram/infra-kit'
+import { db, schema, eq } from '@napgram/infra-kit'
 import { getLogger } from '@napgram/infra-kit'
 
 const logger = getLogger('ForwardControlCommandHandler')
@@ -69,10 +69,9 @@ export class ForwardControlCommandHandler {
 
     try {
       // 更新数据库
-      await db.forwardPair.update({
-        where: { id: pair.id },
-        data: { forwardMode: newMode },
-      })
+      await db.update(schema.forwardPair)
+        .set({ forwardMode: newMode })
+        .where(eq(schema.forwardPair.id, pair.id))
 
       // 更新内存中的记录
       pair.forwardMode = newMode

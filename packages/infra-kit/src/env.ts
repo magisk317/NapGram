@@ -29,6 +29,7 @@ if (process.env.NODE_ENV === 'test') {
 
 const configParsed = z.object({
     DATA_DIR: z.string().default(path.resolve('./data')),
+    DATABASE_URL: z.string().default('postgresql://postgres:password@localhost:5432/napgram'),
     CACHE_DIR: z.string().default(path.join(process.env.DATA_DIR || path.resolve('./data'), 'cache')),
 
     LOG_LEVEL: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal', 'mark', 'off']).default('info'),

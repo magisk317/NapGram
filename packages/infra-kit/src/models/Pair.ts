@@ -1,7 +1,7 @@
 import type { Friend, Group, IQQClient } from '@napgram/qq-client'
 import { TelegramChat } from '@napgram/telegram-client'
 import { Buffer } from 'node:buffer'
-import db from '../db'
+import db, { schema, eq } from '../db'
 import getLogger from '../logger'
 import * as hashingUtils from '../utils/hashing'
 const { md5 } = hashingUtils
@@ -44,9 +44,10 @@ export class Pair {
 
     // 更新 TG 群组的头像和简介
     public async updateInfo() {
-        const avatarCache = await db.avatarCache.findFirst({
-            where: { forwardPairId: this.dbId },
-        })
+        const rows = await db.select().from(schema.avatarCache)
+            .where(eq(schema.avatarCache.forwardPairId, this.dbId))
+            .limit(1)
+        const avatarCache = rows[0]
         const lastHash = avatarCache ? avatarCache.hash : null
         const avatar = await getAvatar(this.qqRoomId)
         const newHash = md5(avatar)
@@ -67,11 +68,14 @@ export class Pair {
         if (!lastHash || Buffer.from(lastHash).compare(newHash) !== 0) {
             log.debug(`更新群头像: ${this.qqRoomId}`)
             await this._tg.setProfilePhoto(avatar)
-            await db.avatarCache.upsert({
-                where: { forwardPairId: this.dbId },
-                update: { hash: newHash },
-                create: { forwardPairId: this.dbId, hash: newHash },
-            })
+            if (avatarCache) {
+                await db.update(schema.avatarCache)
+                    .set({ hash: newHash })
+                    .where(eq(schema.avatarCache.forwardPairId, this.dbId))
+            } else {
+                await db.insert(schema.avatarCache)
+                    .values({ forwardPairId: this.dbId, hash: newHash })
+            }
         }
     }
 
@@ -89,11 +93,9 @@ export class Pair {
 
     set tg(value: TelegramChat) {
         this._tg = value
-        db.forwardPair
-            .update({
-                where: { id: this.dbId },
-                data: { tgChatId: Number(value.id) },
-            })
+        db.update(schema.forwardPair)
+            .set({ tgChatId: BigInt(value.id) })
+            .where(eq(schema.forwardPair.id, this.dbId))
             .then(() => log.info(`出现了到超级群组的转换: ${value.id}`))
     }
 
@@ -103,11 +105,9 @@ export class Pair {
 
     set flags(value) {
         this._flags = value
-        db.forwardPair
-            .update({
-                where: { id: this.dbId },
-                data: { flags: value },
-            })
+        db.update(schema.forwardPair)
+            .set({ flags: value })
+            .where(eq(schema.forwardPair.id, this.dbId))
             .then(() => 0)
     }
 }

@@ -34,6 +34,7 @@ export class PluginContextImpl implements PluginContext {
   readonly logger: PluginLogger
   readonly config: any
   readonly storage: PluginStorage
+  readonly database: any
 
   // API 实例（将在 Phase 3 实现）
   readonly message!: MessageAPI
@@ -59,12 +60,14 @@ export class PluginContextImpl implements PluginContext {
       user?: UserAPI
       group?: GroupAPI
       web?: WebAPI
+      database?: any
     },
   ) {
     this.pluginId = pluginId
     this.config = config
     this.logger = createPluginLogger(pluginId)
     this.storage = createPluginStorage(pluginId)
+    this.database = apis?.database || null
 
     // 注入 API（如果提供）
     if (apis?.message) {
@@ -81,9 +84,9 @@ export class PluginContextImpl implements PluginContext {
     }
     if (apis?.web) {
       const web = apis.web
-      ;(this as any).web = {
-        registerRoutes: (register: (app: any) => void) => web.registerRoutes(register, this.pluginId),
-      }
+        ; (this as any).web = {
+          registerRoutes: (register: (app: any) => void) => web.registerRoutes(register, this.pluginId),
+        }
     }
 
     // 如果没有提供完整 API，使用懒加载的占位符

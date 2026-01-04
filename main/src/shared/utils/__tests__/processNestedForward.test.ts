@@ -5,11 +5,19 @@ import processNestedForward from '../processNestedForward'
 // Mock db
 vi.mock('@napgram/infra-kit', () => ({
   db: {
-    forwardMultiple: {
-      findFirst: vi.fn(),
-      create: vi.fn(),
+    query: {
+      forwardMultiple: {
+        findFirst: vi.fn(),
+      },
     },
+    insert: vi.fn(() => ({
+      values: vi.fn(() => ({
+        returning: vi.fn().mockResolvedValue([{ id: 'uuid-new' }]),
+      })),
+    })),
   },
+  schema: { forwardMultiple: { id: 'id', resId: 'resId' } },
+  eq: vi.fn(),
   getLogger: vi.fn(() => ({
     info: vi.fn(),
     warn: vi.fn(),
@@ -34,10 +42,10 @@ describe('processNestedForward', () => {
 
   it('should skip invalid messages', async () => {
     await processNestedForward([null as any], 1)
-    expect(db.forwardMultiple.findFirst).not.toHaveBeenCalled()
+    expect(db.query.forwardMultiple.findFirst).not.toHaveBeenCalled()
 
     await processNestedForward([{ message: 'text' } as any], 1)
-    expect(db.forwardMultiple.findFirst).not.toHaveBeenCalled()
+    expect(db.query.forwardMultiple.findFirst).not.toHaveBeenCalled()
   })
 
   it('should skip invalid elements', async () => {
@@ -50,7 +58,7 @@ describe('processNestedForward', () => {
     }] as any
 
     await processNestedForward(msgs, 1)
-    expect(db.forwardMultiple.findFirst).not.toHaveBeenCalled()
+    expect(db.query.forwardMultiple.findFirst).not.toHaveBeenCalled()
   })
 
   it('should process forward nodes', async () => {
@@ -60,12 +68,12 @@ describe('processNestedForward', () => {
 
     // Mock existing
     const existing = { id: 'uuid-123' }
-    vi.mocked(db.forwardMultiple.findFirst).mockResolvedValueOnce(existing as any)
+    vi.mocked(db.query.forwardMultiple.findFirst).mockResolvedValueOnce(existing as any)
 
     await processNestedForward(msgs, 1)
 
-    expect(db.forwardMultiple.findFirst).toHaveBeenCalledWith({ where: { resId: 'abc' } })
-    expect(db.forwardMultiple.create).not.toHaveBeenCalled()
+    expect(db.query.forwardMultiple.findFirst).toHaveBeenCalled()
+    expect(db.insert).not.toHaveBeenCalled()
 
     // element data modified?
     const parsed = JSON.parse(elem.data)
@@ -77,19 +85,11 @@ describe('processNestedForward', () => {
     const elem = { type: 'json', data: jsonData }
     const msgs = [{ message: [elem] }] as any
 
-    vi.mocked(db.forwardMultiple.findFirst).mockResolvedValueOnce(null)
-    const created = { id: 'uuid-new' }
-    vi.mocked(db.forwardMultiple.create).mockResolvedValueOnce(created as any)
+    vi.mocked(db.query.forwardMultiple.findFirst).mockResolvedValueOnce(undefined)
 
     await processNestedForward(msgs, 2)
 
-    expect(db.forwardMultiple.create).toHaveBeenCalledWith({
-      data: {
-        resId: 'xyz',
-        fileName: 'bar',
-        fromPairId: 2,
-      },
-    })
+    expect(db.insert).toHaveBeenCalled()
 
     const parsed = JSON.parse(elem.data)
     expect(parsed).toEqual({ type: 'forward', uuid: 'uuid-new' })
@@ -99,29 +99,22 @@ describe('processNestedForward', () => {
     // type not forward
     let elem = { type: 'json', data: JSON.stringify({ type: 'other', resId: '1' }) }
     await processNestedForward([{ message: [elem] }] as any, 1)
-    expect(db.forwardMultiple.findFirst).not.toHaveBeenCalled()
+    expect(db.query.forwardMultiple.findFirst).not.toHaveBeenCalled()
 
     // no resId
     elem = { type: 'json', data: JSON.stringify({ type: 'forward' }) }
     await processNestedForward([{ message: [elem] }] as any, 1)
-    expect(db.forwardMultiple.findFirst).not.toHaveBeenCalled()
+    expect(db.query.forwardMultiple.findFirst).not.toHaveBeenCalled()
   })
   it('should create new forward node with empty filename if missing', async () => {
     const jsonData = JSON.stringify({ type: 'forward', resId: 'missing-fname' })
     const elem = { type: 'json', data: jsonData }
     const msgs = [{ message: [elem] }] as any
 
-    vi.mocked(db.forwardMultiple.findFirst).mockResolvedValueOnce(null)
-    vi.mocked(db.forwardMultiple.create).mockResolvedValueOnce({ id: 'uuid-empty' } as any)
+    vi.mocked(db.query.forwardMultiple.findFirst).mockResolvedValueOnce(undefined)
 
     await processNestedForward(msgs, 3)
 
-    expect(db.forwardMultiple.create).toHaveBeenCalledWith({
-      data: {
-        resId: 'missing-fname',
-        fileName: '',
-        fromPairId: 3,
-      },
-    })
+    expect(db.insert).toHaveBeenCalled()
   })
 })

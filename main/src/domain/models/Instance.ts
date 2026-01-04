@@ -6,7 +6,7 @@ import { FeatureManager } from '../../features/FeatureManager'
 import { qqClientFactory } from '../../infrastructure/clients/qq'
 import { telegramClientFactory } from '../../infrastructure/clients/telegram'
 import { getEventPublisher } from '@napgram/plugin-kit'
-import { db, env, getLogger, ForwardMap, sentry } from '@napgram/infra-kit'
+import { db, env, getLogger, ForwardMap, sentry, schema, eq } from '@napgram/infra-kit'
 
 import { InstanceRegistry } from '@napgram/runtime-kit'
 
@@ -40,17 +40,15 @@ export default class Instance {
   }
 
   private async load() {
-    const dbEntry = await db.instance.findFirst({
-      where: { id: this.id },
-      include: { qqBot: true },
+    const dbEntry = await db.query.instance.findFirst({
+      where: eq(schema.instance.id, this.id),
+      with: { qqBot: true },
     })
 
     if (!dbEntry) {
       if (this.id === 0) {
         // 创建零号实例
-        await db.instance.create({
-          data: { id: 0 },
-        })
+        await db.insert(schema.instance).values({ id: 0 })
         return
       }
       else {
@@ -359,7 +357,11 @@ export default class Instance {
   }
 
   public static async createNew(botToken: string) {
-    const dbEntry = await db.instance.create({ data: {} })
+    const entries = await db.insert(schema.instance).values({}).returning({ id: schema.instance.id })
+    const dbEntry = entries[0]
+    if (!dbEntry) {
+      throw new Error('Failed to create instance')
+    }
     return await this.start(dbEntry.id, botToken)
   }
 
@@ -401,47 +403,42 @@ export default class Instance {
 
   set owner(owner: number) {
     this._owner = owner
-    db.instance.update({
-      data: { owner },
-      where: { id: this.id },
-    })
+    db.update(schema.instance)
+      .set({ owner: BigInt(owner) })
+      .where(eq(schema.instance.id, this.id))
       .then(() => this.log.trace(owner))
   }
 
   set isSetup(isSetup: boolean) {
     this._isSetup = isSetup
-    db.instance.update({
-      data: { isSetup },
-      where: { id: this.id },
-    })
+    db.update(schema.instance)
+      .set({ isSetup })
+      .where(eq(schema.instance.id, this.id))
       .then(() => this.log.trace(isSetup))
   }
 
   set workMode(workMode: WorkMode) {
     this._workMode = workMode
-    db.instance.update({
-      data: { workMode },
-      where: { id: this.id },
-    })
+    db.update(schema.instance)
+      .set({ workMode })
+      .where(eq(schema.instance.id, this.id))
       .then(() => this.log.trace(workMode))
   }
 
   set botSessionId(sessionId: number) {
     this._botSessionId = sessionId
-    db.instance.update({
-      data: { botSessionId: sessionId },
-      where: { id: this.id },
-    })
+    db.update(schema.instance)
+      .set({ botSessionId: sessionId })
+      .where(eq(schema.instance.id, this.id))
       .then(() => this.log.trace(sessionId))
   }
 
   set qqBotId(id: number) {
     if (this._qq)
       this._qq.id = id
-    db.instance.update({
-      data: { qqBotId: id },
-      where: { id: this.id },
-    })
+    db.update(schema.instance)
+      .set({ qqBotId: id })
+      .where(eq(schema.instance.id, this.id))
       .then(() => this.log.trace(id))
   }
 
@@ -451,10 +448,9 @@ export default class Instance {
 
   set flags(value) {
     this._flags = value
-    db.instance.update({
-      data: { flags: value },
-      where: { id: this.id },
-    })
+    db.update(schema.instance)
+      .set({ flags: value })
+      .where(eq(schema.instance.id, this.id))
       .then(() => this.log.trace(value))
   }
 }

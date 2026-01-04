@@ -1,5 +1,5 @@
 import type { ForwardMessage } from '../../infrastructure/clients/qq'
-import { db } from '@napgram/infra-kit'
+import { db, schema, eq } from '@napgram/infra-kit'
 
 export default async (messages: ForwardMessage[], fromPairId: number) => {
   for (const message of messages) {
@@ -22,17 +22,23 @@ export default async (messages: ForwardMessage[], fromPairId: number) => {
       }
       if (parsed.type !== 'forward' || !parsed.resId)
         continue
-      let entity = await db.forwardMultiple.findFirst({ where: { resId: parsed.resId } })
+      let entity = await db.query.forwardMultiple.findFirst({
+        where: eq(schema.forwardMultiple.resId, parsed.resId),
+        columns: { id: true },
+      })
       if (!entity) {
-        entity = await db.forwardMultiple.create({
-          data: {
+        const entries = await db.insert(schema.forwardMultiple)
+          .values({
             resId: parsed.resId,
             fileName: parsed.fileName || '',
             fromPairId,
-          },
-        })
+          })
+          .returning({ id: schema.forwardMultiple.id })
+        entity = entries[0]
       }
-      elem.data = JSON.stringify({ type: 'forward', uuid: entity.id })
+      if (entity) {
+        elem.data = JSON.stringify({ type: 'forward', uuid: entity.id })
+      }
     }
   }
 }

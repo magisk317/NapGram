@@ -1,26 +1,32 @@
 import type { UnifiedMessage } from '@napgram/message-kit'
 import { EventEmitter } from 'node:events'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { db, env } from '@napgram/infra-kit'
+import { db, env, schema } from '@napgram/infra-kit'
 import { getEventPublisher } from '../../../shared-types'
 import { ForwardFeature } from '../ForwardFeature'
 import { MessageUtils } from '../utils/MessageUtils'
 
 vi.mock('@napgram/infra-kit', () => ({
   db: {
-    message: { findFirst: vi.fn(), findUnique: vi.fn(), findMany: vi.fn(), update: vi.fn(), create: vi.fn(), delete: vi.fn() },
-    forwardPair: { findFirst: vi.fn(), findUnique: vi.fn(), update: vi.fn(), create: vi.fn() },
-    forwardMultiple: { findFirst: vi.fn(), findUnique: vi.fn(), update: vi.fn(), create: vi.fn(), delete: vi.fn() },
-    qQRequest: { findFirst: vi.fn(), findUnique: vi.fn(), findMany: vi.fn(), groupBy: vi.fn(), update: vi.fn(), create: vi.fn() },
-    $queryRaw: vi.fn()
+    update: vi.fn(() => ({
+      set: vi.fn(() => ({
+        where: vi.fn().mockResolvedValue({}),
+      })),
+    })),
   },
-  env: { 
-    ENABLE_AUTO_RECALL: true, 
-    TG_MEDIA_TTL_SECONDS: undefined, 
-    DATA_DIR: '/tmp', 
+  schema: {
+    forwardPair: { id: 'id' },
+  },
+  eq: vi.fn(),
+  and: vi.fn(),
+  env: {
+    ENABLE_AUTO_RECALL: true,
+    TG_MEDIA_TTL_SECONDS: undefined,
+    DATA_DIR: '/tmp',
     CACHE_DIR: '/tmp/cache',
     WEB_ENDPOINT: 'http://napgram-dev:8080'
   },
+  hashing: { md5Hex: vi.fn((value: string) => value) },
   temp: { TEMP_PATH: '/tmp', createTempFile: vi.fn(() => ({ path: '/tmp/test', cleanup: vi.fn() })) },
   getLogger: vi.fn(() => ({
     debug: vi.fn(),
@@ -33,9 +39,13 @@ vi.mock('@napgram/infra-kit', () => ({
   performanceMonitor: { recordCall: vi.fn(), recordError: vi.fn() },
 }))
 
-vi.mock('../../../../../../main/src/plugins/core/event-publisher', () => ({
-  getEventPublisher: vi.fn(),
-}))
+vi.mock('../../../shared-types', async (importOriginal) => {
+  const actual = await importOriginal<any>()
+  return {
+    ...actual,
+    getEventPublisher: vi.fn(),
+  }
+})
 
 function createForwardMap() {
   return {
@@ -118,10 +128,14 @@ beforeEach(() => {
   vi.clearAllMocks()
   publishMessage = vi.fn()
   vi.mocked(getEventPublisher).mockReturnValue({ publishMessage } as any)
-  vi.mocked(db.forwardPair.update).mockResolvedValue({
-    id: 1,
-    forwardMode: '11',
-    nicknameMode: '11',
+  vi.mocked(db.update).mockReturnValue({
+    set: vi.fn(() => ({
+      where: vi.fn().mockResolvedValue({
+        id: 1,
+        forwardMode: '11',
+        nicknameMode: '11',
+      }),
+    })),
   } as any)
 })
 
@@ -245,11 +259,7 @@ describe('forwardFeature', () => {
 
     await (feature as any).handleModeCommand(msg, ['nickname', '10'])
 
-    expect(db.forwardPair.update).toHaveBeenCalledWith({
-      where: { id: pair.id },
-      data: { nicknameMode: '10' },
-      select: { id: true, forwardMode: true, nicknameMode: true },
-    })
+    expect(db.update).toHaveBeenCalledWith(schema.forwardPair)
     expect(pair.nicknameMode).toBe('10')
     expect(replySpy).toHaveBeenCalled()
 
@@ -262,7 +272,11 @@ describe('forwardFeature', () => {
     const isAdminSpy = vi.spyOn(MessageUtils, 'isAdmin').mockReturnValue(true)
     const replySpy = vi.spyOn(MessageUtils, 'replyTG').mockResolvedValue(undefined)
     forwardMap.findByTG.mockReturnValue(createPair())
-    vi.mocked(db.forwardPair.update).mockRejectedValueOnce(new Error('fail'))
+    vi.mocked(db.update).mockReturnValue({
+      set: vi.fn(() => ({
+        where: vi.fn().mockRejectedValue(new Error('fail')),
+      })),
+    } as any)
 
     const msg = createMessage({
       platform: 'telegram',

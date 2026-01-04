@@ -29,7 +29,6 @@ export class FeatureManager {
       const { messageConverter } = await import('../domain/message')
       messageConverter.setInstance(this.instance)
       logger.debug('✓ MessageConverter instance set')
-      logger.info('FeatureManager in plugin-only mode: built-in features disabled')
 
       this.registerFeature('media', this.instance.mediaFeature)
       this.registerFeature('commands', this.instance.commandsFeature)

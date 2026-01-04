@@ -9,6 +9,9 @@ vi.mock('@napgram/infra-kit', () => ({
     error: vi.fn(),
     warn: vi.fn(),
   })),
+  env: { DATA_DIR: '/tmp', CACHE_DIR: '/tmp/cache' },
+  temp: { TEMP_PATH: '/tmp/napgram', file: vi.fn(), createTempFile: vi.fn() },
+  hashing: { md5Hex: vi.fn((value: string) => value) },
 }))
 
 describe('eventBus', () => {

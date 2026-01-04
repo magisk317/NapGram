@@ -10,10 +10,15 @@ if [ -z "${ADMIN_TOKEN:-}" ]; then
   echo "已生成随机 ADMIN_TOKEN（请妥善保存）：${ADMIN_TOKEN}"
 fi
 
-# 尝试运行迁移，如果失败则检查是否是 P3005 错误
+# 尝试运行数据库迁移
 echo "正在运行数据库迁移..."
-if ! bash ./main/tools/run-prisma-migrations.sh; then
-  echo "Prisma migrate helper failed; aborting."
+if [ -z "${DATABASE_URL:-}" ]; then
+  echo "ERROR: DATABASE_URL is not set"
+  exit 1
+fi
+
+if ! /app/node_modules/.bin/drizzle-kit migrate --config /app/database/drizzle.config.ts; then
+  echo "Database migration failed; aborting."
   exit 1
 fi
 

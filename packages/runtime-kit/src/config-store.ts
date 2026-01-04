@@ -57,9 +57,27 @@ async function exists(p: string): Promise<boolean> {
     }
 }
 
+
+async function writeAtomic(filePath: string, content: string): Promise<void> {
+    const tmpPath = `${filePath}.tmp`
+    await fs.mkdir(path.dirname(filePath), { recursive: true })
+    await fs.writeFile(tmpPath, content, 'utf8')
+    await fs.rename(tmpPath, filePath)
+}
+
+async function backupConfig(filePath: string): Promise<void> {
+    if (!await exists(filePath)) return
+    try {
+        const backupPath = `${filePath}.bak`
+        await fs.copyFile(filePath, backupPath)
+    } catch (error) {
+        logger.warn({ error, filePath }, 'Failed to backup config file')
+    }
+}
+
 async function writePluginsConfigFile(configPath: string, config: PluginsConfigFile): Promise<void> {
-    await fs.mkdir(path.dirname(configPath), { recursive: true })
-    await fs.writeFile(configPath, YAML.stringify({ plugins: config.plugins }), 'utf8')
+    await backupConfig(configPath)
+    await writeAtomic(configPath, YAML.stringify({ plugins: config.plugins }))
 }
 
 function parseConfig(raw: string, ext: string): PluginsConfigFile {
@@ -161,6 +179,20 @@ export async function normalizeModuleSpecifierForPluginsConfig(moduleRaw: string
 export async function readPluginsConfig(): Promise<{ path: string, config: PluginsConfigFile, exists: boolean }> {
     const configPath = await getManagedPluginsConfigPath()
     await ensureUnderDataDir(configPath)
+
+    // Recovery attempt from backup if main file is missing
+    if (!await exists(configPath)) {
+        const backupPath = `${configPath}.bak`
+        if (await exists(backupPath)) {
+            try {
+                await fs.copyFile(backupPath, configPath)
+                logger.warn({ backupPath, configPath }, 'Restored config from backup (main file missing)')
+            } catch (error) {
+                logger.error({ error }, 'Failed to restore from backup')
+            }
+        }
+    }
+
     let ok = await exists(configPath)
     if (!ok) {
         const migrated = await migrateLegacyPluginsConfig(configPath)
@@ -168,11 +200,34 @@ export async function readPluginsConfig(): Promise<{ path: string, config: Plugi
             return { path: configPath, config: migrated, exists: true }
         ok = await exists(configPath)
     }
+
     if (!ok)
         return { path: configPath, config: { plugins: [] }, exists: false }
-    const raw = await fs.readFile(configPath, 'utf8')
-    const ext = path.extname(configPath).toLowerCase()
-    return { path: configPath, config: parseConfig(raw, ext), exists: true }
+
+    try {
+        const raw = await fs.readFile(configPath, 'utf8')
+        // Basic validation: if empty, try swap with backup if exists
+        if (!raw.trim()) {
+            throw new Error('Empty config file')
+        }
+        const ext = path.extname(configPath).toLowerCase()
+        return { path: configPath, config: parseConfig(raw, ext), exists: true }
+    } catch (error) {
+        logger.error({ error, configPath }, 'Failed to read/parse config file, trying backup...')
+        const backupPath = `${configPath}.bak`
+        if (await exists(backupPath)) {
+            try {
+                const rawBak = await fs.readFile(backupPath, 'utf8')
+                await fs.copyFile(backupPath, configPath)
+                logger.warn('Restored config from backup (main file corrupted)')
+                const ext = path.extname(configPath).toLowerCase()
+                return { path: configPath, config: parseConfig(rawBak, ext), exists: true }
+            } catch (bakError) {
+                logger.error({ error: bakError }, 'Failed to restore from backup')
+            }
+        }
+        return { path: configPath, config: { plugins: [] }, exists: false }
+    }
 }
 
 export async function upsertPluginConfig(entry: { id?: string, module: string, enabled?: boolean, config?: any, source?: any }) {

@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
-import { ApiResponse, db } from '@napgram/infra-kit'
+import { ApiResponse, db, schema, eq, desc } from '@napgram/infra-kit'
 import { authMiddleware, TokenManager } from '@napgram/auth-kit'
 
 function maskToken(token: string) {
@@ -38,26 +38,25 @@ export default async function (fastify: FastifyInstance) {
       preHandler: authMiddleware,
     },
     async () => {
-      const tokens = await db.accessToken.findMany({
-        orderBy: { id: 'desc' },
-        select: {
-          id: true,
-          token: true,
-          description: true,
-          isActive: true,
-          expiresAt: true,
-          createdAt: true,
-          createdBy: true,
-          lastUsedAt: true,
-        },
+      const tokens = await db.select({
+        id: schema.accessToken.id,
+        token: schema.accessToken.token,
+        description: schema.accessToken.description,
+        isActive: schema.accessToken.isActive,
+        expiresAt: schema.accessToken.expiresAt,
+        createdAt: schema.accessToken.createdAt,
+        createdBy: schema.accessToken.createdBy,
+        lastUsedAt: schema.accessToken.lastUsedAt,
       })
+        .from(schema.accessToken)
+        .orderBy(desc(schema.accessToken.id))
 
-      return ApiResponse.success({
-        data: tokens.map((t: any) => ({
+      return ApiResponse.success(
+        tokens.map((t: any) => ({
           ...t,
           token: maskToken(t.token),
         })),
-      })
+      )
     },
   )
 
@@ -80,16 +79,14 @@ export default async function (fastify: FastifyInstance) {
 
         const token = body.token
           ? (
-            await db.accessToken.create({
-              data: {
-                token: body.token,
-                description: body.description,
-                createdBy: auth.userId ?? null,
-                expiresAt,
-                isActive: true,
-              },
-            })
-          ).token
+            await db.insert(schema.accessToken).values({
+              token: body.token,
+              description: body.description,
+              createdBy: auth.userId ?? null,
+              expiresAt,
+              isActive: true,
+            }).returning()
+          )[0].token
           : await TokenManager.createAccessToken(body.description, auth.userId, expiresAt)
         return ApiResponse.success({ token }, 'Token created')
       }
@@ -101,7 +98,7 @@ export default async function (fastify: FastifyInstance) {
             details: error.issues,
           })
         }
-        if (error.code === 'P2002') {
+        if (error && (error.code === 'P2002' || error.constraint?.includes('Unique'))) {
           return reply.code(409).send(ApiResponse.error('Token already exists'))
         }
         throw error
@@ -127,10 +124,9 @@ export default async function (fastify: FastifyInstance) {
           return reply.code(400).send(ApiResponse.error('Invalid token id'))
         }
 
-        await db.accessToken.update({
-          where: { id: tokenId },
-          data: { isActive: false },
-        })
+        await db.update(schema.accessToken)
+          .set({ isActive: false })
+          .where(eq(schema.accessToken.id, tokenId))
 
         return ApiResponse.success(undefined, 'Token revoked')
       }

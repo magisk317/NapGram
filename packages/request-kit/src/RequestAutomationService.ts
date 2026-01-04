@@ -1,5 +1,5 @@
 import type { IQQClient, Instance } from './runtime'
-import { db, getLogger } from './runtime'
+import { db, schema, eq, and, or, lt, desc, sql, getLogger } from './runtime'
 
 const logger = getLogger('RequestAutomationService')
 
@@ -46,19 +46,19 @@ export class RequestAutomationService {
     try {
       const expiryDate = new Date(Date.now() - this.EXPIRY_DAYS * 24 * 60 * 60 * 1000)
 
-      const result = await db.qQRequest.deleteMany({
-        where: {
-          instanceId: this.instance.id,
-          status: 'pending',
-          createdAt: { lt: expiryDate },
-        },
-      })
+      const result = await db.delete(schema.qqRequest)
+        .where(and(
+          eq(schema.qqRequest.instanceId, this.instance.id),
+          eq(schema.qqRequest.status, 'pending'),
+          lt(schema.qqRequest.createdAt, expiryDate),
+        ))
+        .returning()
 
-      if (result.count > 0) {
-        logger.info(`Cleaned up ${result.count} expired requests (older than ${this.EXPIRY_DAYS} days)`)
+      if (result.length > 0) {
+        logger.info(`Cleaned up ${result.length} expired requests (older than ${this.EXPIRY_DAYS} days)`)
       }
 
-      return result.count
+      return result.length
     }
     catch (error) {
       logger.error('Failed to cleanup expired requests:', error)
@@ -73,17 +73,14 @@ export class RequestAutomationService {
   async applyAutomationRules(request: any): Promise<boolean> {
     try {
       // 查询启用的规则，按优先级排序
-      const rules = await db.automationRule.findMany({
-        where: {
-          instanceId: this.instance.id,
-          enabled: true,
-          OR: [
-            { target: request.type },
-            { target: 'all' },
-          ],
-        },
-        orderBy: { priority: 'desc' },
-      })
+      const rules = await db.select().from(schema.automationRule).where(and(
+        eq(schema.automationRule.instanceId, this.instance.id),
+        eq(schema.automationRule.enabled, true),
+        or(
+          eq(schema.automationRule.target, request.type),
+          eq(schema.automationRule.target, 'all'),
+        ),
+      )).orderBy(desc(schema.automationRule.priority))
 
       // 遍历规则，找到第一个匹配的
       for (const rule of rules) {
@@ -146,10 +143,9 @@ export class RequestAutomationService {
       }
 
       // 更新规则匹配计数
-      await db.automationRule.update({
-        where: { id: rule.id },
-        data: { matchCount: { increment: 1 } },
-      })
+      await db.update(schema.automationRule)
+        .set({ matchCount: sql`${schema.automationRule.matchCount} + 1` })
+        .where(eq(schema.automationRule.id, rule.id))
 
       logger.info(`Automation rule #${rule.id} executed successfully`)
     }
@@ -182,14 +178,13 @@ export class RequestAutomationService {
     }
 
     // 更新数据库状态
-    await db.qQRequest.update({
-      where: { id: request.id },
-      data: {
+    await db.update(schema.qqRequest)
+      .set({
         status: 'approved',
         handledBy: BigInt(0), // 0 表示自动处理
         handledAt: new Date(),
-      },
-    })
+      })
+      .where(eq(schema.qqRequest.id, request.id))
   }
 
   /**
@@ -216,15 +211,14 @@ export class RequestAutomationService {
     }
 
     // 更新数据库状态
-    await db.qQRequest.update({
-      where: { id: request.id },
-      data: {
+    await db.update(schema.qqRequest)
+      .set({
         status: 'rejected',
         handledBy: BigInt(0), // 0 表示自动处理
         handledAt: new Date(),
         rejectReason: reason,
-      },
-    })
+      })
+      .where(eq(schema.qqRequest.id, request.id))
   }
 
   /**
@@ -233,11 +227,14 @@ export class RequestAutomationService {
   async updateStatistics(): Promise<void> {
     try {
       // 统计各类请求数量
-      const stats = await db.qQRequest.groupBy({
-        by: ['type', 'status'],
-        where: { instanceId: this.instance.id },
-        _count: { id: true },
+      const rows = await db.select({
+        type: schema.qqRequest.type,
+        status: schema.qqRequest.status,
+        count: sql<number>`count(${schema.qqRequest.id})`,
       })
+        .from(schema.qqRequest)
+        .where(eq(schema.qqRequest.instanceId, this.instance.id))
+        .groupBy(schema.qqRequest.type, schema.qqRequest.status)
 
       // 准备更新数据
       const updateData: any = {
@@ -252,37 +249,44 @@ export class RequestAutomationService {
       }
 
       // 汇总统计
-      for (const stat of stats) {
-        const count = stat._count.id
-        if (stat.type === 'friend') {
+      for (const row of rows) {
+        const count = Number(row.count)
+        if (row.type === 'friend') {
           updateData.friendTotal += count
-          if (stat.status === 'pending')
+          if (row.status === 'pending')
             updateData.friendPending = count
-          else if (stat.status === 'approved')
+          else if (row.status === 'approved')
             updateData.friendApproved = count
-          else if (stat.status === 'rejected')
+          else if (row.status === 'rejected')
             updateData.friendRejected = count
         }
-        else if (stat.type === 'group') {
+        else if (row.type === 'group') {
           updateData.groupTotal += count
-          if (stat.status === 'pending')
+          if (row.status === 'pending')
             updateData.groupPending = count
-          else if (stat.status === 'approved')
+          else if (row.status === 'approved')
             updateData.groupApproved = count
-          else if (stat.status === 'rejected')
+          else if (row.status === 'rejected')
             updateData.groupRejected = count
         }
       }
 
       // Upsert统计数据
-      await db.requestStatistics.upsert({
-        where: { instanceId: this.instance.id },
-        create: {
-          instanceId: this.instance.id,
-          ...updateData,
-        },
-        update: updateData,
-      })
+      const existing = await db.select().from(schema.requestStatistics)
+        .where(eq(schema.requestStatistics.instanceId, this.instance.id))
+        .limit(1)
+
+      if (existing[0]) {
+        await db.update(schema.requestStatistics)
+          .set(updateData)
+          .where(eq(schema.requestStatistics.instanceId, this.instance.id))
+      } else {
+        await db.insert(schema.requestStatistics)
+          .values({
+            instanceId: this.instance.id,
+            ...updateData,
+          })
+      }
 
       logger.debug('Statistics updated successfully')
     }

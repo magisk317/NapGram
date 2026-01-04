@@ -1,5 +1,5 @@
 import type { FriendRequestEvent, GroupRequestEvent, InstanceStatusEvent, NapGramPlugin, PluginContext } from '@napgram/sdk';
-import { db, Instance, RequestAutomationService } from '@napgram/request-kit';
+import { db, schema, eq, Instance, RequestAutomationService } from '@napgram/request-kit';
 
 const automationServices = new Map<number, RequestAutomationService>();
 
@@ -96,24 +96,23 @@ const plugin: NapGramPlugin = {
             const instance = resolveInstance(event.instanceId);
 
             try {
-                const request = await db.qQRequest.create({
-                    data: {
-                        instanceId: event.instanceId,
-                        flag: event.requestId,
-                        type,
-                        subType: type === 'group' ? (event as GroupRequestEvent).subType : undefined,
-                        userId: parseBigInt(event.userId),
-                        groupId: type === 'group' ? parseBigInt((event as GroupRequestEvent).groupId) : undefined,
-                        comment: event.comment,
-                        status: 'pending',
-                    },
-                });
+                const requestArr = await db.insert(schema.qqRequest).values({
+                    instanceId: event.instanceId,
+                    flag: event.requestId,
+                    type,
+                    subType: type === 'group' ? (event as GroupRequestEvent).subType : undefined,
+                    userId: parseBigInt(event.userId),
+                    groupId: type === 'group' ? parseBigInt((event as GroupRequestEvent).groupId) : undefined,
+                    comment: event.comment,
+                    status: 'pending',
+                }).returning()
+                const request = requestArr[0];
 
                 const automation = ensureAutomationService(instance);
                 if (automation) {
                     const autoHandled = await automation.applyAutomationRules(request);
                     if (autoHandled) {
-                        const updated = await db.qQRequest.findUnique({ where: { id: request.id } });
+                        const updated = await db.query.qqRequest.findFirst({ where: eq(schema.qqRequest.id, request.id) });
                         if (updated) {
                             await sendTelegramNotification(instance, formatAutomationNotification(updated));
                         }

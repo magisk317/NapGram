@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { flags } from '../../../shared-types';
-import { db } from '@napgram/infra-kit';
+import { db, schema } from '@napgram/infra-kit';
 import { env } from '@napgram/infra-kit';
 import { getLogger } from '@napgram/infra-kit';
 import { renderContent } from '../utils/render';
@@ -392,13 +392,12 @@ export class TelegramSender {
             });
         }
         try {
-            const entry = await db.forwardMultiple.create({
-                data: {
-                    resId: String(content.data.id),
-                    fileName: 'Forwarded Message',
-                    fromPairId: pair.id,
-                },
-            });
+            const entryArr = await db.insert(schema.forwardMultiple).values({
+                resId: String(content.data.id),
+                fileName: 'Forwarded Message',
+                fromPairId: pair.id,
+            }).returning();
+            const entry = entryArr[0];
             const baseUrl = env.WEB_ENDPOINT;
             let messageText = richHeaderUsed ? '[转发消息]' : `${header}[转发消息]`;
             if (baseUrl) {

@@ -1,35 +1,69 @@
 import type { UnifiedMessage } from '@napgram/message-kit'
 import type { CommandContext } from '../CommandContext'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { db, env } from '@napgram/infra-kit'
+import { db, env, schema } from '@napgram/infra-kit'
 import { RequestManagementCommandHandler } from '../RequestManagementCommandHandler'
 
-vi.mock('@napgram/infra-kit', () => ({
-  db: {
-    message: { findFirst: vi.fn(), findUnique: vi.fn(), findMany: vi.fn(), update: vi.fn(), create: vi.fn(), delete: vi.fn() },
-    forwardPair: { findFirst: vi.fn(), findUnique: vi.fn(), update: vi.fn(), create: vi.fn() },
-    forwardMultiple: { findFirst: vi.fn(), findUnique: vi.fn(), update: vi.fn(), create: vi.fn(), delete: vi.fn() },
-    qQRequest: { findFirst: vi.fn(), findUnique: vi.fn(), findMany: vi.fn(), groupBy: vi.fn(), update: vi.fn(), create: vi.fn() },
-    $queryRaw: vi.fn()
-  },
-  env: {
-    ENABLE_AUTO_RECALL: true,
-    TG_MEDIA_TTL_SECONDS: undefined,
-    DATA_DIR: '/tmp',
-    CACHE_DIR: '/tmp/cache',
-    WEB_ENDPOINT: 'http://napgram-dev:8080'
-  },
-  temp: { TEMP_PATH: '/tmp', createTempFile: vi.fn(() => ({ path: '/tmp/test', cleanup: vi.fn() })) },
-  getLogger: vi.fn(() => ({
-    debug: vi.fn(),
-    info: vi.fn(),
-    warn: vi.fn(),
-    error: vi.fn(),
-    trace: vi.fn(),
-  })),
-  configureInfraKit: vi.fn(),
-  performanceMonitor: { recordCall: vi.fn(), recordError: vi.fn() },
-}))
+vi.mock('@napgram/infra-kit', () => {
+  const mockSelect = {
+    from: vi.fn().mockReturnThis(),
+    where: vi.fn().mockReturnThis(),
+    groupBy: vi.fn().mockResolvedValue([]),
+  }
+  const mockUpdate = {
+    set: vi.fn().mockReturnThis(),
+    where: vi.fn().mockResolvedValue({}),
+  }
+  const mockDb = {
+    query: {
+      message: { findFirst: vi.fn(), findMany: vi.fn() },
+      forwardPair: { findFirst: vi.fn(), findMany: vi.fn() },
+      forwardMultiple: { findFirst: vi.fn(), findMany: vi.fn() },
+      qqRequest: { findFirst: vi.fn(), findMany: vi.fn() },
+    },
+    update: vi.fn(() => mockUpdate),
+    insert: vi.fn(() => ({
+      values: vi.fn(() => ({
+        returning: vi.fn().mockResolvedValue([]),
+      })),
+    })),
+    select: vi.fn(() => mockSelect),
+    execute: vi.fn().mockResolvedValue({ rows: [] }),
+  }
+
+  return {
+    db: mockDb,
+    schema: {
+      message: { id: 'id', tgChatId: 'tgChatId', tgMsgId: 'tgMsgId', qqRoomId: 'qqRoomId', seq: 'seq', instanceId: 'instanceId' },
+      forwardPair: { id: 'id' },
+      qqRequest: { id: 'id', type: 'type', status: 'status', createdAt: 'createdAt', instanceId: 'instanceId', flag: 'flag' },
+    },
+    eq: vi.fn(),
+    and: vi.fn(),
+    lt: vi.fn(),
+    desc: vi.fn(),
+    gte: vi.fn(),
+    sql: vi.fn(),
+    count: vi.fn(),
+    env: {
+      ENABLE_AUTO_RECALL: true,
+      TG_MEDIA_TTL_SECONDS: undefined,
+      DATA_DIR: '/tmp',
+      CACHE_DIR: '/tmp/cache',
+      WEB_ENDPOINT: 'http://napgram-dev:8080',
+    },
+    temp: { TEMP_PATH: '/tmp', createTempFile: vi.fn(() => ({ path: '/tmp/test', cleanup: vi.fn() })) },
+    getLogger: vi.fn(() => ({
+      debug: vi.fn(),
+      info: vi.fn(),
+      warn: vi.fn(),
+      error: vi.fn(),
+      trace: vi.fn(),
+    })),
+    configureInfraKit: vi.fn(),
+    performanceMonitor: { recordCall: vi.fn(), recordError: vi.fn() },
+  }
+})
 
 function createMockContext(): CommandContext {
   return {
@@ -85,7 +119,7 @@ describe('requestManagementCommandHandler', () => {
   })
 
   it('shows empty pending list', async () => {
-    vi.mocked(db.qQRequest.findMany).mockResolvedValueOnce([])
+    vi.mocked(db.query.qqRequest.findMany).mockResolvedValueOnce([])
 
     const msg = createMessage()
     await handler.execute(msg, [], 'pending')
@@ -99,7 +133,7 @@ describe('requestManagementCommandHandler', () => {
 
   it('formats pending requests list', async () => {
     const createdAt = new Date('2025-01-01T00:00:00Z')
-    vi.mocked(db.qQRequest.findMany).mockResolvedValueOnce([
+    vi.mocked(db.query.qqRequest.findMany).mockResolvedValueOnce([
       {
         id: 1,
         flag: 'req-1',
@@ -124,7 +158,7 @@ describe('requestManagementCommandHandler', () => {
   })
 
   it('filters pending group requests', async () => {
-    vi.mocked(db.qQRequest.findMany).mockResolvedValueOnce([
+    vi.mocked(db.query.qqRequest.findMany).mockResolvedValueOnce([
       {
         id: 2,
         flag: 'req-2',
@@ -159,7 +193,7 @@ describe('requestManagementCommandHandler', () => {
   })
 
   it('reports missing request during approve', async () => {
-    vi.mocked(db.qQRequest.findUnique).mockResolvedValueOnce(null)
+    vi.mocked(db.query.qqRequest.findMany).mockResolvedValueOnce([])
 
     const msg = createMessage()
     await handler.execute(msg, ['missing-flag'], 'approve')
@@ -172,14 +206,14 @@ describe('requestManagementCommandHandler', () => {
   })
 
   it('rejects approve for non-pending request', async () => {
-    vi.mocked(db.qQRequest.findUnique).mockResolvedValueOnce({
+    vi.mocked(db.query.qqRequest.findMany).mockResolvedValueOnce([{
       id: 12,
       flag: 'flag-done',
       instanceId: 1,
       status: 'approved',
       type: 'friend',
       userId: '20002',
-    } as any)
+    }] as any)
 
     const msg = createMessage()
     await handler.execute(msg, ['flag-done'], 'approve')
@@ -192,21 +226,21 @@ describe('requestManagementCommandHandler', () => {
   })
 
   it('approves a friend request', async () => {
-    vi.mocked(db.qQRequest.findUnique).mockResolvedValueOnce({
+    vi.mocked(db.query.qqRequest.findMany).mockResolvedValueOnce([{
       id: 10,
       flag: 'flag-friend',
       instanceId: 1,
       status: 'pending',
       type: 'friend',
       userId: '20001',
-    } as any)
-    vi.mocked(db.qQRequest.update).mockResolvedValueOnce({} as any)
+    }] as any)
+    vi.mocked(db.update).mockReturnValue({ set: vi.fn(() => ({ where: vi.fn().mockResolvedValue({}) })) } as any)
 
     const msg = createMessage()
     await handler.execute(msg, ['flag-friend'], 'approve')
 
     expect(mockContext.qqClient.handleFriendRequest).toHaveBeenCalledWith('flag-friend', true)
-    expect(db.qQRequest.update).toHaveBeenCalled()
+    expect(db.update).toHaveBeenCalledWith(schema.qqRequest)
     expect(mockContext.replyTG).toHaveBeenCalledWith(
       '777777',
       expect.stringContaining('已同意好友申请'),
@@ -215,7 +249,7 @@ describe('requestManagementCommandHandler', () => {
   })
 
   it('handles group approve errors', async () => {
-    vi.mocked(db.qQRequest.findUnique).mockResolvedValueOnce({
+    vi.mocked(db.query.qqRequest.findMany).mockResolvedValueOnce([{
       id: 13,
       flag: 'flag-group-missing',
       instanceId: 1,
@@ -223,7 +257,7 @@ describe('requestManagementCommandHandler', () => {
       type: 'group',
       userId: '20003',
       subType: null,
-    } as any)
+    }] as any)
 
     const msg = createMessage()
     await handler.execute(msg, ['flag-group-missing'], 'approve')
@@ -236,7 +270,7 @@ describe('requestManagementCommandHandler', () => {
   })
 
   it('rejects a group request with reason', async () => {
-    vi.mocked(db.qQRequest.findUnique).mockResolvedValueOnce({
+    vi.mocked(db.query.qqRequest.findMany).mockResolvedValueOnce([{
       id: 11,
       flag: 'flag-group',
       instanceId: 1,
@@ -244,8 +278,8 @@ describe('requestManagementCommandHandler', () => {
       type: 'group',
       subType: 'invite',
       userId: '30001',
-    } as any)
-    vi.mocked(db.qQRequest.update).mockResolvedValueOnce({} as any)
+    }] as any)
+    vi.mocked(db.update).mockReturnValue({ set: vi.fn(() => ({ where: vi.fn().mockResolvedValue({}) })) } as any)
 
     const msg = createMessage()
     await handler.execute(msg, ['flag-group', 'no', 'thanks'], 'reject')
@@ -256,7 +290,7 @@ describe('requestManagementCommandHandler', () => {
       false,
       'no thanks',
     )
-    expect(db.qQRequest.update).toHaveBeenCalled()
+    expect(db.update).toHaveBeenCalledWith(schema.qqRequest)
     expect(mockContext.replyTG).toHaveBeenCalledWith(
       '777777',
       expect.stringContaining('已拒绝加群申请'),
@@ -265,21 +299,21 @@ describe('requestManagementCommandHandler', () => {
   })
 
   it('rejects a friend request with reason', async () => {
-    vi.mocked(db.qQRequest.findUnique).mockResolvedValueOnce({
+    vi.mocked(db.query.qqRequest.findMany).mockResolvedValueOnce([{
       id: 14,
       flag: 'flag-friend-reject',
       instanceId: 1,
       status: 'pending',
       type: 'friend',
       userId: '30003',
-    } as any)
-    vi.mocked(db.qQRequest.update).mockResolvedValueOnce({} as any)
+    }] as any)
+    vi.mocked(db.update).mockReturnValue({ set: vi.fn(() => ({ where: vi.fn().mockResolvedValue({}) })) } as any)
 
     const msg = createMessage()
     await handler.execute(msg, ['flag-friend-reject', 'nope'], 'reject')
 
     expect(mockContext.qqClient.handleFriendRequest).toHaveBeenCalledWith('flag-friend-reject', false, 'nope')
-    expect(db.qQRequest.update).toHaveBeenCalled()
+    expect(db.update).toHaveBeenCalledWith(schema.qqRequest)
     expect(mockContext.replyTG).toHaveBeenCalledWith(
       '777777',
       expect.stringContaining('理由：nope'),
@@ -288,7 +322,8 @@ describe('requestManagementCommandHandler', () => {
   })
 
   it('shows empty request stats', async () => {
-    vi.mocked(db.qQRequest.groupBy).mockResolvedValueOnce([] as any)
+    const mockSelect = db.select() as any
+    vi.mocked(mockSelect.groupBy).mockResolvedValueOnce([] as any)
 
     const msg = createMessage()
     await handler.execute(msg, [], 'reqstats')
@@ -301,10 +336,11 @@ describe('requestManagementCommandHandler', () => {
   })
 
   it('shows request stats summary', async () => {
-    vi.mocked(db.qQRequest.groupBy).mockResolvedValueOnce([
-      { type: 'friend', status: 'approved', _count: { id: 2 } },
-      { type: 'friend', status: 'pending', _count: { id: 1 } },
-      { type: 'group', status: 'rejected', _count: { id: 3 } },
+    const mockSelect = db.select() as any
+    vi.mocked(mockSelect.groupBy).mockResolvedValueOnce([
+      { type: 'friend', status: 'approved', count: 2 },
+      { type: 'friend', status: 'pending', count: 1 },
+      { type: 'group', status: 'rejected', count: 3 },
     ] as any)
 
     const msg = createMessage()
@@ -316,7 +352,7 @@ describe('requestManagementCommandHandler', () => {
   })
 
   it('handles approveall when no requests', async () => {
-    vi.mocked(db.qQRequest.findMany).mockResolvedValueOnce([])
+    vi.mocked(db.query.qqRequest.findMany).mockResolvedValueOnce([])
 
     const msg = createMessage()
     await handler.execute(msg, [], 'approveall')
@@ -329,11 +365,11 @@ describe('requestManagementCommandHandler', () => {
   })
 
   it('approves pending requests in batch with failures', async () => {
-    vi.mocked(db.qQRequest.findMany).mockResolvedValueOnce([
+    vi.mocked(db.query.qqRequest.findMany).mockResolvedValueOnce([
       { id: 20, flag: 'flag-friend', type: 'friend' },
       { id: 21, flag: 'flag-group', type: 'group', subType: null },
     ] as any)
-    vi.mocked(db.qQRequest.update).mockResolvedValue({} as any)
+    vi.mocked(db.update).mockReturnValue({ set: vi.fn(() => ({ where: vi.fn().mockResolvedValue({}) })) } as any)
 
     const msg = createMessage()
     await handler.execute(msg, [], 'approveall')
@@ -344,10 +380,10 @@ describe('requestManagementCommandHandler', () => {
   })
 
   it('rejects pending requests in batch with default reason', async () => {
-    vi.mocked(db.qQRequest.findMany).mockResolvedValueOnce([
+    vi.mocked(db.query.qqRequest.findMany).mockResolvedValueOnce([
       { id: 30, flag: 'flag-friend', type: 'friend' },
     ] as any)
-    vi.mocked(db.qQRequest.update).mockResolvedValue({} as any)
+    vi.mocked(db.update).mockReturnValue({ set: vi.fn(() => ({ where: vi.fn().mockResolvedValue({}) })) } as any)
 
     const msg = createMessage()
     await handler.execute(msg, [], 'rejectall')

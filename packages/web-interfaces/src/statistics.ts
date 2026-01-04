@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify'
-import { db, getGlobalRuntime } from '@napgram/runtime-kit'
+import { db, getGlobalRuntime, schema, eq, and, or, gte, lte, count, sql, desc } from '@napgram/runtime-kit'
 import { Instance } from '@napgram/runtime-kit'
 import { authMiddleware } from '@napgram/auth-kit'
 /**
@@ -15,22 +15,20 @@ export default async function (fastify: FastifyInstance) {
   }, async () => {
     const startOfToday = Math.floor(new Date().setHours(0, 0, 0, 0) / 1000)
     const [
-      pairCount,
-      instanceCount,
-      messageCount,
-      todayMessageCount,
+      pairCountResult,
+      instanceCountResult,
+      messageCountResult,
+      todayMessageCountResult,
     ] = await Promise.all([
-      db.forwardPair.count(),
-      db.instance.count(),
-      db.message.count(),
-      db.message.count({
-        where: {
-          time: {
-            gte: startOfToday,
-          },
-        },
-      }),
+      db.select({ value: count() }).from(schema.forwardPair),
+      db.select({ value: count() }).from(schema.instance),
+      db.select({ value: count() }).from(schema.message),
+      db.select({ value: count() }).from(schema.message).where(gte(schema.message.time, startOfToday)),
     ])
+    const pairCount = pairCountResult[0].value
+    const instanceCount = instanceCountResult[0].value
+    const messageCount = messageCountResult[0].value
+    const todayMessageCount = todayMessageCountResult[0].value
 
     // Basic health check
     const health = {
@@ -40,7 +38,7 @@ export default async function (fastify: FastifyInstance) {
     }
 
     try {
-      await db.$queryRaw`SELECT 1`
+      await db.execute(sql`SELECT 1`)
     }
     catch {
       health.db = false
@@ -87,7 +85,7 @@ export default async function (fastify: FastifyInstance) {
     // Strict DB health check for status field
     let dbStatus = 'healthy';
     try {
-      await db.$queryRaw`SELECT 1`;
+      await db.execute(sql`SELECT 1`);
     } catch {
       dbStatus = 'unhealthy';
     }
@@ -124,18 +122,16 @@ export default async function (fastify: FastifyInstance) {
     const startTimestamp = endTimestamp - daysNum * 24 * 60 * 60
 
     // 按天分组统计消息数量
-    const messages = await db.message.groupBy({
-      by: ['time'],
-      where: {
-        time: {
-          gte: startTimestamp,
-          lte: endTimestamp,
-        },
-      },
-      _count: {
-        id: true,
-      },
+    const messages = await db.select({
+      time: schema.message.time,
+      count: count(schema.message.id),
     })
+      .from(schema.message)
+      .where(and(
+        gte(schema.message.time, startTimestamp),
+        lte(schema.message.time, endTimestamp),
+      ))
+      .groupBy(schema.message.time)
 
     // 生成每日数据映射
     const dailyCounts = new Map<string, number>()
@@ -148,7 +144,7 @@ export default async function (fastify: FastifyInstance) {
     // 填充实际数据
     messages.forEach((msg: any) => {
       const dateKey = new Date(msg.time * 1000).toISOString().split('T')[0]
-      dailyCounts.set(dateKey, (dailyCounts.get(dateKey) || 0) + msg._count.id)
+      dailyCounts.set(dateKey, (dailyCounts.get(dateKey) || 0) + Number(msg.count))
     })
 
     // 转换为数组
@@ -170,27 +166,25 @@ export default async function (fastify: FastifyInstance) {
   fastify.get('/api/admin/statistics/pairs/activity', {
     preHandler: authMiddleware,
   }, async () => {
-    const topPairs = await db.message.groupBy({
-      by: ['qqRoomId', 'tgChatId', 'instanceId'],
-      _count: { id: true },
-      orderBy: {
-        _count: {
-          id: 'desc',
-        },
-      },
-      take: 10,
+    const topPairs = await db.select({
+      qqRoomId: schema.message.qqRoomId,
+      tgChatId: schema.message.tgChatId,
+      instanceId: schema.message.instanceId,
+      count: count(schema.message.id),
     })
+      .from(schema.message)
+      .groupBy(schema.message.qqRoomId, schema.message.tgChatId, schema.message.instanceId)
+      .orderBy(desc(count(schema.message.id)))
+      .limit(10)
 
     const relatedPairs = topPairs.length > 0
-      ? await db.forwardPair.findMany({
-        where: {
-          OR: topPairs.map((pair: any) => ({
-            qqRoomId: pair.qqRoomId,
-            tgChatId: pair.tgChatId,
-            instanceId: pair.instanceId,
-          })),
-        },
-        select: {
+      ? await db.query.forwardPair.findMany({
+        where: or(...topPairs.map((pair: any) => and(
+          eq(schema.forwardPair.qqRoomId, pair.qqRoomId),
+          eq(schema.forwardPair.tgChatId, pair.tgChatId),
+          eq(schema.forwardPair.instanceId, pair.instanceId),
+        ))),
+        columns: {
           id: true,
           qqRoomId: true,
           tgChatId: true,
@@ -214,7 +208,7 @@ export default async function (fastify: FastifyInstance) {
           id: pairId,
           qqRoomId: pair.qqRoomId.toString(),
           tgChatId: pair.tgChatId.toString(),
-          messageCount: pair._count.id,
+          messageCount: Number(pair.count),
         }
       }),
     }
@@ -227,14 +221,10 @@ export default async function (fastify: FastifyInstance) {
   fastify.get('/api/admin/statistics/instances/status', {
     preHandler: authMiddleware,
   }, async () => {
-    const instances = await db.instance.findMany({
-      include: {
+    const instances = await db.query.instance.findMany({
+      with: {
         qqBot: true,
-        _count: {
-          select: {
-            ForwardPair: true,
-          },
-        },
+        forwardPairs: true,
       },
     })
 
@@ -246,7 +236,7 @@ export default async function (fastify: FastifyInstance) {
         id: instance.id,
         owner: instance.owner.toString(),
         isOnline: instance.isSetup && !!instance.qqBot,
-        pairCount: instance._count.ForwardPair,
+        pairCount: instance.forwardPairs.length,
         botType: instance.qqBot?.type || null,
       })),
     }
@@ -267,12 +257,10 @@ export default async function (fastify: FastifyInstance) {
     const { limit = 20 } = request.query as { limit?: number }
     const limitNum = Math.min(Math.max(Number.parseInt(String(limit)), 1), 100)
 
-    const messages = await db.message.findMany({
-      take: limitNum,
-      orderBy: {
-        time: 'desc',
-      },
-      include: {
+    const messages = await db.query.message.findMany({
+      limit: limitNum,
+      orderBy: [desc(schema.message.time)],
+      with: {
         instance: true,
       },
     })
@@ -299,13 +287,8 @@ export default async function (fastify: FastifyInstance) {
   }, async () => {
     // 计算最近1小时的消息速率
     const oneHourAgo = Math.floor((Date.now() - 60 * 60 * 1000) / 1000)
-    const recentMessages = await db.message.count({
-      where: {
-        time: {
-          gte: oneHourAgo,
-        },
-      },
-    })
+    const recentMessagesResult = await db.select({ value: count() }).from(schema.message).where(gte(schema.message.time, oneHourAgo))
+    const recentMessages = recentMessagesResult[0].value
 
     const messagesPerHour = recentMessages
     const messagesPerMinute = Math.round(recentMessages / 60)

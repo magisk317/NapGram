@@ -4,7 +4,7 @@ import type { IQQClient } from '../../../shared-types'
 import type { ReplyResolver } from '../services/ReplyResolver'
 import type { MediaGroupHandler } from './MediaGroupHandler'
 import { messageConverter } from '@napgram/message-kit'
-import { db } from '@napgram/infra-kit'
+import { db, schema } from '@napgram/infra-kit'
 import { getLogger } from '@napgram/infra-kit'
 
 const logger = getLogger('ForwardFeature')
@@ -43,18 +43,18 @@ export class TelegramMessageHandler {
 
       const replySegment = qqReply
         ? [{
-            type: 'reply' as const,
-            data: {
-              id: String(qqReply.seq),
-              seq: qqReply.seq,
-              time: qqReply.time,
-              senderUin: qqReply.senderUin,
-              peer: {
-                chatType: 2, // Group chat
-                peerUid: String(qqReply.qqRoomId),
-              },
+          type: 'reply' as const,
+          data: {
+            id: String(qqReply.seq),
+            seq: qqReply.seq,
+            time: qqReply.time,
+            senderUin: qqReply.senderUin,
+            peer: {
+              chatType: 2, // Group chat
+              peerUid: String(qqReply.qqRoomId),
             },
-          }]
+          },
+        }]
         : []
 
       // CRITICAL: Remove TG reply segments (contain TG message IDs like 637)
@@ -219,20 +219,18 @@ export class TelegramMessageHandler {
         if (msgId) {
           // Save mapping for reply lookup (QQ -> TG reply)
           try {
-            await db.message.create({
-              data: {
-                qqRoomId: pair.qqRoomId,
-                qqSenderId: BigInt(0), // Self sent
-                time: Math.floor(Date.now() / 1000),
-                seq: Number(msgId), // Store message_id as seq
-                rand: BigInt(0),
-                pktnum: 0,
-                tgChatId: BigInt(pair.tgChatId),
-                tgMsgId: tgMsg.id,
-                tgSenderId: BigInt(tgMsg.sender.id || 0),
-                instanceId: pair.instanceId,
-                brief: unified.content.map(c => this.renderContent(c)).join(' ').slice(0, 50),
-              },
+            await db.insert(schema.message).values({
+              qqRoomId: pair.qqRoomId,
+              qqSenderId: BigInt(0), // Self sent
+              time: Math.floor(Date.now() / 1000),
+              seq: Number(msgId), // Store message_id as seq
+              rand: BigInt(0),
+              pktnum: 0,
+              tgChatId: BigInt(pair.tgChatId),
+              tgMsgId: tgMsg.id,
+              tgSenderId: BigInt(tgMsg.sender.id || 0),
+              instanceId: pair.instanceId,
+              brief: unified.content.map(c => this.renderContent(c)).join(' ').slice(0, 50),
             })
             logger.debug(`Saved TG->QQ mapping: seq=${msgId} <-> tgMsgId=${tgMsg.id}`)
           }

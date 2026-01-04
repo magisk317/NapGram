@@ -14,6 +14,7 @@ vi.mock('@napgram/infra-kit', () => ({
   }),
   env: { DATA_DIR: '/tmp', CACHE_DIR: '/tmp/cache' },
   temp: { TEMP_PATH: '/tmp/napgram', file: vi.fn(), createTempFile: vi.fn() },
+  hashing: { md5Hex: vi.fn((value: string) => value) },
 }))
 
 // Mock fs

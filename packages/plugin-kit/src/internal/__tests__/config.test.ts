@@ -19,6 +19,7 @@ vi.mock('@napgram/infra-kit', () => ({
   },
   getLogger: vi.fn(() => loggerMock),
   temp: { TEMP_PATH: '/tmp/napgram', file: vi.fn(), createTempFile: vi.fn() },
+  hashing: { md5Hex: vi.fn((value: string) => value) },
 }))
 
 vi.mock('../../../../packages/plugin-ping-pong/src/index', () => ({
@@ -36,6 +37,17 @@ vi.mock('../env', () => ({
     return process.env[k] || ''
   }),
 }))
+
+const builtinSpecs = [
+  { id: 'adapter-qq-napcat', module: '@builtin/adapter-qq-napcat', enabled: true, load: vi.fn(async () => ({ id: 'adapter-qq-napcat' })) },
+  { id: 'ping-pong', module: '@builtin/ping-pong', enabled: true, load: vi.fn(async () => ({ id: 'ping-pong' })) },
+  { id: 'commands', module: '@builtin/commands', enabled: true, load: vi.fn(async () => ({ id: 'commands' })) },
+  { id: 'refresh', module: '@builtin/refresh', enabled: true, load: vi.fn(async () => ({ id: 'refresh' })) },
+  { id: 'statistics', module: '@builtin/statistics', enabled: true, load: vi.fn(async () => ({ id: 'statistics' })) },
+  { id: 'gateway', module: '@builtin/gateway', enabled: true, load: vi.fn(async () => ({ id: 'gateway' })) },
+] as const
+
+const loadPluginSpecs = () => config.loadPluginSpecs([...builtinSpecs])
 
 describe('config', () => {
   beforeEach(() => {
@@ -93,12 +105,12 @@ describe('config', () => {
     vi.mocked(fs.readFile).mockResolvedValueOnce(jsonConfig)
     vi.mocked(fs.readdir).mockResolvedValue([])
 
-    let specs = await config.loadPluginSpecs()
+    let specs = await loadPluginSpecs()
     expect(specs.find(s => s.id === 'ts-p')).toBeUndefined()
 
     process.env.PLUGINS_ALLOW_TS = 'true'
     vi.mocked(fs.readFile).mockResolvedValueOnce(jsonConfig)
-    specs = await config.loadPluginSpecs()
+    specs = await loadPluginSpecs()
     expect(specs.find(s => s.id === 'ts-p')).toBeDefined()
   })
 
@@ -122,7 +134,7 @@ describe('config', () => {
       return ''
     })
 
-    let specs = await config.loadPluginSpecs()
+    let specs = await loadPluginSpecs()
     expect(specs.find(s => s.id === 'mjs-plugin')).toBeDefined()
 
     vi.mocked(fs.readdir).mockResolvedValueOnce([
@@ -144,7 +156,7 @@ describe('config', () => {
         return JSON.stringify({ name: '@scope/js-plugin' })
       return ''
     })
-    specs = await config.loadPluginSpecs()
+    specs = await loadPluginSpecs()
     expect(specs.find(s => s.id === 'js-plugin')).toBeDefined()
   })
 
@@ -163,7 +175,7 @@ describe('config', () => {
       { isFile: () => true, isDirectory: () => false, name: 'dup.js' },
     ] as any)
 
-    const specs = await config.loadPluginSpecs()
+    const specs = await loadPluginSpecs()
     const match = specs.find(s => s.id === 'dup')
     expect(match).toBeDefined()
     expect(match?.module).toBe('/app/data/config-dup.js')
@@ -175,14 +187,14 @@ describe('config', () => {
     }))
     vi.mocked(fs.readdir).mockResolvedValue([])
 
-    const specs = await config.loadPluginSpecs()
+    const specs = await loadPluginSpecs()
     const ping = specs.find(s => s.id === 'ping-pong')
     expect(ping?.module).toBe('/app/data/my-ping.js')
   })
 
   it('error handling and edge cases', async () => {
     vi.mocked(fs.readdir).mockRejectedValue(new Error('readdir failed'))
-    await config.loadPluginSpecs()
+    await loadPluginSpecs()
 
     vi.mocked(fs.realpath).mockImplementation(async (p: any) => {
       if (typeof p === 'string' && p.includes('evil'))
@@ -190,7 +202,7 @@ describe('config', () => {
       return p as string
     })
     process.env.PLUGINS_CONFIG_PATH = '/app/data/evil.json'
-    await config.loadPluginSpecs()
+    await loadPluginSpecs()
 
     vi.mocked(fs.readdir).mockResolvedValueOnce([
       { isFile: () => true, isDirectory: () => false, name: 'fail.js' },
@@ -200,7 +212,7 @@ describe('config', () => {
         throw new Error('access fail')
       return undefined
     })
-    await config.loadPluginSpecs()
+    await loadPluginSpecs()
   })
 
   it('loadPluginSpecs package.json parse error', async () => {
@@ -212,7 +224,7 @@ describe('config', () => {
         return 'invalid json'
       return ''
     })
-    await config.loadPluginSpecs()
+    await loadPluginSpecs()
   })
 
   it('loadPluginSpecs directory skip scenarios', async () => {
@@ -226,7 +238,7 @@ describe('config', () => {
       throw new Error('no entry')
     })
     vi.mocked(fs.readFile).mockResolvedValue(JSON.stringify({ name: 'no-entry' }))
-    await config.loadPluginSpecs()
+    await loadPluginSpecs()
 
     // Entry file does not exist (line 337)
     vi.mocked(fs.readdir).mockResolvedValueOnce([
@@ -240,7 +252,7 @@ describe('config', () => {
       return undefined
     })
     vi.mocked(fs.readFile).mockResolvedValue(JSON.stringify({ name: 'missing-entry', main: 'main.js' }))
-    await config.loadPluginSpecs()
+    await loadPluginSpecs()
 
     // No package.json found (line 345)
     vi.mocked(fs.readdir).mockResolvedValueOnce([
@@ -251,7 +263,7 @@ describe('config', () => {
         throw new Error('no pkg')
       return undefined
     })
-    await config.loadPluginSpecs()
+    await loadPluginSpecs()
   })
 
   // New tests for missing coverage
@@ -273,7 +285,7 @@ describe('config', () => {
 
     // Mock FS for discovery
     vi.mocked(fs.readFile).mockResolvedValue('') // config file empty
-    const specs = await config.loadPluginSpecs()
+    const specs = await loadPluginSpecs()
     const tsSpec = specs.find(s => s.id === 'test')
 
     if (tsSpec) {
@@ -308,7 +320,7 @@ describe('config', () => {
 
     // This calls resolvePathUnderDataDir
     // expect logger error
-    await config.loadPluginSpecs()
+    await loadPluginSpecs()
 
     expect(fs.access).toHaveBeenCalled()
     expect(fs.realpath).toHaveBeenCalledWith(expect.stringContaining('hack'))
@@ -334,7 +346,7 @@ plugins:
     })
     vi.mocked(fs.readdir).mockResolvedValue([])
 
-    const specs = await config.loadPluginSpecs()
+    const specs = await loadPluginSpecs()
     const yamlPlugin = specs.find(s => s.id === 'yaml-plugin')
     expect(yamlPlugin).toBeDefined()
   })
@@ -350,7 +362,7 @@ plugins:
     })
     vi.mocked(fs.readdir).mockResolvedValue([])
 
-    const specs = await config.loadPluginSpecs()
+    const specs = await loadPluginSpecs()
     expect(specs.find(s => s.id === 'yml-plugin')).toBeDefined()
   })
 
@@ -376,7 +388,7 @@ plugins:
       return ''
     })
 
-    const specs = await config.loadPluginSpecs()
+    const specs = await loadPluginSpecs()
     expect(specs.find(s => s.id === 'cjs-plugin')).toBeDefined()
   })
 
@@ -400,7 +412,7 @@ plugins:
       return ''
     })
 
-    const specs = await config.loadPluginSpecs()
+    const specs = await loadPluginSpecs()
     const scoped = specs.find(s => s.id === 'scoped-plugin')
     expect(scoped).toBeDefined()
   })
@@ -412,7 +424,7 @@ plugins:
     ] as any)
     vi.mocked(fs.access).mockResolvedValue(undefined)
 
-    const specs = await config.loadPluginSpecs()
+    const specs = await loadPluginSpecs()
     expect(specs.find(s => s.id === 'file-plugin')).toBeDefined()
   })
 
@@ -423,7 +435,7 @@ plugins:
       { isFile: () => false, isDirectory() { return true }, name: '.hidden-dir' },
     ] as any)
 
-    const specs = await config.loadPluginSpecs()
+    const specs = await loadPluginSpecs()
     expect(specs.find(s => s.id === 'hidden')).toBeUndefined()
     expect(specs.find(s => s.id === 'hidden-dir')).toBeUndefined()
   })
@@ -523,7 +535,7 @@ describe('loadPluginSpecs priority and override logic', () => {
     })
     vi.mocked(fs.readdir).mockResolvedValue([])
 
-    const specs = await config.loadPluginSpecs()
+    const specs = await loadPluginSpecs()
     const pingPong = specs.find(s => s.id === 'ping-pong')
 
     expect(pingPong).toBeDefined()
@@ -538,7 +550,7 @@ describe('loadPluginSpecs priority and override logic', () => {
       { isFile: () => true, isDirectory() { return false }, name: 'plugin1-copy.js' },
     ] as any)
 
-    const specs = await config.loadPluginSpecs()
+    const specs = await loadPluginSpecs()
     const plugin1Specs = specs.filter(s => s.id === 'plugin1')
 
     // Should only have one, the first one discovered
@@ -562,7 +574,7 @@ describe('loadPluginSpecs priority and override logic', () => {
     })
     vi.mocked(fs.readdir).mockResolvedValue([])
 
-    const specs = await config.loadPluginSpecs()
+    const specs = await loadPluginSpecs()
     const invalidPlugin = specs.find(s => s.id.includes('invalid'))
 
     // ID should be sanitized
@@ -582,7 +594,7 @@ describe('loadPluginSpecs priority and override logic', () => {
       return undefined
     })
 
-    const specs = await config.loadPluginSpecs()
+    const specs = await loadPluginSpecs()
 
     // Should skip directory without package.json
     expect(specs.find(s => s.id === 'no-package-dir')).toBeUndefined()
@@ -608,7 +620,7 @@ describe('loadPluginSpecs priority and override logic', () => {
       return ''
     })
 
-    const specs = await config.loadPluginSpecs()
+    const specs = await loadPluginSpecs()
 
     // Should skip directory without entry file
     expect(specs.find(s => s.id === 'no-entry-plugin')).toBeUndefined()
@@ -620,7 +632,7 @@ describe('loadPluginSpecs priority and override logic', () => {
     vi.mocked(fs.readFile).mockRejectedValueOnce(new Error('Read error'))
     vi.mocked(fs.readdir).mockResolvedValue([])
 
-    const specs = await config.loadPluginSpecs()
+    const specs = await loadPluginSpecs()
 
     // Should still return builtin plugins despite config error
     expect(specs.length).toBeGreaterThan(0)
@@ -633,7 +645,7 @@ describe('loadPluginSpecs priority and override logic', () => {
     vi.mocked(fs.readFile).mockResolvedValue('')
     vi.mocked(fs.readdir).mockRejectedValueOnce(new Error('Scan error'))
 
-    const specs = await config.loadPluginSpecs()
+    const specs = await loadPluginSpecs()
 
     // Should still return builtin plugins despite scan error
     expect(specs.length).toBeGreaterThan(0)
@@ -652,7 +664,7 @@ describe('loadPluginSpecs priority and override logic', () => {
       return ''
     })
 
-    const specs = await config.loadPluginSpecs()
+    const specs = await loadPluginSpecs()
 
     // Should skip plugin with bad package.json
     expect(specs.find(s => s.id === 'bad-json-dir')).toBeUndefined()
@@ -675,7 +687,7 @@ describe('loadPluginSpecs priority and override logic', () => {
     })
     vi.mocked(fs.readdir).mockResolvedValue([])
 
-    const specs = await config.loadPluginSpecs()
+    const specs = await loadPluginSpecs()
 
     // Should skip plugin with empty module
     expect(specs.find(s => s.id === 'empty-module')).toBeUndefined()
@@ -698,7 +710,7 @@ describe('loadPluginSpecs priority and override logic', () => {
     })
     vi.mocked(fs.readdir).mockResolvedValue([])
 
-    const specs = await config.loadPluginSpecs()
+    const specs = await loadPluginSpecs()
     const fileUrlPlugin = specs.find(s => s.id === 'file-url-plugin')
 
     expect(fileUrlPlugin).toBeDefined()
@@ -722,7 +734,7 @@ describe('loadPluginSpecs priority and override logic', () => {
     })
     vi.mocked(fs.readdir).mockResolvedValue([])
 
-    const specs = await config.loadPluginSpecs()
+    const specs = await loadPluginSpecs()
 
     // Should skip .ts plugin when not allowed
     expect(specs.find(s => s.id === 'ts-plugin')).toBeUndefined()
@@ -745,7 +757,7 @@ describe('loadPluginSpecs priority and override logic', () => {
     })
     vi.mocked(fs.readdir).mockResolvedValue([])
 
-    const specs = await config.loadPluginSpecs()
+    const specs = await loadPluginSpecs()
     const disabledPlugin = specs.find(s => s.id === 'disabled-plugin')
 
     expect(disabledPlugin).toBeDefined()
@@ -768,7 +780,7 @@ describe('loadPluginSpecs priority and override logic', () => {
     })
     vi.mocked(fs.readdir).mockResolvedValue([])
 
-    const specs = await config.loadPluginSpecs()
+    const specs = await loadPluginSpecs()
 
     // Should infer ID from module path
     expect(specs.find(s => s.id === 'my-awesome-plugin')).toBeDefined()
@@ -793,7 +805,7 @@ describe('loadPluginSpecs priority and override logic', () => {
     })
     vi.mocked(fs.readdir).mockResolvedValue([])
 
-    const specs = await config.loadPluginSpecs()
+    const specs = await loadPluginSpecs()
     const configuredPlugin = specs.find(s => s.id === 'configured-plugin')
 
     expect(configuredPlugin).toBeDefined()
@@ -808,7 +820,7 @@ describe('loadPluginSpecs priority and override logic', () => {
     ] as any)
     vi.mocked(fs.access).mockResolvedValue(undefined)
 
-    const specs = await config.loadPluginSpecs()
+    const specs = await loadPluginSpecs()
     expect(specs.find(s => s.id === 'plugin')).toBeDefined()
   })
 
@@ -831,7 +843,7 @@ describe('loadPluginSpecs priority and override logic', () => {
       { isFile: () => true, isDirectory() { return false }, name: 'duplicate.js' },
     ] as any)
 
-    const specs = await config.loadPluginSpecs()
+    const specs = await loadPluginSpecs()
     const duplicateSpecs = specs.filter(s => s.id === 'duplicate')
 
     // Should only have one (from config, not from local dir)
@@ -858,7 +870,7 @@ describe('loadPluginSpecs priority and override logic', () => {
       return ''
     })
 
-    const specs = await config.loadPluginSpecs()
+    const specs = await loadPluginSpecs()
     const customPlugin = specs.find(s => s.id === 'custom-main')
 
     expect(customPlugin).toBeDefined()
@@ -882,7 +894,7 @@ describe('loadPluginSpecs priority and override logic', () => {
     })
     vi.mocked(fs.readdir).mockResolvedValue([])
 
-    const specs = await config.loadPluginSpecs()
+    const specs = await loadPluginSpecs()
     expect(specs.find(s => s.id === 'abs-path')).toBeDefined()
   })
 
@@ -903,7 +915,7 @@ describe('loadPluginSpecs priority and override logic', () => {
     })
     vi.mocked(fs.readdir).mockResolvedValue([])
 
-    const specs = await config.loadPluginSpecs()
+    const specs = await loadPluginSpecs()
     const longIdPlugin = specs.find(s => s.id.length === 64)
 
     // ID should be truncated to 64 chars
@@ -929,7 +941,7 @@ describe('loadPluginSpecs priority and override logic', () => {
       return ''
     })
 
-    const specs = await config.loadPluginSpecs()
+    const specs = await loadPluginSpecs()
 
     // Should use parent directory name when file is index.js
     expect(specs.find(s => s.id === 'my-package')).toBeDefined()
@@ -958,7 +970,7 @@ describe('loadPluginSpecs priority and override logic', () => {
       return ''
     })
 
-    const specs = await config.loadPluginSpecs()
+    const specs = await loadPluginSpecs()
 
     // Should skip when main file doesn't exist
     expect(specs.find(s => s.id === 'broken-pkg')).toBeUndefined()
@@ -988,7 +1000,7 @@ describe('loadPluginSpecs priority and override logic', () => {
       { isFile: () => true, isDirectory() { return false }, name: 'other-name.js' },
     ] as any)
 
-    const specs = await config.loadPluginSpecs()
+    const specs = await loadPluginSpecs()
 
     // Plugin from local dir should be discovered since path doesn't match
     expect(specs.find(s => s.id === 'other-name')).toBeDefined()
@@ -1011,7 +1023,7 @@ describe('loadPluginSpecs priority and override logic', () => {
     })
     vi.mocked(fs.readdir).mockResolvedValue([])
 
-    const specs = await config.loadPluginSpecs()
+    const specs = await loadPluginSpecs()
     const commandsPlugin = specs.find(s => s.id === 'commands')
 
     // Should override builtin commands plugin
@@ -1032,14 +1044,14 @@ describe('additional edge cases and helper functions', () => {
     vi.mocked(fs.readdir).mockResolvedValue([])
     vi.mocked(fs.access).mockResolvedValue(undefined)
 
-    const specs = await config.loadPluginSpecs()
+    const specs = await loadPluginSpecs()
 
     // Should still load builtin plugins despite any errors
     expect(specs.length).toBeGreaterThan(0)
   })
 
   it('should call all built-in plugin load functions', async () => {
-    const specs = await config.loadPluginSpecs()
+    const specs = await loadPluginSpecs()
     const builtins = specs.filter(s => s.module.startsWith('@builtin/'))
     expect(builtins.length).toBeGreaterThan(5)
 
@@ -1066,7 +1078,7 @@ describe('additional edge cases and helper functions', () => {
     })
     vi.mocked(fs.readdir).mockResolvedValue([])
 
-    const specs = await config.loadPluginSpecs()
+    const specs = await loadPluginSpecs()
     const spec = specs.find(s => s.id === 'file-url')
     expect(spec).toBeDefined()
     expect(spec?.module).toBe('/app/data/plugins/plugin.js')
@@ -1080,7 +1092,7 @@ describe('additional edge cases and helper functions', () => {
 
   it('should handle readdir failure in local scan', async () => {
     vi.mocked(fs.readdir).mockRejectedValueOnce(new Error('Scan error'))
-    const specs = await config.loadPluginSpecs()
+    const specs = await loadPluginSpecs()
     // Should still have builtin plugins
     expect(specs.length).toBeGreaterThan(0)
   })
@@ -1101,7 +1113,7 @@ describe('additional edge cases and helper functions', () => {
       return ''
     })
 
-    const specs = await config.loadPluginSpecs()
+    const specs = await loadPluginSpecs()
     const spec = specs.find(s => s.id === 'mjs-plugin')
     expect(spec).toBeDefined()
     expect(spec?.module).toContain('index.mjs')
@@ -1114,7 +1126,7 @@ describe('additional edge cases and helper functions', () => {
     vi.mocked(fs.readFile).mockResolvedValue('')
     vi.mocked(fs.readdir).mockResolvedValue([])
 
-    const specs = await config.loadPluginSpecs()
+    const specs = await loadPluginSpecs()
 
     // Should still return builtin plugins
     expect(specs.length).toBeGreaterThan(0)
@@ -1130,7 +1142,7 @@ describe('additional edge cases and helper functions', () => {
       ],
     }))
 
-    const specs = await config.loadPluginSpecs()
+    const specs = await loadPluginSpecs()
     const dupSpecs = specs.filter(s => s.id === 'dup')
     expect(dupSpecs.length).toBe(1)
 
@@ -1160,7 +1172,7 @@ describe('additional edge cases and helper functions', () => {
       return ''
     })
 
-    const specs = await config.loadPluginSpecs()
+    const specs = await loadPluginSpecs()
     const spec = specs.find(s => s.id === 'js-plugin')
     expect(spec).toBeDefined()
     expect(spec?.module).toContain('index.js')
@@ -1182,7 +1194,7 @@ describe('additional edge cases and helper functions', () => {
       return ''
     })
 
-    const specs = await config.loadPluginSpecs()
+    const specs = await loadPluginSpecs()
     const spec = specs.find(s => s.id === 'dir-plugin')
     expect(spec).toBeDefined()
 
@@ -1209,7 +1221,7 @@ describe('additional edge cases and helper functions', () => {
       { isFile: () => true, isDirectory: () => false, name: 'my-plugin.js' },
     ] as any)
 
-    const specs = await config.loadPluginSpecs()
+    const specs = await loadPluginSpecs()
     const myPluginSpecs = specs.filter(s => s.id === 'my-plugin')
     expect(myPluginSpecs.length).toBe(1)
     expect(myPluginSpecs[0].module).toBe('/app/data/my-plugin.js')
@@ -1228,7 +1240,7 @@ describe('additional edge cases and helper functions', () => {
     })
     vi.mocked(fs.readdir).mockResolvedValue([])
 
-    await config.loadPluginSpecs()
+    await loadPluginSpecs()
 
     // Hit line 213 (origin === 'builtin' check in addSpec)
     const call = loggerMock.info.mock.calls.find(c =>
@@ -1239,7 +1251,7 @@ describe('additional edge cases and helper functions', () => {
 
   it('should handle scan error in loadLocalPluginSpecs', async () => {
     vi.mocked(fs.readdir).mockRejectedValueOnce(new Error('readdir failed'))
-    await config.loadPluginSpecs()
+    await loadPluginSpecs()
     // Hit line 348
     expect(loggerMock.error.mock.calls.some(c => c[1] === 'Failed to scan pluginsDir')).toBe(true)
   })
@@ -1254,7 +1266,7 @@ describe('additional edge cases and helper functions', () => {
         return 'invalid json'
       return ''
     })
-    await config.loadPluginSpecs()
+    await loadPluginSpecs()
     // Hit line 342
     expect(loggerMock.warn.mock.calls.some(c => c[1] === 'Failed to load directory plugin')).toBe(true)
   })
@@ -1273,7 +1285,7 @@ describe('additional edge cases and helper functions', () => {
     })
 
     try {
-      await config.loadPluginSpecs()
+      await loadPluginSpecs()
     }
     finally {
       spy.mockRestore()
@@ -1290,7 +1302,7 @@ describe('additional edge cases and helper functions', () => {
       plugins: [{ id: 'evil', module: '/etc/passwd' }],
     }))
 
-    const specs = await config.loadPluginSpecs()
+    const specs = await loadPluginSpecs()
     expect(specs.find(s => s.id === 'evil')).toBeUndefined()
   })
 
@@ -1311,7 +1323,7 @@ describe('additional edge cases and helper functions', () => {
       { isFile: () => false, isDirectory: () => true, name: 'dir-plugin' },
     ] as any)
 
-    const specs = await config.loadPluginSpecs()
+    const specs = await loadPluginSpecs()
     const myPluginSpecs = specs.filter(s => s.id === 'dir-plugin')
     expect(myPluginSpecs.length).toBe(1)
   })
@@ -1333,7 +1345,7 @@ describe('additional edge cases and helper functions', () => {
       { isFile: () => true, isDirectory: () => false, name: 'my-plugin.js' },
     ] as any)
 
-    await config.loadPluginSpecs()
+    await loadPluginSpecs()
     // Local found it first? No, config is processed first in loadPluginSpecs.
     // Wait, the order in loadPluginSpecs: 1. config, 2. local, 3. builtin.
     // So config is already there when local is found. Local has lower priority (2 < 3).
@@ -1355,7 +1367,7 @@ describe('additional edge cases and helper functions', () => {
     vi.mocked(fs.readdir).mockResolvedValue(files as any)
     vi.mocked(fs.access).mockResolvedValue(undefined)
 
-    const specs = await config.loadPluginSpecs()
+    const specs = await loadPluginSpecs()
     const pluginSpec = specs.find(s => s.id === 'plugin')
     expect(pluginSpec).toBeDefined()
 
@@ -1380,7 +1392,7 @@ describe('additional edge cases and helper functions', () => {
       return originalJoin(...args)
     })
 
-    await config.loadPluginSpecs()
+    await loadPluginSpecs()
     expect(loggerMock.warn).toHaveBeenCalledWith(expect.objectContaining({ error: expect.any(Error) }), expect.stringContaining('Failed to parse file plugin'))
   })
 
@@ -1402,7 +1414,7 @@ describe('additional edge cases and helper functions', () => {
         throw new Error('No index')
       })
 
-    const specs = await config.loadPluginSpecs()
+    const specs = await loadPluginSpecs()
     expect(specs.find(s => s.id === 'no-main')).toBeUndefined()
   })
 })

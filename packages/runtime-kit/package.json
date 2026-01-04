@@ -47,6 +47,8 @@
     "license": "MIT",
     "dependencies": {
         "@napgram/infra-kit": "workspace:*",
+        "@napgram/media-kit": "workspace:*",
+        "@napgram/qq-client": "workspace:*",
         "@napgram/telegram-client": "workspace:*",
         "yaml": "^2.8.2"
     },

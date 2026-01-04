@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
-import { ApiResponse, db } from '@napgram/infra-kit'
+import { ApiResponse, db, schema, eq, count, desc, sql, env } from '@napgram/infra-kit'
 import { authMiddleware } from '@napgram/auth-kit'
 
 /**
@@ -72,41 +72,63 @@ export default async function (fastify: FastifyInstance) {
   }, async (request) => {
     const { page = 1, pageSize = 20 } = request.query as any
 
-    const [items, total] = await Promise.all([
-      db.instance.findMany({
-        skip: (page - 1) * pageSize,
-        take: pageSize,
-        include: {
+    const [items, totalResult] = await Promise.all([
+      db.query.instance.findMany({
+        limit: pageSize,
+        offset: (page - 1) * pageSize,
+        with: {
           qqBot: true,
-          ForwardPair: {
-            take: 5, // 只取前5个配对预览
+          forwardPairs: {
+            limit: 5,
           },
         },
-        orderBy: {
-          id: 'desc',
-        },
+        orderBy: [desc(schema.instance.id)],
       }),
-      db.instance.count(),
+      db.select({ value: count() }).from(schema.instance),
     ])
+    const total = totalResult[0].value
 
     return ApiResponse.paginated(
-      items.map((item: any) => ({
-        ...item,
-        owner: item.owner.toString(),
-        qqBot: item.qqBot
+      items.map((item: any) => {
+        // Fallback to env vars for Instance 0
+        const isDefaultInstance = item.id === 0
+        const owner = (item.owner === 0n && isDefaultInstance && env.ADMIN_TG) ? env.ADMIN_TG.toString() : item.owner.toString()
+
+        let qqBot = item.qqBot
           ? {
             ...item.qqBot,
             uin: item.qqBot.uin?.toString() || null,
           }
-          : null,
-        ForwardPair: item.ForwardPair.map((pair: any) => ({
-          ...pair,
-          qqRoomId: pair.qqRoomId.toString(),
-          tgChatId: pair.tgChatId.toString(),
-          qqFromGroupId: pair.qqFromGroupId?.toString() || null,
-        })),
-        pairCount: item.ForwardPair.length,
-      })),
+          : null
+
+        if (!qqBot && isDefaultInstance && env.NAPCAT_WS_URL) {
+          qqBot = {
+            type: 'napcat',
+            name: 'System Bootstrapped',
+            wsUrl: env.NAPCAT_WS_URL,
+            uin: env.ADMIN_QQ?.toString() || null,
+            id: -1, // Virtual ID
+            password: null,
+            platform: null,
+            signApi: null,
+            signVer: null,
+            signDockerId: null,
+          }
+        }
+
+        return {
+          ...item,
+          owner,
+          qqBot,
+          ForwardPair: item.forwardPairs.map((pair: any) => ({
+            ...pair,
+            qqRoomId: pair.qqRoomId.toString(),
+            tgChatId: pair.tgChatId.toString(),
+            qqFromGroupId: pair.qqFromGroupId?.toString() || null,
+          })),
+          pairCount: item.forwardPairs.length,
+        }
+      }),
       total,
       page,
       pageSize,
@@ -121,12 +143,13 @@ export default async function (fastify: FastifyInstance) {
     preHandler: authMiddleware,
   }, async (request, reply) => {
     const { id } = request.params as { id: string }
+    const instanceId = Number.parseInt(id)
 
-    const instance = await db.instance.findUnique({
-      where: { id: Number.parseInt(id) },
-      include: {
+    const instance = await db.query.instance.findFirst({
+      where: eq(schema.instance.id, instanceId),
+      with: {
         qqBot: true,
-        ForwardPair: true,
+        forwardPairs: true,
       },
     })
 
@@ -136,17 +159,38 @@ export default async function (fastify: FastifyInstance) {
       )
     }
 
+    // Fallback logic
+    const isDefaultInstance = instance.id === 0
+    const owner = (instance.owner === 0n && isDefaultInstance && env.ADMIN_TG) ? env.ADMIN_TG.toString() : instance.owner.toString()
+
+    let qqBot = instance.qqBot
+      ? {
+        ...instance.qqBot,
+        uin: instance.qqBot.uin?.toString() || null,
+      }
+      : null
+
+    if (!qqBot && isDefaultInstance && env.NAPCAT_WS_URL) {
+      qqBot = {
+        type: 'napcat',
+        name: 'System Bootstrapped',
+        wsUrl: env.NAPCAT_WS_URL,
+        uin: env.ADMIN_QQ?.toString() || null,
+        id: -1,
+        password: null,
+        platform: null,
+        signApi: null,
+        signVer: null,
+        signDockerId: null,
+      }
+    }
+
     return {
       success: true,
       data: {
         ...instance,
-        owner: instance.owner.toString(),
-        qqBot: instance.qqBot
-          ? {
-            ...instance.qqBot,
-            uin: instance.qqBot.uin?.toString() || null,
-          }
-          : null,
+        owner,
+        qqBot,
       },
     }
   })
@@ -164,25 +208,22 @@ export default async function (fastify: FastifyInstance) {
 
       let qqBotId = body.qqBotId || null
       if (body.qqBot) {
-        const bot = await db.qqBot.create({
-          data: {
-            type: body.qqBot.type,
-            name: body.qqBot.name || null,
-            wsUrl: body.qqBot.wsUrl || null,
-            uin: body.qqBot.uin ?? null,
-          },
-        })
-        qqBotId = bot.id
+        const botArr = await db.insert(schema.qqBot).values({
+          type: body.qqBot.type,
+          name: body.qqBot.name || null,
+          wsUrl: body.qqBot.wsUrl || null,
+          uin: body.qqBot.uin ?? null,
+        }).returning()
+        qqBotId = botArr[0].id
       }
 
-      const instance = await db.instance.create({
-        data: {
-          owner: body.owner,
-          workMode: body.workMode,
-          isSetup: false,
-          qqBotId,
-        },
-      })
+      const instanceArr = await db.insert(schema.instance).values({
+        owner: body.owner,
+        workMode: body.workMode,
+        isSetup: false,
+        qqBotId,
+      }).returning()
+      const instance = instanceArr[0]
 
       // 审计日志
       const { AuthService } = await import('@napgram/auth-kit')
@@ -231,9 +272,9 @@ export default async function (fastify: FastifyInstance) {
       const auth = (request as any).auth
 
       const instanceId = Number.parseInt(id)
-      const currentInstance = await db.instance.findUnique({
-        where: { id: instanceId },
-        select: { id: true, qqBotId: true },
+      const currentInstance = await db.query.instance.findFirst({
+        where: eq(schema.instance.id, instanceId),
+        columns: { id: true, qqBotId: true },
       })
       if (!currentInstance) {
         return reply.code(404).send(
@@ -247,40 +288,38 @@ export default async function (fastify: FastifyInstance) {
           qqBotId = null
         }
         else if (currentInstance.qqBotId) {
-          await db.qqBot.update({
-            where: { id: currentInstance.qqBotId },
-            data: {
+          await db.update(schema.qqBot)
+            .set({
               type: body.qqBot.type,
               name: body.qqBot.name || null,
               wsUrl: body.qqBot.wsUrl || null,
               uin: body.qqBot.uin ?? null,
-            },
-          })
+            })
+            .where(eq(schema.qqBot.id, currentInstance.qqBotId))
           qqBotId = currentInstance.qqBotId
         }
         else {
-          const bot = await db.qqBot.create({
-            data: {
-              type: body.qqBot.type,
-              name: body.qqBot.name || null,
-              wsUrl: body.qqBot.wsUrl || null,
-              uin: body.qqBot.uin ?? null,
-            },
-          })
-          qqBotId = bot.id
+          const botArr = await db.insert(schema.qqBot).values({
+            type: body.qqBot.type,
+            name: body.qqBot.name || null,
+            wsUrl: body.qqBot.wsUrl || null,
+            uin: body.qqBot.uin ?? null,
+          }).returning()
+          qqBotId = botArr[0].id
         }
       }
 
-      const instance = await db.instance.update({
-        where: { id: instanceId },
-        data: {
+      const updatedArr = await db.update(schema.instance)
+        .set({
           ...(body.owner !== undefined && { owner: body.owner }),
           ...(body.workMode !== undefined && { workMode: body.workMode }),
           ...(body.isSetup !== undefined && { isSetup: body.isSetup }),
           ...(body.flags !== undefined && { flags: body.flags }),
           ...(qqBotId !== undefined && { qqBotId }),
-        },
-      })
+        })
+        .where(eq(schema.instance.id, instanceId))
+        .returning()
+      const instance = updatedArr[0]
 
       // 审计日志
       const { AuthService } = await import('@napgram/auth-kit')
@@ -309,11 +348,9 @@ export default async function (fastify: FastifyInstance) {
           details: error.issues,
         })
       }
-      if (error.code === 'P2025') {
-        return reply.code(404).send(
-          ApiResponse.error('Instance not found'),
-        )
-      }
+      return reply.code(404).send(
+        ApiResponse.error('Instance update failed'),
+      )
       throw error
     }
   })
@@ -329,9 +366,10 @@ export default async function (fastify: FastifyInstance) {
     const auth = (request as any).auth
 
     try {
-      const instance = await db.instance.delete({
-        where: { id: Number.parseInt(id) },
-      })
+      const instanceArr = await db.delete(schema.instance)
+        .where(eq(schema.instance.id, Number.parseInt(id)))
+        .returning()
+      const instance = instanceArr[0]
 
       // 审计日志
       const { AuthService } = await import('@napgram/auth-kit')
@@ -367,10 +405,10 @@ export default async function (fastify: FastifyInstance) {
   fastify.get('/api/admin/qqbots', {
     preHandler: authMiddleware,
   }, async () => {
-    const bots = await db.qqBot.findMany({
-      include: {
-        Instance: {
-          select: {
+    const bots = await db.query.qqBot.findMany({
+      with: {
+        instances: {
+          columns: {
             id: true,
             owner: true,
           },
@@ -380,7 +418,7 @@ export default async function (fastify: FastifyInstance) {
 
     return {
       success: true,
-      items: bots.map((bot: any) => ({
+      data: bots.map((bot: any) => ({
         ...bot,
         uin: bot.uin?.toString() || null,
         password: bot.password ? '******' : null, // 隐藏密码
@@ -398,14 +436,14 @@ export default async function (fastify: FastifyInstance) {
     try {
       const body = createQqBotSchema.parse(request.body)
 
-      const bot = await db.qqBot.create({
-        data: {
-          type: body.type,
-          name: body.name || null,
-          wsUrl: body.wsUrl || null,
-          uin: body.uin ?? null,
-        },
-      })
+      const botArr = await db.insert(schema.qqBot).values({
+        type: body.type,
+        name: body.name || null,
+        wsUrl: body.wsUrl || null,
+        uin: body.uin ?? null,
+      }).returning()
+
+      const bot = botArr[0]
 
       return {
         success: true,

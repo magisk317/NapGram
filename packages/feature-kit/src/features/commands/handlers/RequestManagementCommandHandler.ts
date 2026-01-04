@@ -1,7 +1,6 @@
 import type { UnifiedMessage } from '@napgram/message-kit'
 import type { CommandContext } from './CommandContext'
-import { db } from '@napgram/infra-kit'
-import { getLogger } from '@napgram/infra-kit'
+import { db, schema, eq, and, desc, gte, sql, count, getLogger, env } from '@napgram/infra-kit'
 
 const logger = getLogger('RequestManagementCommandHandler')
 
@@ -74,16 +73,19 @@ export class RequestManagementCommandHandler {
       const filter = args[0]
       const instanceId = this.context.instance.id
 
-      const where: any = { instanceId, status: 'pending' }
+      const conditionsPv = [
+        eq(schema.qqRequest.instanceId, instanceId),
+        eq(schema.qqRequest.status, 'pending'),
+      ]
       if (filter === 'friend')
-        where.type = 'friend'
+        conditionsPv.push(eq(schema.qqRequest.type, 'friend'))
       if (filter === 'group')
-        where.type = 'group'
+        conditionsPv.push(eq(schema.qqRequest.type, 'group'))
 
-      const requests = await db.qQRequest.findMany({
-        where,
-        orderBy: { createdAt: 'desc' },
-        take: 10,
+      const requests = await db.query.qqRequest.findMany({
+        where: and(...conditionsPv),
+        orderBy: [desc(schema.qqRequest.createdAt)],
+        limit: 10,
       })
 
       if (requests.length === 0) {
@@ -130,7 +132,11 @@ export class RequestManagementCommandHandler {
         return
       }
 
-      const request = await db.qQRequest.findUnique({ where: { flag } })
+      const rows = await db.query.qqRequest.findMany({
+        where: eq(schema.qqRequest.flag, flag),
+        limit: 1,
+      })
+      const request = rows[0]
       if (!request || request.instanceId !== this.context.instance.id) {
         await this.context.replyTG(chatId, `❌ 未找到请求：${flag}`, threadId)
         return
@@ -156,14 +162,13 @@ export class RequestManagementCommandHandler {
         await handleGroupRequest.call(this.context.qqClient, flag, request.subType as 'add' | 'invite', true)
       }
 
-      await db.qQRequest.update({
-        where: { id: request.id },
-        data: {
+      await db.update(schema.qqRequest)
+        .set({
           status: 'approved',
           handledBy: BigInt(msg.sender.id),
           handledAt: new Date(),
-        },
-      })
+        })
+        .where(eq(schema.qqRequest.id, request.id))
 
       const typeText = request.type === 'friend' ? '好友' : '加群'
       await this.context.replyTG(chatId, `✅ 已同意${typeText}申请\n用户：${request.userId}`, threadId)
@@ -188,7 +193,11 @@ export class RequestManagementCommandHandler {
         return
       }
 
-      const request = await db.qQRequest.findUnique({ where: { flag } })
+      const rows = await db.query.qqRequest.findMany({
+        where: eq(schema.qqRequest.flag, flag),
+        limit: 1,
+      })
+      const request = rows[0]
       if (!request || request.instanceId !== this.context.instance.id) {
         await this.context.replyTG(chatId, `❌ 未找到请求：${flag}`, threadId)
         return
@@ -214,15 +223,14 @@ export class RequestManagementCommandHandler {
         await handleGroupRequest.call(this.context.qqClient, flag, request.subType as 'add' | 'invite', false, reason)
       }
 
-      await db.qQRequest.update({
-        where: { id: request.id },
-        data: {
+      await db.update(schema.qqRequest)
+        .set({
           status: 'rejected',
           handledBy: BigInt(msg.sender.id),
           handledAt: new Date(),
           rejectReason: reason,
-        },
-      })
+        })
+        .where(eq(schema.qqRequest.id, request.id))
 
       const typeText = request.type === 'friend' ? '好友' : '加群'
       await this.context.replyTG(
@@ -263,15 +271,18 @@ export class RequestManagementCommandHandler {
           startDate = undefined
       }
 
-      const where: any = { instanceId }
+      const conditionsSt = [eq(schema.qqRequest.instanceId, instanceId)]
       if (startDate)
-        where.createdAt = { gte: startDate }
+        conditionsSt.push(gte(schema.qqRequest.createdAt, startDate))
 
-      const stats = await db.qQRequest.groupBy({
-        by: ['type', 'status'],
-        where,
-        _count: { id: true },
+      const stats = await db.select({
+        type: schema.qqRequest.type,
+        status: schema.qqRequest.status,
+        count: count(),
       })
+        .from(schema.qqRequest)
+        .where(and(...conditionsSt))
+        .groupBy(schema.qqRequest.type, schema.qqRequest.status)
 
       const summary = {
         friend: { total: 0, pending: 0, approved: 0, rejected: 0 },
@@ -279,7 +290,7 @@ export class RequestManagementCommandHandler {
       }
 
       for (const stat of stats) {
-        const count = stat._count.id
+        const count = stat.count
         const type = stat.type as 'friend' | 'group'
         summary[type].total += count
         if (stat.status === 'pending')
@@ -335,11 +346,17 @@ export class RequestManagementCommandHandler {
       const filter = args[0]
       const instanceId = this.context.instance.id
 
-      const where: any = { instanceId, status: 'pending' }
+      const conditionsApA = [
+        eq(schema.qqRequest.instanceId, instanceId),
+        eq(schema.qqRequest.status, 'pending'),
+      ]
       if (filter === 'friend' || filter === 'group')
-        where.type = filter
+        conditionsApA.push(eq(schema.qqRequest.type, filter))
 
-      const requests = await db.qQRequest.findMany({ where, take: 50 })
+      const requests = await db.query.qqRequest.findMany({
+        where: and(...conditionsApA),
+        limit: 50,
+      })
       if (requests.length === 0) {
         await this.context.replyTG(chatId, '📭 没有待处理的请求', threadId)
         return
@@ -366,14 +383,13 @@ export class RequestManagementCommandHandler {
             await handleGroupRequest.call(this.context.qqClient, request.flag, request.subType as 'add' | 'invite', true)
           }
 
-          await db.qQRequest.update({
-            where: { id: request.id },
-            data: {
+          await db.update(schema.qqRequest)
+            .set({
               status: 'approved',
               handledBy: BigInt(msg.sender.id),
               handledAt: new Date(),
-            },
-          })
+            })
+            .where(eq(schema.qqRequest.id, request.id))
           successCount++
         }
         catch (error) {
@@ -404,11 +420,17 @@ export class RequestManagementCommandHandler {
       const reason = args.slice(1).join(' ') || '批量拒绝'
       const instanceId = this.context.instance.id
 
-      const where: any = { instanceId, status: 'pending' }
+      const conditionsReA = [
+        eq(schema.qqRequest.instanceId, instanceId),
+        eq(schema.qqRequest.status, 'pending'),
+      ]
       if (filter === 'friend' || filter === 'group')
-        where.type = filter
+        conditionsReA.push(eq(schema.qqRequest.type, filter))
 
-      const requests = await db.qQRequest.findMany({ where, take: 50 })
+      const requests = await db.query.qqRequest.findMany({
+        where: and(...conditionsReA),
+        limit: 50,
+      })
       if (requests.length === 0) {
         await this.context.replyTG(chatId, '📭 没有待处理的请求', threadId)
         return
@@ -435,15 +457,14 @@ export class RequestManagementCommandHandler {
             await handleGroupRequest.call(this.context.qqClient, request.flag, request.subType as 'add' | 'invite', false, reason)
           }
 
-          await db.qQRequest.update({
-            where: { id: request.id },
-            data: {
+          await db.update(schema.qqRequest)
+            .set({
               status: 'rejected',
               handledBy: BigInt(msg.sender.id),
               handledAt: new Date(),
               rejectReason: reason,
-            },
-          })
+            })
+            .where(eq(schema.qqRequest.id, request.id))
           successCount++
         }
         catch (error) {

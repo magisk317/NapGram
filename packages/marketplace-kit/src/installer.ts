@@ -306,12 +306,18 @@ async function extractTgz(tgzPath: string, destDir: string): Promise<void> {
 }
 
 async function extractArchive(distType: DistType, archivePath: string, destDir: string): Promise<void> {
-  await ensureDir(destDir)
-  if (distType === 'zip')
-    return extractZip(archivePath, destDir)
-  if (distType === 'tgz')
-    return extractTgz(archivePath, destDir)
-  throw new Error(`Unsupported dist.type: ${distType}`)
+  logger.info({ distType, archivePath, destDir }, 'Extracting archive')
+  try {
+    await ensureDir(destDir)
+    if (distType === 'zip')
+      return await extractZip(archivePath, destDir)
+    if (distType === 'tgz')
+      return await extractTgz(archivePath, destDir)
+    throw new Error(`Unsupported dist.type: ${distType}`)
+  } catch (error: any) {
+    logger.error({ error: error?.message || String(error), stack: error?.stack, archivePath, destDir }, 'Archive extraction failed')
+    throw error
+  }
 }
 
 async function resolveEntryFile(destDir: string, entryPath: string): Promise<string> {
@@ -443,6 +449,9 @@ async function runPnpmInstall(projectDir: string, opts: Required<NonNullable<Mar
     cwd: projectDir,
     env: envVars,
     maxBuffer: 20 * 1024 * 1024,
+  }).catch((error) => {
+    logger.error({ error: error?.message || String(error), stderr: error?.stderr, stdout: error?.stdout, projectDir }, 'pnpm install failed')
+    throw error
   })
   logger.info({ projectDir }, 'pnpm install completed')
 }
@@ -480,41 +489,17 @@ async function loadPluginDefaultConfig(installDir: string): Promise<any | null> 
 
 async function syncPluginSchemaIfNeeded(installDir: string, pluginId: string) {
   const candidates = [
-    path.join(installDir, 'dist', 'prisma-client', 'schema.prisma'),
-    path.join(installDir, 'prisma', 'schema.prisma'),
-    path.join(installDir, 'schema.prisma'),
+    path.join(installDir, 'dist', 'schema.ts'),
+    path.join(installDir, 'src', 'schema.ts'),
+    path.join(installDir, 'schema.ts'),
   ]
 
   for (const schemaPath of candidates) {
     if (!await pathExists(schemaPath))
       continue
-    const dbUrl = String(process.env.DATABASE_URL || '').trim()
-    if (!dbUrl) {
-      logger.warn({ pluginId, schemaPath }, 'DATABASE_URL not set; skip schema sync')
-      return false
-    }
-    logger.info({ pluginId, schemaPath }, 'Syncing plugin database schema')
-    const allowDataLoss = String(process.env.PLUGIN_PRISMA_ACCEPT_DATA_LOSS || '').trim().toLowerCase()
-    const args = ['exec', 'prisma', 'db', 'push', '--schema', schemaPath, '--url', dbUrl]
-    if (['1', 'true', 'yes', 'on'].includes(allowDataLoss)) {
-      args.push('--accept-data-loss')
-      logger.warn({ pluginId, schemaPath }, 'Plugin schema sync will accept data loss')
-    }
-    try {
-      await execFileAsync('pnpm', args, {
-        cwd: installDir,
-        env: { ...process.env },
-        maxBuffer: 20 * 1024 * 1024,
-      })
-    }
-    catch (error: any) {
-      const message = String(error?.message || error || '')
-      if (message.includes('accept-data-loss')) {
-        logger.warn({ pluginId, schemaPath }, 'Schema push requires --accept-data-loss; set PLUGIN_PRISMA_ACCEPT_DATA_LOSS=1 to allow')
-      }
-      throw error
-    }
-    logger.info({ pluginId, schemaPath }, 'Plugin database schema synced')
+
+    logger.info({ pluginId, schemaPath }, 'Plugin contains Drizzle schema definition')
+    logger.info('Note: Plugin schemas are now managed via the central @napgram/database package sync mechanism.')
     return true
   }
 

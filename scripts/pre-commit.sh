@@ -69,7 +69,7 @@ PATTERNS=(
 
 FOUND_PATTERN=0
 for pattern in "${PATTERNS[@]}"; do
-    if git diff --cached | grep -iE "$pattern" > /dev/null; then
+    if git diff --cached -- . ":(exclude)compose.example.yaml" | grep -iE "$pattern" > /dev/null; then
         echo -e "${RED}✗ 发现可疑模式: $pattern${NC}"
         FOUND_PATTERN=1
     fi

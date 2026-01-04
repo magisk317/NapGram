@@ -9,8 +9,7 @@ import type { MessageSegment } from '../../shared-types'
 import type { CommandsFeature } from '../commands/CommandsFeature'
 import type { MediaFeature } from '../MediaFeature'
 import { messageConverter } from '@napgram/message-kit'
-import { db } from '@napgram/infra-kit'
-import { env } from '@napgram/infra-kit'
+import { db, env, schema, eq } from '@napgram/infra-kit'
 import { performanceMonitor } from '../../shared-types'
 import { getEventPublisher } from '../../shared-types'
 import { getLogger } from '@napgram/infra-kit'
@@ -146,7 +145,6 @@ export class ForwardFeature {
 
   private setupListeners() {
     this.qqClient.on('message', this.handleQQMessage)
-    this.qqClient.on('poke', this.handlePokeEvent)
     this.qqClient.on('poke', this.handlePokeEvent)
     this.tgBot.addNewMessageEventHandler(this.handleTgMessage)
     logger.debug('[ForwardFeature] listeners attached')
@@ -550,11 +548,9 @@ export class ForwardFeature {
         return
       }
 
-      await db.forwardPair.update({
-        where: { id: pair.id },
-        data: updateData,
-        select: { id: true, forwardMode: true, nicknameMode: true },
-      })
+      await db.update(schema.forwardPair)
+        .set(updateData)
+        .where(eq(schema.forwardPair.id, pair.id))
 
       // 同步更新内存中的 pair 对象（立即生效）
       if (type === 'nickname') {

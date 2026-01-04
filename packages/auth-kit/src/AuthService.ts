@@ -1,5 +1,5 @@
 import process from 'node:process'
-import { db, getLogger } from '@napgram/infra-kit'
+import { db, getLogger, schema, eq, sql, count } from '@napgram/infra-kit'
 import { PasswordUtil, TokenManager } from './TokenManager'
 
 const logger = getLogger('AuthService')
@@ -17,9 +17,11 @@ export class AuthService {
     ipAddress?: string,
     userAgent?: string,
   ): Promise<{ token: string, user: { id: number, username: string, displayName: string | null } } | null> {
-    const user = await db.adminUser.findUnique({
-      where: { username },
+    const rows = await db.query.adminUser.findMany({
+      where: eq(schema.adminUser.username, username),
+      limit: 1,
     })
+    const user = rows[0]
 
     if (!user || !user.isActive) {
       return null
@@ -81,14 +83,13 @@ export class AuthService {
   ): Promise<{ id: number, username: string }> {
     const passwordHash = PasswordUtil.hashPassword(password)
 
-    const user = await db.adminUser.create({
-      data: {
-        username,
-        passwordHash,
-        displayName,
-        email,
-      },
-    })
+    const userArr = await db.insert(schema.adminUser).values({
+      username,
+      passwordHash,
+      displayName,
+      email,
+    }).returning()
+    const user = userArr[0]
 
     if (createdBy) {
       await this.logAudit(createdBy, 'create_user', 'admin_user', String(user.id), {
@@ -110,9 +111,11 @@ export class AuthService {
     oldPassword: string,
     newPassword: string,
   ): Promise<boolean> {
-    const user = await db.adminUser.findUnique({
-      where: { id: userId },
+    const rows = await db.query.adminUser.findMany({
+      where: eq(schema.adminUser.id, userId),
+      limit: 1,
     })
+    const user = rows[0]
 
     if (!user) {
       return false
@@ -124,10 +127,9 @@ export class AuthService {
 
     const newPasswordHash = PasswordUtil.hashPassword(newPassword)
 
-    await db.adminUser.update({
-      where: { id: userId },
-      data: { passwordHash: newPasswordHash },
-    })
+    await db.update(schema.adminUser)
+      .set({ passwordHash: newPasswordHash })
+      .where(eq(schema.adminUser.id, userId))
 
     await this.logAudit(userId, 'change_password')
 
@@ -146,16 +148,14 @@ export class AuthService {
     ipAddress?: string,
     userAgent?: string,
   ): Promise<void> {
-    await db.adminAuditLog.create({
-      data: {
-        userId: userId || null,
-        action,
-        resource,
-        resourceId,
-        details,
-        ipAddress,
-        userAgent,
-      },
+    await db.insert(schema.adminAuditLog).values({
+      userId: userId || null,
+      action,
+      resource,
+      resourceId,
+      details,
+      ipAddress,
+      userAgent,
     }).catch(() => { }) // 审计日志失败不应影响主流程
   }
 
@@ -163,8 +163,8 @@ export class AuthService {
    * 检查是否有管理员用户存在
    */
   static async hasAdminUsers(): Promise<boolean> {
-    const count = await db.adminUser.count()
-    return count > 0
+    const result = await db.select({ value: count() }).from(schema.adminUser)
+    return result[0].value > 0
   }
 
   /**

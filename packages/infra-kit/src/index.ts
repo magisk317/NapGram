@@ -16,6 +16,7 @@ import env from './env'
 import getLogger, { setConsoleLogLevel } from './logger'
 import type { AppLogger } from './logger'
 import db from './db'
+import { drizzleDb, schema, eq, and, or, lt, lte, gt, gte, like, inArray, isNull, isNotNull, desc, sql, count } from '@napgram/database'
 import * as temp from './temp'
 import { DurationParser } from './utils/duration-parser'
 import * as hashing from './utils/hashing'
@@ -45,6 +46,22 @@ export {
   env,
   getLogger, setConsoleLogLevel,
   db,
+  drizzleDb,
+  schema,
+  eq,
+  and,
+  or,
+  lt,
+  lte,
+  gt,
+  desc,
+  gte,
+  like,
+  inArray,
+  isNull,
+  isNotNull,
+  sql,
+  count,
   temp,
   qface,
   DurationParser,
@@ -69,6 +86,7 @@ const kit = {
   env,
   getLogger,
   db,
+  drizzleDb,
   temp,
   performanceMonitor,
   CacheManager,

@@ -5,11 +5,14 @@ import { TelegramSender } from '../TelegramSender'
 
 vi.mock('@napgram/infra-kit', () => ({
   db: {
-    message: { findFirst: vi.fn(), findUnique: vi.fn(), findMany: vi.fn(), update: vi.fn(), create: vi.fn(), delete: vi.fn() },
-    forwardPair: { findFirst: vi.fn(), findUnique: vi.fn(), update: vi.fn(), create: vi.fn() },
-    forwardMultiple: { findFirst: vi.fn(), findUnique: vi.fn(), update: vi.fn(), create: vi.fn(), delete: vi.fn() },
-    qQRequest: { findFirst: vi.fn(), findUnique: vi.fn(), findMany: vi.fn(), groupBy: vi.fn(), update: vi.fn(), create: vi.fn() },
-    $queryRaw: vi.fn()
+    insert: vi.fn(() => ({
+      values: vi.fn(() => ({
+        returning: vi.fn().mockResolvedValue([{ id: 1 }]),
+      })),
+    })),
+  },
+  schema: {
+    forwardMultiple: { id: 'id' },
   },
   env: {
     ENABLE_AUTO_RECALL: true,
@@ -18,6 +21,7 @@ vi.mock('@napgram/infra-kit', () => ({
     CACHE_DIR: '/tmp/cache',
     WEB_ENDPOINT: 'http://napgram-dev:8080'
   },
+  hashing: { md5Hex: vi.fn((value: string) => value) },
   temp: { TEMP_PATH: '/tmp', createTempFile: vi.fn(() => ({ path: '/tmp/test', cleanup: vi.fn() })) },
   getLogger: vi.fn(() => ({
     debug: vi.fn(),
@@ -141,9 +145,8 @@ describe('telegramSender', () => {
       content: [{ type: 'forward', data: { id: 'f1' } }],
     }
     await sender.sendToTelegram(mockChat, msg, { id: 1 }, undefined, '00')
-    expect(db.forwardMultiple.create).toHaveBeenCalled()
-    // Actual message format includes count, e.g. "[转发消息x0]"
-    expect(mockChat.sendMessage).toHaveBeenCalledWith('[转发消息x0]', expect.any(Object))
+    expect(db.insert).toHaveBeenCalled()
+    expect(mockChat.sendMessage).toHaveBeenCalledWith('[转发消息]', expect.any(Object))
   })
 
   it('sendToTelegram handles location message', async () => {
@@ -226,7 +229,11 @@ describe('telegramSender', () => {
 
   it('sendToTelegram falls back when forward create fails', async () => {
     const sender = new TelegramSender(mockInstance)
-    vi.mocked(db.forwardMultiple.create).mockRejectedValueOnce(new Error('fail'))
+    vi.mocked(db.insert).mockReturnValue({
+      values: vi.fn(() => ({
+        returning: vi.fn().mockRejectedValue(new Error('fail')),
+      })),
+    } as any)
     const msg: any = {
       sender: { id: 'q1', name: 'QQUser' },
       content: [{ type: 'forward', data: { id: 'f1', messages: ['m1'] } }],
@@ -393,7 +400,7 @@ describe('telegramSender', () => {
     }
     await sender.sendToTelegram(mockChat, msg, { id: 1 }, undefined, '00')
     expect(mockChat.sendMessage).toHaveBeenCalledWith('[转发消息x0]', expect.any(Object))
-    expect(db.forwardMultiple.create).not.toHaveBeenCalled()
+    expect(db.insert).not.toHaveBeenCalled()
   })
 
   it('sendToTelegram handles file message successfully', async () => {

@@ -1,9 +1,7 @@
 import { messageConverter } from '@napgram/message-kit';
-import { db } from '@napgram/infra-kit';
-import { env } from '@napgram/infra-kit';
+import { db, env, eq, getLogger, schema } from '@napgram/infra-kit';
 import { performanceMonitor } from '../../shared-types';
 import { getEventPublisher } from '../../shared-types';
-import { getLogger } from '@napgram/infra-kit';
 import { ThreadIdExtractor } from '../commands/services/ThreadIdExtractor';
 import { MediaGroupHandler } from './handlers/MediaGroupHandler';
 import { TelegramMessageHandler } from './handlers/TelegramMessageHandler';
@@ -471,11 +469,9 @@ export class ForwardFeature {
                 await MessageUtils.replyTG(this.tgBot, chatId, '未知模式类型，请使用 nickname 或 forward', threadId);
                 return;
             }
-            await db.forwardPair.update({
-                where: { id: pair.id },
-                data: updateData,
-                select: { id: true, forwardMode: true, nicknameMode: true },
-            });
+            await db.update(schema.forwardPair)
+                .set(updateData)
+                .where(eq(schema.forwardPair.id, pair.id));
             // 同步更新内存中的 pair 对象（立即生效）
             if (type === 'nickname') {
                 pair.nicknameMode = value;

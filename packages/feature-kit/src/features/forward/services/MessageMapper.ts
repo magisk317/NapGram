@@ -1,6 +1,6 @@
 import type { MessageContent, UnifiedMessage } from '@napgram/message-kit'
 import process from 'node:process'
-import { db } from '@napgram/infra-kit'
+import { db, schema, eq, and, desc } from '@napgram/infra-kit'
 import { getLogger } from '@napgram/infra-kit'
 import { renderContent } from '../utils/render'
 
@@ -26,20 +26,18 @@ export class ForwardMapper {
       return
     }
     try {
-      await db.message.create({
-        data: {
-          qqRoomId: pair.qqRoomId,
-          qqSenderId: BigInt(0),
-          time: Math.floor(Date.now() / 1000),
-          seq: Number(msgId),
-          rand: BigInt(0),
-          pktnum: 0,
-          tgChatId: BigInt(pair.tgChatId),
-          tgMsgId: tgMsg.id,
-          tgSenderId: BigInt(tgMsg.sender?.id || 0),
-          instanceId: pair.instanceId,
-          brief: unified.content.map(c => this.contentRenderer(c)).join(' ').slice(0, 50),
-        },
+      await db.insert(schema.message).values({
+        qqRoomId: pair.qqRoomId,
+        qqSenderId: BigInt(0),
+        time: Math.floor(Date.now() / 1000),
+        seq: Number(msgId),
+        rand: BigInt(0),
+        pktnum: 0,
+        tgChatId: BigInt(pair.tgChatId),
+        tgMsgId: tgMsg.id,
+        tgSenderId: BigInt(tgMsg.sender?.id || 0),
+        instanceId: pair.instanceId,
+        brief: unified.content.map(c => this.contentRenderer(c)).join(' ').slice(0, 50),
       })
       this.logger.debug(`Saved TG->QQ mapping: seq=${msgId} <-> tgMsgId=${tgMsg.id}`)
     }
@@ -61,20 +59,18 @@ export class ForwardMapper {
       const tgMsgId = tgMsg?.id ?? 0
       const tgSenderId = BigInt(tgMsg?.sender?.id ?? 0)
 
-      await db.message.create({
-        data: {
-          qqRoomId,
-          qqSenderId,
-          time,
-          seq,
-          rand: BigInt(rand),
-          pktnum: 0,
-          tgChatId,
-          tgMsgId,
-          tgSenderId,
-          instanceId,
-          brief: qqMsg.content.map(c => this.contentRenderer(c)).join(' ').slice(0, 50),
-        },
+      await db.insert(schema.message).values({
+        qqRoomId,
+        qqSenderId,
+        time,
+        seq,
+        rand: BigInt(rand),
+        pktnum: 0,
+        tgChatId,
+        tgMsgId,
+        tgSenderId,
+        instanceId,
+        brief: qqMsg.content.map(c => this.contentRenderer(c)).join(' ').slice(0, 50),
       })
     }
     catch (e) {
@@ -86,12 +82,12 @@ export class ForwardMapper {
     const numericId = Number(qqMsgId)
     if (!Number.isNaN(numericId)) {
       this.logger.debug(`Finding TG Msg ID by seq: instanceId=${instanceId}, qqRoomId=${qqRoomId}, seq=${numericId}`)
-      const bySeq = await db.message.findFirst({
-        where: {
-          instanceId,
-          qqRoomId,
-          seq: numericId,
-        },
+      const bySeq = await db.query.message.findFirst({
+        where: and(
+          eq(schema.message.instanceId, instanceId),
+          eq(schema.message.qqRoomId, qqRoomId),
+          eq(schema.message.seq, numericId),
+        ),
       })
       if (bySeq) {
         this.logger.debug(`Found TG Msg ID by seq: ${bySeq.tgMsgId}`)
@@ -106,15 +102,13 @@ export class ForwardMapper {
     if (!Number.isNaN(numericId)) {
       const senderId = BigInt(numericId)
       this.logger.debug(`Finding TG Msg ID by sender: instanceId=${instanceId}, qqRoomId=${qqRoomId}, sender=${senderId}`)
-      const bySender = await db.message.findFirst({
-        where: {
-          instanceId,
-          qqRoomId,
-          qqSenderId: senderId,
-        },
-        orderBy: {
-          time: 'desc',
-        },
+      const bySender = await db.query.message.findFirst({
+        where: and(
+          eq(schema.message.instanceId, instanceId),
+          eq(schema.message.qqRoomId, qqRoomId),
+          eq(schema.message.qqSenderId, senderId),
+        ),
+        orderBy: [desc(schema.message.time)],
       })
       if (bySender) {
         this.logger.debug(`Found TG Msg ID by sender: ${bySender.tgMsgId}`)
@@ -131,12 +125,12 @@ export class ForwardMapper {
       return undefined
     }
     this.logger.debug(`Finding QQ source: instanceId=${instanceId}, tgChatId=${tgChatId}, tgMsgId=${tgMsgId}`)
-    const msg = await db.message.findFirst({
-      where: {
-        tgChatId: BigInt(tgChatId),
-        tgMsgId,
-        instanceId,
-      },
+    const msg = await db.query.message.findFirst({
+      where: and(
+        eq(schema.message.tgChatId, BigInt(tgChatId)),
+        eq(schema.message.tgMsgId, tgMsgId),
+        eq(schema.message.instanceId, instanceId),
+      ),
     })
     this.logger.debug(`Found QQ source: ${msg ? 'yes' : 'no'} (seq=${msg?.seq})`)
     return msg

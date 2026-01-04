@@ -21,7 +21,8 @@ export { getEventPublisher } from '@napgram/plugin-kit'
 
 // 领域常量和工具
 export { flags } from '@napgram/infra-kit'
-export { md5Hex, DurationParser } from '@napgram/runtime-kit'
+export { md5Hex } from '@napgram/runtime-kit'
+export { DurationParser } from '@napgram/infra-kit'
 export { PermissionChecker } from '@napgram/auth-kit'
 
 // 导出类型

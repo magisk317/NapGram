@@ -25,6 +25,7 @@
     "author": "NapGram Team",
     "license": "MIT",
     "dependencies": {
+        "@napgram/database": "workspace:*",
         "@napgram/infra-kit": "workspace:*",
         "@napgram/runtime-kit": "workspace:*",
         "fflate": "^0.8.2",

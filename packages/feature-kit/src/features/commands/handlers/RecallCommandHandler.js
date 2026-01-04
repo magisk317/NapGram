@@ -1,6 +1,4 @@
-import { db } from '@napgram/infra-kit';
-import { env } from '@napgram/infra-kit';
-import { getLogger } from '@napgram/infra-kit';
+import { db, schema, eq, and, lt, desc, getLogger, env } from '@napgram/infra-kit';
 const logger = getLogger('RecallCommandHandler');
 /**
  * 撤回命令处理器
@@ -49,14 +47,10 @@ export class RecallCommandHandler {
         try {
             logger.info(`批量撤回: cmdMsgId=${cmdMsgId}, chatId=${chatId}, count=${count}`);
             // 获取命令消息之前的N条消息（不包括命令消息本身）
-            const records = await db.message.findMany({
-                where: {
-                    tgChatId: BigInt(chatId),
-                    instanceId: this.context.instance.id,
-                    tgMsgId: { lt: Number(cmdMsgId) }, // 小于命令消息ID的消息
-                },
-                orderBy: { tgMsgId: 'desc' }, // 从最新到最旧排序
-                take: count,
+            const records = await db.query.message.findMany({
+                where: and(eq(schema.message.tgChatId, BigInt(chatId)), eq(schema.message.instanceId, this.context.instance.id), lt(schema.message.tgMsgId, Number(cmdMsgId))),
+                orderBy: [desc(schema.message.tgMsgId)],
+                limit: count,
             });
             logger.info(`查询到 ${records.length} 条记录, tgMsgIds: ${records.map(r => r.tgMsgId).join(', ')}`);
             if (records.length === 0) {
@@ -102,44 +96,46 @@ export class RecallCommandHandler {
                         logger.warn(`删除 TG 消息 ${msgId} 失败:`, e);
                     }
                 }
-                logger.info(`批量删除完成: 成功 ${tgSuccess}/${tgMessageIds.length}`);
             }
-            logger.info(`批量撤回完成: TG ${tgSuccess}/${records.length}, QQ ${qqSuccess}/${records.length}`);
-            // 删除命令消息
-            if (cmdMsgId) {
-                try {
-                    const chat = await this.context.tgBot.getChat(Number(chatId));
-                    await chat.deleteMessages([Number(cmdMsgId)]);
-                }
-                catch {
-                    logger.debug('删除命令消息失败');
-                }
+            // 统计并回复
+            const tgFailed = tgMessageIds.length - tgSuccess;
+            const qqFailed = qqSeqList.length - qqSuccess;
+            let response = `✅ 批量撤回完成\n\n`;
+            if (tgMessageIds.length > 0) {
+                response += `TG 消息: 成功 ${tgSuccess} 条`;
+                if (tgFailed > 0)
+                    response += `, 失败 ${tgFailed} 条`;
+                response += '\n';
             }
+            if (qqSeqList.length > 0) {
+                response += `QQ 消息: 成功 ${qqSuccess} 条`;
+                if (qqFailed > 0)
+                    response += `, 失败 ${qqFailed} 条`;
+                response += '\n';
+            }
+            await this.context.replyTG(chatId, response);
         }
-        catch (error) {
-            logger.error('批量撤回失败:', error);
-            await this.context.replyTG(chatId, '❌ 批量撤回失败，请查看日志');
+        catch (e) {
+            logger.error('批量撤回失败:', e);
+            await this.context.replyTG(chatId, '批量撤回失败，请查看日志');
         }
     }
     /**
-     * 处理单条撤回（原有逻辑，双向同步）
+     * 处理单条撤回
      */
     async handleSingleRecall(msg, cmdMsgId) {
         const raw = msg.metadata?.raw;
         // 提取 replyToId：
         // 1. TG 消息：从 raw.replyTo 中提取
         // 2. QQ 消息：从 content 中的 reply 段提取
-        let replyToId;
-        // 先尝试 TG 结构
-        replyToId = raw?.replyTo?.replyToMsgId
+        let replyToId = raw?.replyTo?.replyToMsgId
             || raw?.replyTo?.id
             || raw?.replyTo?.replyToTopId
             || raw?.replyToMessage?.id;
-        // 如果 TG 结构没找到，尝试 QQ 结构
         if (!replyToId) {
             const replyContent = msg.content.find(c => c.type === 'reply');
             if (replyContent) {
-                const replyData = replyContent.data;
+                const replyData = replyContent.data || {};
                 replyToId = Number(replyData.messageId || replyData.id || replyData.seq);
             }
         }
@@ -153,22 +149,14 @@ export class RecallCommandHandler {
         let record;
         if (msg.platform === 'qq') {
             // QQ 消息：replyToId 是 QQ 的 seq
-            record = await db.message.findFirst({
-                where: {
-                    qqRoomId: BigInt(chatId),
-                    seq: replyToId,
-                    instanceId: this.context.instance.id,
-                },
+            record = await db.query.message.findFirst({
+                where: and(eq(schema.message.qqRoomId, BigInt(chatId)), eq(schema.message.seq, replyToId), eq(schema.message.instanceId, this.context.instance.id)),
             });
         }
         else {
             // TG 消息：replyToId 是 TG 的 msgId
-            record = await db.message.findFirst({
-                where: {
-                    tgChatId: BigInt(chatId),
-                    tgMsgId: replyToId,
-                    instanceId: this.context.instance.id,
-                },
+            record = await db.query.message.findFirst({
+                where: and(eq(schema.message.tgChatId, BigInt(chatId)), eq(schema.message.tgMsgId, replyToId), eq(schema.message.instanceId, this.context.instance.id)),
             });
         }
         const isAdmin = this.context.permissionChecker.isAdmin(String(senderId));
@@ -181,11 +169,9 @@ export class RecallCommandHandler {
         let triggerCommandId;
         if (msg.platform === 'telegram' && raw?.replyToMessage) {
             const replyToMsg = raw.replyToMessage;
-            // 检查被回复的消息是否来自 bot 自己
             const self = await this.context.tgBot.client.call({ _: 'users.getUsers', id: [{ _: 'inputUserSelf' }] });
             const botId = self[0].id;
             if (replyToMsg.senderId === botId) {
-                // 这是 bot 的回复，查找它回复的那条消息（可能是触发命令）
                 if (replyToMsg.replyTo?.replyToMsgId) {
                     triggerCommandId = replyToMsg.replyTo.replyToMsgId;
                     logger.info(`检测到级联删除: bot回复${replyToId} 的触发命令是 ${triggerCommandId}`);
@@ -193,9 +179,7 @@ export class RecallCommandHandler {
             }
         }
         // 双向撤回逻辑
-        // 撤回 QQ 端
         if (msg.platform === 'qq') {
-            // QQ 端发起：撤回 QQ 原消息
             try {
                 await this.context.qqClient.recallMessage(String(replyToId));
                 logger.info(`QQ message ${replyToId} recalled by /rm command`);
@@ -203,7 +187,6 @@ export class RecallCommandHandler {
             catch (e) {
                 logger.warn(e, `撤回 QQ 消息 ${replyToId} 失败`);
             }
-            // 删除对应的 TG 消息
             if (record?.tgMsgId && record?.tgChatId) {
                 try {
                     const chat = await this.context.tgBot.getChat(Number(record.tgChatId));
@@ -216,7 +199,6 @@ export class RecallCommandHandler {
             }
         }
         else {
-            // TG 端发起：删除 TG 原消息
             try {
                 const chat = await this.context.tgBot.getChat(Number(chatId));
                 await chat.deleteMessages([replyToId]);
@@ -225,7 +207,6 @@ export class RecallCommandHandler {
             catch (e) {
                 logger.warn(e, '撤回 TG 消息失败');
             }
-            // 撤回对应的 QQ 消息
             if (record?.seq && env.ENABLE_AUTO_RECALL) {
                 try {
                     await this.context.qqClient.recallMessage(String(record.seq));
@@ -235,19 +216,13 @@ export class RecallCommandHandler {
                     logger.warn(e, '撤回 QQ 消息失败');
                 }
             }
-            // 级联删除：如果有触发命令，也删除它
             if (triggerCommandId) {
                 try {
                     const chat = await this.context.tgBot.getChat(Number(chatId));
                     await chat.deleteMessages([triggerCommandId]);
                     logger.info(`级联删除触发命令: TG message ${triggerCommandId} deleted`);
-                    // 同时撤回触发命令对应的 QQ 消息
-                    const triggerRecord = await db.message.findFirst({
-                        where: {
-                            tgChatId: BigInt(chatId),
-                            tgMsgId: triggerCommandId,
-                            instanceId: this.context.instance.id,
-                        },
+                    const triggerRecord = await db.query.message.findFirst({
+                        where: and(eq(schema.message.tgChatId, BigInt(chatId)), eq(schema.message.tgMsgId, triggerCommandId), eq(schema.message.instanceId, this.context.instance.id)),
                     });
                     if (triggerRecord?.seq && env.ENABLE_AUTO_RECALL) {
                         try {

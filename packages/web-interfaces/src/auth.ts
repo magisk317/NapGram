@@ -156,10 +156,10 @@ export default async function (fastify: FastifyInstance) {
     }
 
     if (auth.userId) {
-      const { db } = await import('@napgram/infra-kit')
-      const user = await db.adminUser.findUnique({
-        where: { id: auth.userId },
-        select: {
+      const { db, schema, eq } = await import('@napgram/infra-kit')
+      const user = await db.query.adminUser.findFirst({
+        where: eq(schema.adminUser.id, auth.userId),
+        columns: {
           id: true,
           username: true,
           displayName: true,

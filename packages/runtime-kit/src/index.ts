@@ -5,7 +5,7 @@
  */
 
 // Essential kit exports
-export { env, getLogger, db, temp } from '@napgram/infra-kit'
+export { env, getLogger, db, temp, schema, eq, and, or, gte, lte, count, sql, desc } from '@napgram/infra-kit'
 
 // New Runtime Abstraction
 export * from './runtime-types'

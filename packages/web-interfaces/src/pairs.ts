@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
-import { ApiResponse, db, getLogger, groupInfoCache } from '@napgram/infra-kit'
+import { ApiResponse, db, getLogger, groupInfoCache, schema, eq, and, or, count, desc, inArray } from '@napgram/infra-kit'
 import { Instance } from '@napgram/runtime-kit'
 import { authMiddleware } from '@napgram/auth-kit'
 
@@ -159,41 +159,42 @@ export default async function (fastify: FastifyInstance) {
     const pageSizeNum = typeof pageSize === 'string' ? Number.parseInt(pageSize, 10) : pageSize
     const needNames = String(withNames).toLowerCase() === 'true'
 
-    const where: any = {}
+    const filters: any[] = []
 
     if (instanceId !== undefined) {
-      where.instanceId = Number.parseInt(instanceId)
+      filters.push(eq(schema.forwardPair.instanceId, Number.parseInt(instanceId)))
     }
 
     if (search) {
       const trimmed = String(search).trim()
       if (/^-?\d+$/.test(trimmed)) {
         const id = BigInt(trimmed)
-        where.OR = [
-          { qqRoomId: id },
-          { tgChatId: id },
-        ]
+        filters.push(or(
+          eq(schema.forwardPair.qqRoomId, id),
+          eq(schema.forwardPair.tgChatId, id),
+        ))
       }
     }
 
-    const [items, total] = await Promise.all([
-      db.forwardPair.findMany({
+    const where = filters.length > 0 ? (filters.length === 1 ? filters[0] : and(...filters)) : undefined
+
+    const [items, totalResult] = await Promise.all([
+      db.query.forwardPair.findMany({
         where,
-        skip: (pageNum - 1) * pageSizeNum,
-        take: pageSizeNum,
-        include: {
+        offset: (pageNum - 1) * pageSizeNum,
+        limit: pageSizeNum,
+        with: {
           instance: {
-            include: {
+            with: {
               qqBot: true,
             },
           },
         },
-        orderBy: {
-          id: 'desc',
-        },
+        orderBy: [desc(schema.forwardPair.id)],
       }),
-      db.forwardPair.count({ where }),
+      db.select({ value: count() }).from(schema.forwardPair).where(where),
     ])
+    const total = totalResult[0].value
 
     const mapped = items.map((item: any) => ({
       ...item,
@@ -245,11 +246,11 @@ export default async function (fastify: FastifyInstance) {
   }, async (request, reply) => {
     const { id } = request.params as { id: string }
 
-    const pair = await db.forwardPair.findUnique({
-      where: { id: Number.parseInt(id) },
-      include: {
+    const pair = await db.query.forwardPair.findFirst({
+      where: eq(schema.forwardPair.id, Number.parseInt(id)),
+      with: {
         instance: {
-          include: {
+          with: {
             qqBot: true,
           },
         },
@@ -299,25 +300,22 @@ export default async function (fastify: FastifyInstance) {
       const body = createPairSchema.parse(request.body)
       const auth = (request as any).auth
 
-      const pair = await db.forwardPair.create({
-        data: {
-          qqRoomId: body.qqRoomId,
-          tgChatId: body.tgChatId,
-          tgThreadId: body.tgThreadId || null,
-          instance: {
-            connect: { id: body.instanceId },
-          },
-          forwardMode: body.forwardMode || null,
-          nicknameMode: body.nicknameMode || null,
-          commandReplyMode: body.commandReplyMode || null,
-          commandReplyFilter: body.commandReplyFilter || null,
-          commandReplyList: body.commandReplyList || null,
-          notifyTelegram: body.notifyTelegram,
-          notifyQQ: body.notifyQQ,
-          ignoreRegex: body.ignoreRegex || null,
-          ignoreSenders: body.ignoreSenders || null,
-        },
-      })
+      const pairArr = await db.insert(schema.forwardPair).values({
+        qqRoomId: body.qqRoomId,
+        tgChatId: body.tgChatId,
+        tgThreadId: body.tgThreadId || null,
+        instanceId: body.instanceId,
+        forwardMode: body.forwardMode || null,
+        nicknameMode: body.nicknameMode || null,
+        commandReplyMode: body.commandReplyMode || null,
+        commandReplyFilter: body.commandReplyFilter || null,
+        commandReplyList: body.commandReplyList || null,
+        notifyTelegram: body.notifyTelegram,
+        notifyQQ: body.notifyQQ,
+        ignoreRegex: body.ignoreRegex || null,
+        ignoreSenders: body.ignoreSenders || null,
+      }).returning()
+      const pair = pairArr[0]
 
       // 审计日志
       const { AuthService } = await import('@napgram/auth-kit')
@@ -359,13 +357,12 @@ export default async function (fastify: FastifyInstance) {
           details: error.issues,
         })
       }
-      if (error.code === 'P2002') {
-        log.warn(error, 'create_pair conflict (P2002)')
+      if (error && (error.code === 'P2002' || error.constraint?.includes('Unique'))) {
+        log.warn(error, 'create_pair conflict')
         return reply.code(409).send(
           {
             ...ApiResponse.error('Pair already exists for this QQ room or TG chat'),
             errorCode: error.code,
-            details: error.meta,
           },
         )
       }
@@ -387,7 +384,9 @@ export default async function (fastify: FastifyInstance) {
       const auth = (request as any).auth
 
       const pairId = Number.parseInt(id)
-      const existing = await db.forwardPair.findUnique({ where: { id: pairId } })
+      const existing = await db.query.forwardPair.findFirst({
+        where: eq(schema.forwardPair.id, pairId),
+      })
       if (!existing) {
         return reply.code(404).send({
           success: false,
@@ -395,19 +394,12 @@ export default async function (fastify: FastifyInstance) {
         })
       }
 
-      const pair = await db.forwardPair.update({
-        where: { id: pairId },
-        data: {
+      const updatedArr = await db.update(schema.forwardPair)
+        .set({
           ...(body.qqRoomId !== undefined ? { qqRoomId: body.qqRoomId } : {}),
           ...(body.tgChatId !== undefined ? { tgChatId: body.tgChatId } : {}),
           ...(body.tgThreadId !== undefined ? { tgThreadId: body.tgThreadId } : {}),
-          ...(body.instanceId !== undefined
-            ? {
-              instance: {
-                connect: { id: body.instanceId },
-              },
-            }
-            : {}),
+          ...(body.instanceId !== undefined ? { instanceId: body.instanceId } : {}),
           forwardMode: body.forwardMode,
           nicknameMode: body.nicknameMode,
           commandReplyMode: body.commandReplyMode,
@@ -417,8 +409,10 @@ export default async function (fastify: FastifyInstance) {
           ...(body.notifyQQ !== undefined ? { notifyQQ: body.notifyQQ } : {}),
           ignoreRegex: body.ignoreRegex,
           ignoreSenders: body.ignoreSenders,
-        },
-      })
+        })
+        .where(eq(schema.forwardPair.id, pairId))
+        .returning()
+      const pair = updatedArr[0]
 
       // 审计日志
       const { AuthService } = await import('@napgram/auth-kit')
@@ -456,12 +450,11 @@ export default async function (fastify: FastifyInstance) {
           details: error.issues,
         })
       }
-      if (error.code === 'P2002') {
-        log.warn(error, 'update_pair conflict (P2002)')
+      if (error && (error.code === 'P2002' || error.constraint?.includes('Unique'))) {
+        log.warn(error, 'update_pair conflict')
         return reply.code(409).send({
           ...ApiResponse.error('Pair already exists for this QQ room or TG chat'),
           errorCode: error.code,
-          details: error.meta,
         })
       }
       log.error(error, 'update_pair failed')
@@ -481,7 +474,9 @@ export default async function (fastify: FastifyInstance) {
 
     try {
       const pairId = Number.parseInt(id)
-      const existing = await db.forwardPair.findUnique({ where: { id: pairId } })
+      const existing = await db.query.forwardPair.findFirst({
+        where: eq(schema.forwardPair.id, pairId),
+      })
       if (!existing) {
         return reply.code(404).send({
           success: false,
@@ -489,7 +484,10 @@ export default async function (fastify: FastifyInstance) {
         })
       }
 
-      const pair = await db.forwardPair.delete({ where: { id: pairId } })
+      const pairArr = await db.delete(schema.forwardPair)
+        .where(eq(schema.forwardPair.id, pairId))
+        .returning()
+      const pair = pairArr[0]
 
       // 审计日志
       const { AuthService } = await import('@napgram/auth-kit')
@@ -583,8 +581,8 @@ export default async function (fastify: FastifyInstance) {
   }, async (request, reply) => {
     const { id } = request.params as { id: string }
 
-    const pair = await db.forwardPair.findUnique({
-      where: { id: Number.parseInt(id) },
+    const pair = await db.query.forwardPair.findFirst({
+      where: eq(schema.forwardPair.id, Number.parseInt(id)),
     })
 
     if (!pair) {
@@ -595,24 +593,21 @@ export default async function (fastify: FastifyInstance) {
     }
 
     // 统计消息数量
-    const messageCount = await db.message.count({
-      where: {
-        qqRoomId: pair.qqRoomId,
-        tgChatId: pair.tgChatId,
-        instanceId: pair.instanceId,
-      },
-    })
+    const messageCountResult = await db.select({ value: count() }).from(schema.message).where(and(
+      eq(schema.message.qqRoomId, pair.qqRoomId),
+      eq(schema.message.tgChatId, pair.tgChatId),
+      eq(schema.message.instanceId, pair.instanceId),
+    ))
+    const messageCount = messageCountResult[0].value
 
     // 最近消息
-    const recentMessage = await db.message.findFirst({
-      where: {
-        qqRoomId: pair.qqRoomId,
-        tgChatId: pair.tgChatId,
-        instanceId: pair.instanceId,
-      },
-      orderBy: {
-        time: 'desc',
-      },
+    const recentMessage = await db.query.message.findFirst({
+      where: and(
+        eq(schema.message.qqRoomId, pair.qqRoomId),
+        eq(schema.message.tgChatId, pair.tgChatId),
+        eq(schema.message.instanceId, pair.instanceId),
+      ),
+      orderBy: [desc(schema.message.time)],
     })
 
     return {

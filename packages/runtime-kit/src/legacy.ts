@@ -1,4 +1,4 @@
-export { env, db } from '@napgram/infra-kit'
+export { env, db, schema, eq, and, or, lt, desc, count, like } from '@napgram/infra-kit'
 import { InstanceRegistry } from './runtime-holder'
 import type { IInstance } from './runtime-types'
 

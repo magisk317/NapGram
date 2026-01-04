@@ -5,14 +5,29 @@ import Instance from '../Instance'
 // Local mock removed to rely on fixed global mock
 
 
+const mockUpdate = vi.fn(() => ({
+    set: vi.fn(() => ({
+        where: vi.fn().mockResolvedValue({}),
+    })),
+}))
+const mockInsert = vi.fn(() => ({
+    values: vi.fn(() => ({
+        returning: vi.fn().mockResolvedValue([{ id: 1 }]),
+    })),
+}))
+
 vi.mock('@napgram/infra-kit', () => ({
     db: {
-        instance: {
-            create: vi.fn(),
-            update: vi.fn(),
-            findFirst: vi.fn(),
-        }
+        query: {
+            instance: {
+                findFirst: vi.fn(),
+            },
+        },
+        insert: mockInsert,
+        update: mockUpdate,
     },
+    schema: { instance: { id: 'id' } },
+    eq: vi.fn(),
     env: {
         TG_BOT_TOKEN: 'fake-token',
         NAPCAT_WS_URL: 'ws://fake',
@@ -65,9 +80,7 @@ vi.mock('@napgram/plugin-kit', () => ({
 describe('Instance Session Coverage', () => {
     it('should default botSessionId to 0 when sessionId is undefined', async () => {
         // Setup mock return values via the global mock
-        vi.mocked(db.instance.findFirst).mockResolvedValue({ id: 1 } as any)
-        vi.mocked(db.instance.create).mockResolvedValue({ id: 1 } as any)
-        vi.mocked(db.instance.update).mockResolvedValue({ id: 1 } as any)
+        vi.mocked(db.query.instance.findFirst).mockResolvedValue({ id: 1 } as any)
 
         const instance = await Instance.createNew('token') as Instance
 
