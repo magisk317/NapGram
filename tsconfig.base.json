@@ -50,6 +50,12 @@
             "@napgram/sdk": [
                 "external/sdk/packages/sdk/src/index.ts"
             ],
+            "@napgram/core": [
+                "external/sdk/packages/core/src/index.ts"
+            ],
+            "@napgram/utils": [
+                "external/sdk/packages/utils/src/index.ts"
+            ],
             "@napgram/app/*": [
                 "main/src/*"
             ]
