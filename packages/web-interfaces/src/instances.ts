@@ -109,8 +109,6 @@ export default async function (fastify: FastifyInstance) {
             uin: env.ADMIN_QQ?.toString() || null,
             id: -1, // Virtual ID
             password: null,
-            createdAt: new Date(),
-            updatedAt: new Date(),
           }
         }
 
@@ -176,8 +174,6 @@ export default async function (fastify: FastifyInstance) {
         uin: env.ADMIN_QQ?.toString() || null,
         id: -1,
         password: null,
-        createdAt: new Date(),
-        updatedAt: new Date(),
       }
     }
 
