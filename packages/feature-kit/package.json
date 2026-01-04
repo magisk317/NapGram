@@ -25,9 +25,9 @@
     "author": "NapGram Team",
     "license": "MIT",
     "dependencies": {
-        "@mtcute/core": "^0.27.4",
-        "@mtcute/markdown-parser": "^0.27.4",
-        "@mtcute/node": "^0.27.4",
+        "@mtcute/core": "^0.27.5",
+        "@mtcute/markdown-parser": "^0.27.5",
+        "@mtcute/node": "^0.27.5",
         "@napgram/auth-kit": "workspace:*",
         "@napgram/infra-kit": "workspace:*",
         "@napgram/media-kit": "workspace:*",

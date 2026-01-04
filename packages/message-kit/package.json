@@ -39,7 +39,7 @@
     "author": "NapGram Team",
     "license": "MIT",
     "dependencies": {
-        "@mtcute/core": "^0.27.4",
+        "@mtcute/core": "^0.27.5",
         "@napgram/infra-kit": "workspace:*",
         "@napgram/media-kit": "workspace:*",
         "@napgram/qq-client": "workspace:*",
