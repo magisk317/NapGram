@@ -24,7 +24,7 @@
         "@napgram/plugin-kit": "workspace:*",
         "@napgram/telegram-client": "workspace:*",
         "fastify": "5.6.2",
-        "zod": "4.3.4"
+        "zod": "4.3.5"
     },
     "keywords": [
         "napgram",
