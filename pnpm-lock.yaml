@@ -9,47 +9,9 @@ importers:
   .:
     dependencies:
       '@napgram/sdk':
-        specifier: workspace:*
-        version: link:external/sdk/packages/sdk
+        specifier: ^0.1.3
+        version: 0.1.3
     devDependencies:
-      typescript:
-        specifier: 5.9.3
-        version: 5.9.3
-
-  external/sdk/packages/core:
-    devDependencies:
-      '@types/node':
-        specifier: 25.0.3
-        version: 25.0.3
-      typescript:
-        specifier: 5.9.3
-        version: 5.9.3
-
-  external/sdk/packages/sdk:
-    dependencies:
-      '@napgram/core':
-        specifier: workspace:*
-        version: link:../core
-      '@napgram/utils':
-        specifier: workspace:*
-        version: link:../utils
-    devDependencies:
-      '@types/node':
-        specifier: 25.0.3
-        version: 25.0.3
-      typescript:
-        specifier: 5.9.3
-        version: 5.9.3
-
-  external/sdk/packages/utils:
-    dependencies:
-      '@napgram/core':
-        specifier: workspace:*
-        version: link:../core
-    devDependencies:
-      '@types/node':
-        specifier: 25.0.3
-        version: 25.0.3
       typescript:
         specifier: 5.9.3
         version: 5.9.3
@@ -463,8 +425,8 @@ importers:
         version: link:../qq-client
     devDependencies:
       '@napgram/sdk':
-        specifier: workspace:*
-        version: link:../../external/sdk/packages/sdk
+        specifier: ^0.1.3
+        version: 0.1.3
       '@types/node':
         specifier: 25.0.3
         version: 25.0.3
@@ -479,8 +441,8 @@ importers:
         version: link:../telegram-client
     devDependencies:
       '@napgram/sdk':
-        specifier: workspace:*
-        version: link:../../external/sdk/packages/sdk
+        specifier: ^0.1.3
+        version: 0.1.3
       '@types/node':
         specifier: 25.0.3
         version: 25.0.3
@@ -491,8 +453,8 @@ importers:
   packages/plugin-admin-auth:
     devDependencies:
       '@napgram/sdk':
-        specifier: workspace:*
-        version: link:../../external/sdk/packages/sdk
+        specifier: ^0.1.3
+        version: 0.1.3
       '@napgram/web-interfaces':
         specifier: workspace:*
         version: link:../web-interfaces
@@ -506,8 +468,8 @@ importers:
   packages/plugin-admin-database:
     devDependencies:
       '@napgram/sdk':
-        specifier: workspace:*
-        version: link:../../external/sdk/packages/sdk
+        specifier: ^0.1.3
+        version: 0.1.3
       '@napgram/web-interfaces':
         specifier: workspace:*
         version: link:../web-interfaces
@@ -521,8 +483,8 @@ importers:
   packages/plugin-admin-instances:
     devDependencies:
       '@napgram/sdk':
-        specifier: workspace:*
-        version: link:../../external/sdk/packages/sdk
+        specifier: ^0.1.3
+        version: 0.1.3
       '@napgram/web-interfaces':
         specifier: workspace:*
         version: link:../web-interfaces
@@ -536,8 +498,8 @@ importers:
   packages/plugin-admin-logs:
     devDependencies:
       '@napgram/sdk':
-        specifier: workspace:*
-        version: link:../../external/sdk/packages/sdk
+        specifier: ^0.1.3
+        version: 0.1.3
       '@napgram/web-interfaces':
         specifier: workspace:*
         version: link:../web-interfaces
@@ -551,8 +513,8 @@ importers:
   packages/plugin-admin-messages:
     devDependencies:
       '@napgram/sdk':
-        specifier: workspace:*
-        version: link:../../external/sdk/packages/sdk
+        specifier: ^0.1.3
+        version: 0.1.3
       '@napgram/web-interfaces':
         specifier: workspace:*
         version: link:../web-interfaces
@@ -566,8 +528,8 @@ importers:
   packages/plugin-admin-pairs:
     devDependencies:
       '@napgram/sdk':
-        specifier: workspace:*
-        version: link:../../external/sdk/packages/sdk
+        specifier: ^0.1.3
+        version: 0.1.3
       '@napgram/web-interfaces':
         specifier: workspace:*
         version: link:../web-interfaces
@@ -581,8 +543,8 @@ importers:
   packages/plugin-admin-plugins:
     devDependencies:
       '@napgram/sdk':
-        specifier: workspace:*
-        version: link:../../external/sdk/packages/sdk
+        specifier: ^0.1.3
+        version: 0.1.3
       '@napgram/web-interfaces':
         specifier: workspace:*
         version: link:../web-interfaces
@@ -596,8 +558,8 @@ importers:
   packages/plugin-admin-settings:
     devDependencies:
       '@napgram/sdk':
-        specifier: workspace:*
-        version: link:../../external/sdk/packages/sdk
+        specifier: ^0.1.3
+        version: 0.1.3
       '@napgram/web-interfaces':
         specifier: workspace:*
         version: link:../web-interfaces
@@ -611,8 +573,8 @@ importers:
   packages/plugin-admin-suite:
     devDependencies:
       '@napgram/sdk':
-        specifier: workspace:*
-        version: link:../../external/sdk/packages/sdk
+        specifier: ^0.1.3
+        version: 0.1.3
       '@napgram/web-interfaces':
         specifier: workspace:*
         version: link:../web-interfaces
@@ -629,8 +591,8 @@ importers:
         specifier: workspace:*
         version: link:../feature-kit
       '@napgram/sdk':
-        specifier: workspace:*
-        version: link:../../external/sdk/packages/sdk
+        specifier: ^0.1.3
+        version: 0.1.3
       '@types/node':
         specifier: 25.0.3
         version: 25.0.3
@@ -641,8 +603,8 @@ importers:
   packages/plugin-flags:
     devDependencies:
       '@napgram/sdk':
-        specifier: workspace:*
-        version: link:../../external/sdk/packages/sdk
+        specifier: ^0.1.3
+        version: 0.1.3
       '@types/node':
         specifier: 25.0.3
         version: 25.0.3
@@ -656,8 +618,8 @@ importers:
         specifier: workspace:*
         version: link:../feature-kit
       '@napgram/sdk':
-        specifier: workspace:*
-        version: link:../../external/sdk/packages/sdk
+        specifier: ^0.1.3
+        version: 0.1.3
       '@types/node':
         specifier: 25.0.3
         version: 25.0.3
@@ -671,8 +633,8 @@ importers:
         specifier: workspace:*
         version: link:../gateway-kit
       '@napgram/sdk':
-        specifier: workspace:*
-        version: link:../../external/sdk/packages/sdk
+        specifier: ^0.1.3
+        version: 0.1.3
       '@types/node':
         specifier: 25.0.3
         version: 25.0.3
@@ -683,8 +645,8 @@ importers:
   packages/plugin-group-management:
     devDependencies:
       '@napgram/sdk':
-        specifier: workspace:*
-        version: link:../../external/sdk/packages/sdk
+        specifier: ^0.1.3
+        version: 0.1.3
       '@types/node':
         specifier: 25.0.3
         version: 25.0.3
@@ -741,8 +703,8 @@ importers:
         specifier: workspace:*
         version: link:../feature-kit
       '@napgram/sdk':
-        specifier: workspace:*
-        version: link:../../external/sdk/packages/sdk
+        specifier: ^0.1.3
+        version: 0.1.3
       '@types/node':
         specifier: 25.0.3
         version: 25.0.3
@@ -756,8 +718,8 @@ importers:
         specifier: workspace:*
         version: link:../infra-kit
       '@napgram/sdk':
-        specifier: workspace:*
-        version: link:../../external/sdk/packages/sdk
+        specifier: ^0.1.3
+        version: 0.1.3
       '@napgram/web-interfaces':
         specifier: workspace:*
         version: link:../web-interfaces
@@ -771,8 +733,8 @@ importers:
   packages/plugin-notifications:
     devDependencies:
       '@napgram/sdk':
-        specifier: workspace:*
-        version: link:../../external/sdk/packages/sdk
+        specifier: ^0.1.3
+        version: 0.1.3
       '@types/node':
         specifier: 25.0.3
         version: 25.0.3
@@ -783,8 +745,8 @@ importers:
   packages/plugin-ping-pong:
     devDependencies:
       '@napgram/sdk':
-        specifier: workspace:*
-        version: link:../../external/sdk/packages/sdk
+        specifier: ^0.1.3
+        version: 0.1.3
       '@types/node':
         specifier: 25.0.3
         version: 25.0.3
@@ -795,8 +757,8 @@ importers:
   packages/plugin-qq-interaction:
     devDependencies:
       '@napgram/sdk':
-        specifier: workspace:*
-        version: link:../../external/sdk/packages/sdk
+        specifier: ^0.1.3
+        version: 0.1.3
       '@types/node':
         specifier: 25.0.3
         version: 25.0.3
@@ -810,8 +772,8 @@ importers:
         specifier: workspace:*
         version: link:../feature-kit
       '@napgram/sdk':
-        specifier: workspace:*
-        version: link:../../external/sdk/packages/sdk
+        specifier: ^0.1.3
+        version: 0.1.3
       '@types/node':
         specifier: 25.0.3
         version: 25.0.3
@@ -822,8 +784,8 @@ importers:
   packages/plugin-refresh:
     devDependencies:
       '@napgram/sdk':
-        specifier: workspace:*
-        version: link:../../external/sdk/packages/sdk
+        specifier: ^0.1.3
+        version: 0.1.3
       '@types/node':
         specifier: 25.0.3
         version: 25.0.3
@@ -837,8 +799,8 @@ importers:
         specifier: workspace:*
         version: link:../request-kit
       '@napgram/sdk':
-        specifier: workspace:*
-        version: link:../../external/sdk/packages/sdk
+        specifier: ^0.1.3
+        version: 0.1.3
       '@types/node':
         specifier: 25.0.3
         version: 25.0.3
@@ -852,8 +814,8 @@ importers:
         specifier: workspace:*
         version: link:../request-kit
       '@napgram/sdk':
-        specifier: workspace:*
-        version: link:../../external/sdk/packages/sdk
+        specifier: ^0.1.3
+        version: 0.1.3
       '@types/node':
         specifier: 25.0.3
         version: 25.0.3
@@ -864,8 +826,8 @@ importers:
   packages/plugin-statistics:
     devDependencies:
       '@napgram/sdk':
-        specifier: workspace:*
-        version: link:../../external/sdk/packages/sdk
+        specifier: ^0.1.3
+        version: 0.1.3
       '@napgram/web-interfaces':
         specifier: workspace:*
         version: link:../web-interfaces
@@ -879,8 +841,8 @@ importers:
   packages/plugin-web-assets:
     devDependencies:
       '@napgram/sdk':
-        specifier: workspace:*
-        version: link:../../external/sdk/packages/sdk
+        specifier: ^0.1.3
+        version: 0.1.3
       '@napgram/web-interfaces':
         specifier: workspace:*
         version: link:../web-interfaces
@@ -894,8 +856,8 @@ importers:
   packages/plugin-web-console:
     devDependencies:
       '@napgram/sdk':
-        specifier: workspace:*
-        version: link:../../external/sdk/packages/sdk
+        specifier: ^0.1.3
+        version: 0.1.3
       '@napgram/web-interfaces':
         specifier: workspace:*
         version: link:../web-interfaces
@@ -1869,6 +1831,15 @@ packages:
 
   '@mtcute/wasm@0.27.0':
     resolution: {integrity: sha512-1v4eO1N1BVRQ8L+cyUsMAeLXs5suTGXyVv/tftkbd/mGGHxc+fvOWItp3Fmq+GIwN7m4VX7kztuMMLhHxv2i2Q==}
+
+  '@napgram/core@0.1.3':
+    resolution: {integrity: sha512-YQD6Fh4flTNtRRnZU8RhLqYBxnBtLCgWEoy4CTiI3FZExWa9+Th78e7hIvwHK7F0SyUH/Vxu3DrwNrRldD6zRQ==}
+
+  '@napgram/sdk@0.1.3':
+    resolution: {integrity: sha512-rRE/BzoSbonFC8/2nA75Zz0ytjQukJiBbI2alje4waguz00y3Y8WtwOKwetkL1+YQqK8Gw56zjAi6OOVOSSPWQ==}
+
+  '@napgram/utils@0.1.3':
+    resolution: {integrity: sha512-26oNeyvV5OLujOlxGSwZ4k3D7Pim2nZs35lrwA9igcxeznDLQatmICnlGneIIIDmfV/QApV9enXmGChrHqlIYA==}
 
   '@naplink/naplink@0.0.3':
     resolution: {integrity: sha512-Kj9decWNurJyCOQgSMlMZLOYg0xJtdgMVZO+O8nHMDPND7rhwwqqbVX11M7CIRBmHO1mjl5NTuY3OaI2lUCvGw==}
@@ -6045,6 +6016,17 @@ snapshots:
       long: 5.2.3
 
   '@mtcute/wasm@0.27.0': {}
+
+  '@napgram/core@0.1.3': {}
+
+  '@napgram/sdk@0.1.3':
+    dependencies:
+      '@napgram/core': 0.1.3
+      '@napgram/utils': 0.1.3
+
+  '@napgram/utils@0.1.3':
+    dependencies:
+      '@napgram/core': 0.1.3
 
   '@naplink/naplink@0.0.3':
     dependencies:

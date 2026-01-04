@@ -1,4 +1,3 @@
 packages:
   - 'main'
   - 'packages/*'
-  - 'external/sdk/packages/*'

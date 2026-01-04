@@ -5,6 +5,46 @@
 
 version: 2
 updates:
+  # workspace 根目录 (npm lockfile)
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "daily"
+    open-pull-requests-limit: 10
+    target-branch: "dev"
+    
+    # 显式指定 Commit 风格
+    commit-message:
+      prefix: "chore(deps)"
+      prefix-development: "chore(deps-dev)"
+    
+    # 依赖分组
+    groups:
+      production-deps:
+        patterns:
+          - "@fastify/*"
+          - "@mtcute/*"
+          - "fastify"
+        update-types:
+          - "minor"
+          - "patch"
+      
+      dev-deps:
+        patterns:
+          - "@types/*"
+          - "typescript"
+          - "vitest"
+          - "eslint"
+        dependency-type: "development"
+        update-types:
+          - "minor"
+          - "patch"
+    
+    # 只忽略外部链接的包
+    ignore:
+      - dependency-name: "@naplink/naplink"
+      - dependency-name: "@napgram/*"
+
   # main 应用 (使用 npm lockfile)
   - package-ecosystem: "npm"
     directory: "/main"
@@ -24,7 +64,6 @@ updates:
         patterns:
           - "@fastify/*"
           - "@mtcute/*"
-          - "@prisma/*"
           - "fastify"
           - "prisma"
         update-types:
@@ -45,3 +84,4 @@ updates:
     # 只忽略外部链接的包
     ignore:
       - dependency-name: "@naplink/naplink"
+      - dependency-name: "@napgram/*"
