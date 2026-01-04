@@ -445,13 +445,15 @@ async function runPnpmInstall(projectDir: string, opts: Required<NonNullable<Mar
   if (opts.registry)
     envVars.npm_config_registry = opts.registry
 
-  env: envVars,
+  await execFileAsync('pnpm', args, {
+    cwd: projectDir,
+    env: envVars,
     maxBuffer: 20 * 1024 * 1024,
-  }).catch ((error) => {
-  logger.error({ error: error?.message || String(error), stderr: error?.stderr, stdout: error?.stdout, projectDir }, 'pnpm install failed')
-  throw error
-})
-logger.info({ projectDir }, 'pnpm install completed')
+  }).catch((error) => {
+    logger.error({ error: error?.message || String(error), stderr: error?.stderr, stdout: error?.stdout, projectDir }, 'pnpm install failed')
+    throw error
+  })
+  logger.info({ projectDir }, 'pnpm install completed')
 }
 
 async function loadPluginDefaultConfig(installDir: string): Promise<any | null> {
