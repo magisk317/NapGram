@@ -40,7 +40,8 @@ updates:
           - "minor"
           - "patch"
     
-    # 只忽略外部链接的包
+    # 忽略外部链接的包和 workspace 内部包
+    # @napgram/* 会忽略所有 workspace 包 (packages/* 和 external/sdk/packages/*)
     ignore:
       - dependency-name: "@naplink/naplink"
       - dependency-name: "@napgram/*"
@@ -81,7 +82,8 @@ updates:
           - "minor"
           - "patch"
     
-    # 只忽略外部链接的包
+    # 忽略外部链接的包和 workspace 内部包
+    # @napgram/* 会忽略所有 workspace 包 (packages/* 和 external/sdk/packages/*)
     ignore:
       - dependency-name: "@naplink/naplink"
       - dependency-name: "@napgram/*"
