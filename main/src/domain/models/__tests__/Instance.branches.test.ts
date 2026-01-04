@@ -3,7 +3,7 @@ import { db } from '@napgram/infra-kit'
 import Instance from '../Instance'
 
 // Mocks
-const { mockInstance } = vi.hoisted(() => ({
+const { mockInstance, mockUpdate, mockInsert } = vi.hoisted(() => ({
   mockInstance: {
     id: 1,
     owner: 0,
@@ -13,16 +13,15 @@ const { mockInstance } = vi.hoisted(() => ({
     botSessionId: 0,
     qqBot: { wsUrl: 'ws://fake' },
   },
-}))
-
-const mockUpdate = vi.fn(() => ({
-  set: vi.fn(() => ({
-    where: vi.fn().mockResolvedValue(mockInstance),
+  mockUpdate: vi.fn(() => ({
+    set: vi.fn(() => ({
+      where: vi.fn().mockResolvedValue(undefined),
+    })),
   })),
-}))
-const mockInsert = vi.fn(() => ({
-  values: vi.fn(() => ({
-    returning: vi.fn().mockResolvedValue([{ id: 1 }]),
+  mockInsert: vi.fn(() => ({
+    values: vi.fn(() => ({
+      returning: vi.fn().mockResolvedValue([{ id: 1 }]),
+    })),
   })),
 }))
 
@@ -114,11 +113,12 @@ describe('instance Branches', () => {
 
   it('should handle property setters', async () => {
     const instance = await Instance.createNew('token') as Instance
+    mockUpdate.mockClear()
 
     // Setters trigger db update
     instance.owner = 123
     const ownerSetCalls = vi.mocked(mockUpdate).mock.results[0]?.value?.set?.mock?.calls ?? []
-    expect(ownerSetCalls[0]?.[0]).toEqual({ owner: 123 })
+    expect(ownerSetCalls[0]?.[0]).toEqual({ owner: BigInt(123) })
 
     instance.isSetup = true
     const setupSetCalls = vi.mocked(mockUpdate).mock.results[1]?.value?.set?.mock?.calls ?? []
@@ -149,5 +149,15 @@ describe('instance Branches', () => {
 
     const { telegramClientFactory } = await import('../../../infrastructure/clients/telegram')
     expect(telegramClientFactory.create).toHaveBeenCalledTimes(1)
+  })
+
+  it('should throw when createNew returns no db entry', async () => {
+    mockInsert.mockReturnValueOnce({
+      values: vi.fn(() => ({
+        returning: vi.fn().mockResolvedValue([]),
+      })),
+    })
+
+    await expect(Instance.createNew('token')).rejects.toThrow('Failed to create instance')
   })
 })

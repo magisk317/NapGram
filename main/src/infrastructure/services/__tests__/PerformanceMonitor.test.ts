@@ -72,7 +72,11 @@ describe('performanceMonitor', () => {
     const debugSpy = vi.spyOn(console, 'debug').mockImplementation(() => { })
     monitor.recordMessage(100)
     monitor.printStats()
-    expect(debugSpy).toHaveBeenCalledWith('[PerformanceMonitor]', expect.stringContaining('Performance Statistics'))
+    expect(debugSpy).toHaveBeenCalledWith(
+      '[PerformanceMonitor]',
+      expect.objectContaining({ stats: expect.any(Object) }),
+      'Performance Statistics',
+    )
     debugSpy.mockRestore()
   })
 

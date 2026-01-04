@@ -95,6 +95,36 @@ describe('processNestedForward', () => {
     expect(parsed).toEqual({ type: 'forward', uuid: 'uuid-new' })
   })
 
+  it('should replace data when entity exists after lookup', async () => {
+    const jsonData = JSON.stringify({ type: 'forward', resId: 'existing-1' })
+    const elem = { type: 'json', data: jsonData }
+    const msgs = [{ message: [elem] }] as any
+
+    vi.mocked(db.query.forwardMultiple.findFirst).mockResolvedValueOnce({ id: 'uuid-exists' } as any)
+
+    await processNestedForward(msgs, 4)
+
+    const parsed = JSON.parse(elem.data)
+    expect(parsed).toEqual({ type: 'forward', uuid: 'uuid-exists' })
+  })
+
+  it('should keep data unchanged when no entity is created', async () => {
+    const jsonData = JSON.stringify({ type: 'forward', resId: 'missing-entity' })
+    const elem = { type: 'json', data: jsonData }
+    const msgs = [{ message: [elem] }] as any
+
+    vi.mocked(db.query.forwardMultiple.findFirst).mockResolvedValueOnce(undefined)
+    vi.mocked(db.insert).mockReturnValueOnce({
+      values: vi.fn(() => ({
+        returning: vi.fn().mockResolvedValue([]),
+      })),
+    } as any)
+
+    await processNestedForward(msgs, 5)
+
+    expect(elem.data).toBe(jsonData)
+  })
+
   it('should skip if type is not forward or no resId', async () => {
     // type not forward
     let elem = { type: 'json', data: JSON.stringify({ type: 'other', resId: '1' }) }

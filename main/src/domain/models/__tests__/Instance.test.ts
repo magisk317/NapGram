@@ -14,12 +14,48 @@ const envMock = vi.hoisted(() => ({
 }))
 
 const dbMocks = vi.hoisted(() => ({
+  query: {
+    instance: {
+      findFirst: vi.fn(),
+    },
+    session: {
+      findFirst: vi.fn(),
+    },
+  },
+  insert: vi.fn(() => ({
+    values: vi.fn(() => ({
+      returning: vi.fn().mockResolvedValue([]),
+      onConflictDoUpdate: vi.fn(() => ({
+        returning: vi.fn().mockResolvedValue([]),
+      })),
+    })),
+  })),
+  update: vi.fn(() => ({
+    set: vi.fn(() => ({
+      where: vi.fn().mockResolvedValue(undefined),
+    })),
+  })),
+}))
+
+const schemaMocks = vi.hoisted(() => ({
   instance: {
-    findFirst: vi.fn(),
-    create: vi.fn(),
-    update: vi.fn(),
+    id: 'id',
+    owner: 'owner',
+    isSetup: 'isSetup',
+    workMode: 'workMode',
+    botSessionId: 'botSessionId',
+    qqBotId: 'qqBotId',
+    flags: 'flags',
+  },
+  session: {
+    id: 'id',
+    dcId: 'dcId',
+    serverAddress: 'serverAddress',
+    authKey: 'authKey',
   },
 }))
+
+const eqMock = vi.hoisted(() => vi.fn((left, right) => ({ left, right })))
 
 const loggerMocks = vi.hoisted(() => ({
   trace: vi.fn(),
@@ -73,6 +109,8 @@ const qqMocks = vi.hoisted(() => {
 vi.mock('@napgram/infra-kit', () => ({
   env: envMock,
   db: dbMocks,
+  schema: schemaMocks,
+  eq: eqMock,
   getLogger: vi.fn(() => loggerMocks),
   temp: {
     TEMP_PATH: '/tmp/napgram',
@@ -148,21 +186,25 @@ describe('instance', () => {
     telegramMocks.connect.mockResolvedValue({ sessionId: 10, me: { id: 1 } })
     telegramMocks.create.mockResolvedValue({ sessionId: 20, me: { id: 2 } })
     forwardMapMocks.load.mockResolvedValue({ map: true })
-    dbMocks.instance.create.mockResolvedValue({ id: 0 })
-    dbMocks.instance.update.mockResolvedValue({})
+    dbMocks.query.instance.findFirst.mockResolvedValue(null)
+    dbMocks.insert.mockReturnValue({
+      values: vi.fn().mockReturnValue({
+        returning: vi.fn().mockResolvedValue([{ id: 0 }]),
+      }),
+    })
   })
 
   it('creates instance zero record when missing', async () => {
-    dbMocks.instance.findFirst.mockResolvedValue(null)
+    dbMocks.query.instance.findFirst.mockResolvedValue(null)
     const instance = new (Instance as any)(0)
 
     await (instance as any).load()
 
-    expect(dbMocks.instance.create).toHaveBeenCalledWith({ data: { id: 0 } })
+    expect(dbMocks.insert).toHaveBeenCalled()
   })
 
   it('throws when instance record is missing', async () => {
-    dbMocks.instance.findFirst.mockResolvedValue(null)
+    dbMocks.query.instance.findFirst.mockResolvedValue(null)
     const instance = new (Instance as any)(1)
 
     await expect((instance as any).load()).rejects.toThrow('Instance not found')
@@ -170,7 +212,7 @@ describe('instance', () => {
 
   it('starts instance and bridges qq events', async () => {
     envMock.ENABLE_OFFLINE_NOTIFICATION = true
-    dbMocks.instance.findFirst.mockResolvedValue({
+    dbMocks.query.instance.findFirst.mockResolvedValue({
       owner: 100,
       qqBot: { wsUrl: 'ws://db', id: 5 },
       botSessionId: 55,
@@ -264,6 +306,9 @@ describe('instance', () => {
   it('updates instance fields via setters', () => {
     const instance = new (Instance as any)(3)
       ; (instance as any)._qq = {}
+    const whereMock = vi.fn().mockResolvedValue(undefined)
+    const setMock = vi.fn().mockReturnValue({ where: whereMock })
+    dbMocks.update.mockReturnValue({ set: setMock })
 
     instance.owner = 10
     instance.isSetup = true
@@ -272,17 +317,18 @@ describe('instance', () => {
     instance.qqBotId = 88
     instance.flags = 5
 
-    expect(dbMocks.instance.update).toHaveBeenCalledWith({ data: { owner: 10 }, where: { id: 3 } })
-    expect(dbMocks.instance.update).toHaveBeenCalledWith({ data: { isSetup: true }, where: { id: 3 } })
-    expect(dbMocks.instance.update).toHaveBeenCalledWith({ data: { workMode: 'public' }, where: { id: 3 } })
-    expect(dbMocks.instance.update).toHaveBeenCalledWith({ data: { botSessionId: 77 }, where: { id: 3 } })
-    expect(dbMocks.instance.update).toHaveBeenCalledWith({ data: { qqBotId: 88 }, where: { id: 3 } })
-    expect(dbMocks.instance.update).toHaveBeenCalledWith({ data: { flags: 5 }, where: { id: 3 } })
+    expect(dbMocks.update).toHaveBeenCalledWith(schemaMocks.instance)
+    expect(setMock).toHaveBeenCalledWith({ owner: BigInt(10) })
+    expect(setMock).toHaveBeenCalledWith({ isSetup: true })
+    expect(setMock).toHaveBeenCalledWith({ workMode: 'public' })
+    expect(setMock).toHaveBeenCalledWith({ botSessionId: 77 })
+    expect(setMock).toHaveBeenCalledWith({ qqBotId: 88 })
+    expect(setMock).toHaveBeenCalledWith({ flags: 5 })
     expect((instance as any)._qq.id).toBe(88)
   })
 
   it('validates getters', async () => {
-    dbMocks.instance.findFirst.mockResolvedValue({
+    dbMocks.query.instance.findFirst.mockResolvedValue({
       owner: 99,
       qqBot: { id: 10, wsUrl: 'ws://' },
       botSessionId: 88,
@@ -308,7 +354,7 @@ describe('instance', () => {
 
   it('handles group and friend increase/decrease events', async () => {
     // Setup instance to register handlers
-    dbMocks.instance.findFirst.mockResolvedValue({})
+    dbMocks.query.instance.findFirst.mockResolvedValue({})
     await Instance.start(5, 'token')
 
     const groupIncrease = qqMocks.handlers.get('group.increase')
@@ -329,12 +375,16 @@ describe('instance', () => {
   })
 
   it('creates new instance via createNew', async () => {
-    dbMocks.instance.create.mockResolvedValue({ id: 999 })
-    dbMocks.instance.findFirst.mockResolvedValue({})
+    const returningMock = vi.fn().mockResolvedValue([{ id: 999 }])
+    const valuesMock = vi.fn().mockReturnValue({ returning: returningMock })
+    dbMocks.insert.mockReturnValue({ values: valuesMock })
+    dbMocks.query.instance.findFirst.mockResolvedValue({})
 
     const instance = await Instance.createNew('newtoken')
 
-    expect(dbMocks.instance.create).toHaveBeenCalled()
+    expect(dbMocks.insert).toHaveBeenCalledWith(schemaMocks.instance)
+    expect(valuesMock).toHaveBeenCalledWith({})
+    expect(returningMock).toHaveBeenCalledWith({ id: schemaMocks.instance.id })
     expect(telegramMocks.create).toHaveBeenCalledWith({
       type: 'mtcute',
       botToken: 'newtoken',
@@ -344,7 +394,7 @@ describe('instance', () => {
   })
 
   it('ignores invalid request events', async () => {
-    dbMocks.instance.findFirst.mockResolvedValue({})
+    dbMocks.query.instance.findFirst.mockResolvedValue({})
     await Instance.start(6, 'token')
 
     const friendHandler = qqMocks.handlers.get('request.friend')
@@ -359,7 +409,7 @@ describe('instance', () => {
   })
 
   it('handles group request add subType', async () => {
-    dbMocks.instance.findFirst.mockResolvedValue({})
+    dbMocks.query.instance.findFirst.mockResolvedValue({})
     await Instance.start(7, 'token')
     const groupHandler = qqMocks.handlers.get('request.group')
 
@@ -383,7 +433,7 @@ describe('instance', () => {
       ; (qqMocks.client as any).handleFriendRequest = undefined
       ; (qqMocks.client as any).handleGroupRequest = undefined
 
-    dbMocks.instance.findFirst.mockResolvedValue({})
+    dbMocks.query.instance.findFirst.mockResolvedValue({})
     await Instance.start(8, 'token')
 
     const friendHandler = qqMocks.handlers.get('request.friend')
@@ -412,7 +462,7 @@ describe('instance', () => {
       throw error
     })
 
-    dbMocks.instance.findFirst.mockResolvedValue({})
+    dbMocks.query.instance.findFirst.mockResolvedValue({})
     await Instance.start(9, 'token')
 
 
@@ -422,7 +472,7 @@ describe('instance', () => {
   })
 
   it('reuses existing init promise', async () => {
-    dbMocks.instance.findFirst.mockResolvedValue({ botSessionId: 123 })
+    dbMocks.query.instance.findFirst.mockResolvedValue({ botSessionId: 123 })
     const instance = new (Instance as any)(11)
     await (instance as any).load()
 
@@ -436,7 +486,7 @@ describe('instance', () => {
 
   it('throws if WS URL is missing', async () => {
     envMock.NAPCAT_WS_URL = ''
-    dbMocks.instance.findFirst.mockResolvedValue({ qqBot: null })
+    dbMocks.query.instance.findFirst.mockResolvedValue({ qqBot: null })
     const instance = new (Instance as any)(12)
     await (instance as any).load()
 
@@ -451,14 +501,14 @@ describe('instance', () => {
       .mockReturnValueOnce(Promise.resolve()) // starting
       .mockImplementationOnce(() => { throw error }) // running
 
-    dbMocks.instance.findFirst.mockResolvedValue({})
+    dbMocks.query.instance.findFirst.mockResolvedValue({})
     await Instance.start(13, 'token')
 
     expect(loggerMocks.warn).toHaveBeenCalledWith('Failed to publish instance running status:', error)
   })
 
   it('handles connection lost/restored events and errors', async () => {
-    dbMocks.instance.findFirst.mockResolvedValue({})
+    dbMocks.query.instance.findFirst.mockResolvedValue({})
     const instance = await Instance.start(14, 'token')
 
     // Reset mocks to track specific calls
@@ -491,7 +541,7 @@ describe('instance', () => {
   })
 
   it('handles events with missing fields', async () => {
-    dbMocks.instance.findFirst.mockResolvedValue({})
+    dbMocks.query.instance.findFirst.mockResolvedValue({})
     await Instance.start(15, 'token')
 
     const friendHandler = qqMocks.handlers.get('request.friend')
@@ -529,7 +579,7 @@ describe('instance', () => {
     const error = new Error('Feature Init Failed')
     featureManagerMocks.initialize.mockRejectedValueOnce(error)
 
-    dbMocks.instance.findFirst.mockResolvedValue({})
+    dbMocks.query.instance.findFirst.mockResolvedValue({})
     // Should pass but maybe log error?
     // In Instance.ts: await this.featureManager.initialize() is NOT wrapped in try/catch inside init()
     // except the whole init IIFE... wait.
@@ -546,7 +596,7 @@ describe('instance', () => {
   })
 
   it('handles connection listeners and feature manager correctly', async () => {
-    dbMocks.instance.findFirst.mockResolvedValue({})
+    dbMocks.query.instance.findFirst.mockResolvedValue({})
     const instance = await Instance.start(17, 'token')
 
     // Verify FeatureManager init
@@ -579,54 +629,47 @@ describe('instance', () => {
 
   it('updates setters and logs trace (floating promises)', async () => {
     // Mock qqBot structure to ensure _qq property is set during load()
-    dbMocks.instance.findFirst.mockResolvedValue({ qqBot: { id: 0 } })
+    dbMocks.query.instance.findFirst.mockResolvedValue({ qqBot: { id: 0 } })
+    const whereMock = vi.fn().mockResolvedValue(undefined)
+    const setMock = vi.fn().mockReturnValue({ where: whereMock })
+    dbMocks.update.mockReturnValue({ set: setMock })
     const instance = await Instance.start(18, 'token')
+    setMock.mockClear()
 
     // Helper to wait for floating promises
     const flushPromises = () => new Promise(resolve => setImmediate(resolve))
 
     // owner
     instance.owner = 999
-    expect(dbMocks.instance.update).toHaveBeenCalledWith(expect.objectContaining({
-      data: { owner: 999 },
-      where: { id: 18 },
-    }))
+    expect(setMock).toHaveBeenCalledWith({ owner: BigInt(999) })
     await flushPromises()
     expect(loggerMocks.trace).toHaveBeenCalledWith(999)
 
     // isSetup
     loggerMocks.trace.mockClear()
     instance.isSetup = false
-    expect(dbMocks.instance.update).toHaveBeenCalledWith(expect.objectContaining({
-      data: { isSetup: false },
-    }))
+    expect(setMock).toHaveBeenCalledWith({ isSetup: false })
     await flushPromises()
     expect(loggerMocks.trace).toHaveBeenCalledWith(false)
 
     // workMode
     loggerMocks.trace.mockClear()
     instance.workMode = 'b' as any
-    expect(dbMocks.instance.update).toHaveBeenCalledWith(expect.objectContaining({
-      data: { workMode: 'b' },
-    }))
+    expect(setMock).toHaveBeenCalledWith({ workMode: 'b' })
     await flushPromises()
     expect(loggerMocks.trace).toHaveBeenCalledWith('b')
 
     // botSessionId
     loggerMocks.trace.mockClear()
     instance.botSessionId = 555
-    expect(dbMocks.instance.update).toHaveBeenCalledWith(expect.objectContaining({
-      data: { botSessionId: 555 },
-    }))
+    expect(setMock).toHaveBeenCalledWith({ botSessionId: 555 })
     await flushPromises()
     expect(loggerMocks.trace).toHaveBeenCalledWith(555)
 
     // qqBotId
     loggerMocks.trace.mockClear()
     instance.qqBotId = 777
-    expect(dbMocks.instance.update).toHaveBeenCalledWith(expect.objectContaining({
-      data: { qqBotId: 777 },
-    }))
+    expect(setMock).toHaveBeenCalledWith({ qqBotId: 777 })
     await flushPromises()
     expect(loggerMocks.trace).toHaveBeenCalledWith(777)
     expect(instance.qqBotId).toBe(777)
@@ -634,16 +677,14 @@ describe('instance', () => {
     // flags
     loggerMocks.trace.mockClear()
     instance.flags = 888
-    expect(dbMocks.instance.update).toHaveBeenCalledWith(expect.objectContaining({
-      data: { flags: 888 },
-    }))
+    expect(setMock).toHaveBeenCalledWith({ flags: 888 })
     await flushPromises()
     expect(loggerMocks.trace).toHaveBeenCalledWith(888)
     expect(instance.flags).toBe(888)
   })
 
   it('handles group request defaults', async () => {
-    dbMocks.instance.findFirst.mockResolvedValue({})
+    dbMocks.query.instance.findFirst.mockResolvedValue({})
     await Instance.start(19, 'token')
     const groupHandler = qqMocks.handlers.get('request.group')
 
@@ -662,7 +703,7 @@ describe('instance', () => {
   })
 
   it('handles friend increase missing id', async () => {
-    dbMocks.instance.findFirst.mockResolvedValue({})
+    dbMocks.query.instance.findFirst.mockResolvedValue({})
     await Instance.start(20, 'token')
     const handler = qqMocks.handlers.get('friend.increase')
     await handler({}) // missing id
@@ -672,7 +713,7 @@ describe('instance', () => {
   })
 
   it('handles explicit fields and fallbacks in requests', async () => {
-    dbMocks.instance.findFirst.mockResolvedValue({})
+    dbMocks.query.instance.findFirst.mockResolvedValue({})
     await Instance.start(21, 'token')
 
     // request.friend with explicit fields
@@ -725,8 +766,12 @@ describe('instance', () => {
 
   it('handles setter when qq property is missing (Line 407)', async () => {
     // Return empty object so this._qq is undefined
-    dbMocks.instance.findFirst.mockResolvedValue({})
+    dbMocks.query.instance.findFirst.mockResolvedValue({})
+    const whereMock = vi.fn().mockResolvedValue(undefined)
+    const setMock = vi.fn().mockReturnValue({ where: whereMock })
+    dbMocks.update.mockReturnValue({ set: setMock })
     const instance = await Instance.start(22, 'token')
+    setMock.mockClear()
 
     const flushPromises = () => new Promise(resolve => setImmediate(resolve))
 
@@ -734,9 +779,7 @@ describe('instance', () => {
     loggerMocks.trace.mockClear()
     instance.qqBotId = 111
 
-    expect(dbMocks.instance.update).toHaveBeenCalledWith(expect.objectContaining({
-      data: { qqBotId: 111 },
-    }))
+    expect(setMock).toHaveBeenCalledWith({ qqBotId: 111 })
     await flushPromises()
     expect(loggerMocks.trace).toHaveBeenCalledWith(111)
     // instance.qqBotId getter checks this._qq?.id, so it should be undefined
@@ -744,7 +787,7 @@ describe('instance', () => {
   })
 
   it('handles offline/online events correctly', async () => {
-    dbMocks.instance.findFirst.mockResolvedValue({})
+    dbMocks.query.instance.findFirst.mockResolvedValue({})
     const instance = await Instance.start(23, 'token')
 
     // Clear previous calls
@@ -780,7 +823,7 @@ describe('instance', () => {
   })
 
   it('handles offline/online notice publish failures', async () => {
-    dbMocks.instance.findFirst.mockResolvedValue({})
+    dbMocks.query.instance.findFirst.mockResolvedValue({})
     await Instance.start(24, 'token')
 
     loggerMocks.warn.mockClear()

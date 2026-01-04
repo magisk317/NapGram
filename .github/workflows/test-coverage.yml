@@ -52,6 +52,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --no-frozen-lockfile
 
+      - name: Build workspace packages
+        run: pnpm -r build
+
       - name: Run Drizzle migrations
         run: pnpm --filter @napgram/database db:migrate
         env:

@@ -3,16 +3,16 @@ import { db } from '@napgram/infra-kit'
 import Instance from '../Instance'
 
 // Local mock removed to rely on fixed global mock
-
-
-const mockUpdate = vi.fn(() => ({
-    set: vi.fn(() => ({
-        where: vi.fn().mockResolvedValue({}),
+const { mockUpdate, mockInsert } = vi.hoisted(() => ({
+    mockUpdate: vi.fn(() => ({
+        set: vi.fn(() => ({
+            where: vi.fn().mockResolvedValue({}),
+        })),
     })),
-}))
-const mockInsert = vi.fn(() => ({
-    values: vi.fn(() => ({
-        returning: vi.fn().mockResolvedValue([{ id: 1 }]),
+    mockInsert: vi.fn(() => ({
+        values: vi.fn(() => ({
+            returning: vi.fn().mockResolvedValue([{ id: 1 }]),
+        })),
     })),
 }))
 
