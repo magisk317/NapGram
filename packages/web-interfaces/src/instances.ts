@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify'
 import { z } from 'zod'
-import { ApiResponse, db, schema, eq, count, desc, sql } from '@napgram/infra-kit'
+import { ApiResponse, db, schema, eq, count, desc, sql, env } from '@napgram/infra-kit'
 import { authMiddleware } from '@napgram/auth-kit'
 
 /**
@@ -78,9 +78,9 @@ export default async function (fastify: FastifyInstance) {
         offset: (page - 1) * pageSize,
         with: {
           qqBot: true,
-        forwardPairs: {
-          limit: 5,
-        },
+          forwardPairs: {
+            limit: 5,
+          },
         },
         orderBy: [desc(schema.instance.id)],
       }),
@@ -89,23 +89,44 @@ export default async function (fastify: FastifyInstance) {
     const total = totalResult[0].value
 
     return ApiResponse.paginated(
-      items.map((item: any) => ({
-        ...item,
-        owner: item.owner.toString(),
-        qqBot: item.qqBot
+      items.map((item: any) => {
+        // Fallback to env vars for Instance 0
+        const isDefaultInstance = item.id === 0
+        const owner = (item.owner === 0n && isDefaultInstance && env.ADMIN_TG) ? env.ADMIN_TG.toString() : item.owner.toString()
+
+        let qqBot = item.qqBot
           ? {
             ...item.qqBot,
             uin: item.qqBot.uin?.toString() || null,
           }
-          : null,
-        ForwardPair: item.forwardPairs.map((pair: any) => ({
-          ...pair,
-          qqRoomId: pair.qqRoomId.toString(),
-          tgChatId: pair.tgChatId.toString(),
-          qqFromGroupId: pair.qqFromGroupId?.toString() || null,
-        })),
-        pairCount: item.forwardPairs.length,
-      })),
+          : null
+
+        if (!qqBot && isDefaultInstance && env.NAPCAT_WS_URL) {
+          qqBot = {
+            type: 'napcat',
+            name: 'System Bootstrapped',
+            wsUrl: env.NAPCAT_WS_URL,
+            uin: env.ADMIN_QQ?.toString() || null,
+            id: -1, // Virtual ID
+            password: null,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          }
+        }
+
+        return {
+          ...item,
+          owner,
+          qqBot,
+          ForwardPair: item.forwardPairs.map((pair: any) => ({
+            ...pair,
+            qqRoomId: pair.qqRoomId.toString(),
+            tgChatId: pair.tgChatId.toString(),
+            qqFromGroupId: pair.qqFromGroupId?.toString() || null,
+          })),
+          pairCount: item.forwardPairs.length,
+        }
+      }),
       total,
       page,
       pageSize,
@@ -120,9 +141,10 @@ export default async function (fastify: FastifyInstance) {
     preHandler: authMiddleware,
   }, async (request, reply) => {
     const { id } = request.params as { id: string }
+    const instanceId = Number.parseInt(id)
 
     const instance = await db.query.instance.findFirst({
-      where: eq(schema.instance.id, Number.parseInt(id)),
+      where: eq(schema.instance.id, instanceId),
       with: {
         qqBot: true,
         forwardPairs: true,
@@ -135,17 +157,36 @@ export default async function (fastify: FastifyInstance) {
       )
     }
 
+    // Fallback logic
+    const isDefaultInstance = instance.id === 0
+    const owner = (instance.owner === 0n && isDefaultInstance && env.ADMIN_TG) ? env.ADMIN_TG.toString() : instance.owner.toString()
+
+    let qqBot = instance.qqBot
+      ? {
+        ...instance.qqBot,
+        uin: instance.qqBot.uin?.toString() || null,
+      }
+      : null
+
+    if (!qqBot && isDefaultInstance && env.NAPCAT_WS_URL) {
+      qqBot = {
+        type: 'napcat',
+        name: 'System Bootstrapped',
+        wsUrl: env.NAPCAT_WS_URL,
+        uin: env.ADMIN_QQ?.toString() || null,
+        id: -1,
+        password: null,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      }
+    }
+
     return {
       success: true,
       data: {
         ...instance,
-        owner: instance.owner.toString(),
-        qqBot: instance.qqBot
-          ? {
-            ...instance.qqBot,
-            uin: instance.qqBot.uin?.toString() || null,
-          }
-          : null,
+        owner,
+        qqBot,
       },
     }
   })
