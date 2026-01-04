@@ -109,6 +109,10 @@ export default async function (fastify: FastifyInstance) {
             uin: env.ADMIN_QQ?.toString() || null,
             id: -1, // Virtual ID
             password: null,
+            platform: null,
+            signApi: null,
+            signVer: null,
+            signDockerId: null,
           }
         }
 
@@ -174,6 +178,10 @@ export default async function (fastify: FastifyInstance) {
         uin: env.ADMIN_QQ?.toString() || null,
         id: -1,
         password: null,
+        platform: null,
+        signApi: null,
+        signVer: null,
+        signDockerId: null,
       }
     }
 
