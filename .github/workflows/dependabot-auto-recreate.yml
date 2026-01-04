@@ -1,0 +1,86 @@
+name: Dependabot Auto Recreate
+
+on:
+  # 当 PR 被关闭时触发（包括合并）
+  pull_request_target:
+    types: [closed]
+    branches:
+      - dev
+  
+  # 支持手动触发
+  workflow_dispatch:
+
+jobs:
+  auto-recreate:
+    # 只在 Dependabot PR 被合并时触发
+    if: |
+      github.event.pull_request.merged == true &&
+      github.event.pull_request.user.login == 'dependabot[bot]'
+    
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      
+    steps:
+      - name: Find and Recreate Dependabot PRs
+        uses: actions/github-script@v7
+        with:
+          script: |
+            console.log('Checking for Dependabot PRs that need recreation...');
+            
+            // 获取所有 open 的 PR
+            const { data: pullRequests } = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              per_page: 100
+            });
+            
+            // 筛选 Dependabot 创建的 PR
+            const dependabotPRs = pullRequests.filter(pr => 
+              pr.user.login === 'dependabot[bot]'
+            );
+            
+            console.log(`Found ${dependabotPRs.length} Dependabot PR(s)`);
+            
+            if (dependabotPRs.length === 0) {
+              console.log('No Dependabot PRs to process');
+              return;
+            }
+            
+            // 对每个 PR 触发 recreate
+            for (const pr of dependabotPRs) {
+              try {
+                console.log(`Processing PR #${pr.number}: ${pr.title}`);
+                
+                // 检查 PR 是否 behind base branch
+                const { data: comparison } = await github.rest.repos.compareCommits({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  base: pr.head.sha,
+                  head: pr.base.ref
+                });
+                
+                if (comparison.behind_by > 0) {
+                  console.log(`  PR #${pr.number} is ${comparison.behind_by} commit(s) behind, triggering recreate`);
+                  
+                  // 触发 recreate
+                  await github.rest.issues.createComment({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: pr.number,
+                    body: '@dependabot recreate'
+                  });
+                  
+                  // 避免触发过快
+                  await new Promise(resolve => setTimeout(resolve, 2000));
+                } else {
+                  console.log(`  PR #${pr.number} is up-to-date, skipping`);
+                }
+              } catch (error) {
+                console.error(`Error processing PR #${pr.number}:`, error.message);
+              }
+            }
+            
+            console.log('Completed processing all Dependabot PRs');
