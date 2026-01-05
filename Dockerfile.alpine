@@ -14,6 +14,7 @@ ARG INSTALL_PG_CLIENT=true
 RUN if [ "$USE_MIRROR" = "true" ]; then \
       sed -i 's/dl-cdn.alpinelinux.org/mirrors.tuna.tsinghua.edu.cn/g' /etc/apk/repositories; \
     fi && \
+    apk upgrade --no-cache && \
     apk add --no-cache \
     curl wget bash \
     # 中文字体
@@ -38,6 +39,7 @@ WORKDIR /app
 
 FROM base AS build
 ARG USE_MIRROR=true
+ENV PNPM_STORE_PATH=/pnpm-store
 
 # 编译环境依赖
 RUN apk add --no-cache \
@@ -56,7 +58,8 @@ COPY external/sdk/ /app/external/sdk/
 # 2. 编译必需的原生模块
 #    - better-sqlite3: mtcute 用于 Telegram session 存储
 #    - silk-wasm 是纯 WASM，无需编译
-RUN pnpm install --no-frozen-lockfile --shamefully-hoist && \
+RUN --mount=type=cache,target=/pnpm-store \
+    pnpm install --no-frozen-lockfile --shamefully-hoist && \
     pnpm --filter "./external/sdk/packages/**" run build && \
     pnpm --filter "./packages/**" run build
 
@@ -64,6 +67,9 @@ RUN pnpm install --no-frozen-lockfile --shamefully-hoist && \
 
 COPY main/ /app/main/
 RUN pnpm --filter ./main run build
+
+# 剔除 devDependencies，避免将构建工具（如 esbuild）带入运行时镜像
+RUN pnpm prune --prod
 
 # Frontend 使用预构建产物
 COPY web/dist/ /app/web/dist/
