@@ -4,7 +4,7 @@ import type { IQQClient } from '../../../shared-types'
 import type { ReplyResolver } from '../services/ReplyResolver'
 import type { MediaGroupHandler } from './MediaGroupHandler'
 import { messageConverter } from '@napgram/message-kit'
-import { db, schema } from '@napgram/infra-kit'
+import { db, performanceMonitor, schema } from '@napgram/infra-kit'
 import { getLogger } from '@napgram/infra-kit'
 
 const logger = getLogger('ForwardFeature')
@@ -23,6 +23,7 @@ export class TelegramMessageHandler {
   ) { }
 
   async handleTGMessage(tgMsg: Message, pair: any, preUnified?: UnifiedMessage): Promise<void> {
+    const startTime = Date.now()
     try {
       // Check if this is a Media Group message
       const isMediaGroup = await this.mediaGroupHandler.handleMediaGroup(tgMsg, pair)
@@ -215,6 +216,9 @@ export class TelegramMessageHandler {
       if (receipt.success) {
         const msgId = receipt.messageId || (receipt as any).data?.message_id || (receipt as any).id
         logger.info(`[Forward][TG->QQ] message ${tgMsg.id} -> QQ ${pair.qqRoomId} (seq: ${msgId})`)
+        // 📊 记录成功 - 计算处理延迟
+        const latency = Date.now() - startTime
+        performanceMonitor.recordMessage(latency)
 
         if (msgId) {
           // Save mapping for reply lookup (QQ -> TG reply)
@@ -247,6 +251,8 @@ export class TelegramMessageHandler {
       }
     }
     catch (error) {
+      // 📊 记录错误
+      performanceMonitor.recordError()
       logger.error('Failed to forward TG message:', error)
     }
   }
