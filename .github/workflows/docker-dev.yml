@@ -153,7 +153,7 @@ jobs:
 
   build_arm64_native:
     name: Build dev image (arm64 native)
-    runs-on: ubuntu-24.04-arm64
+    runs-on: ubuntu-24.04-arm
     permissions:
       contents: read
       packages: write
@@ -453,7 +453,7 @@ jobs:
       - build_amd64
       - build_arm64_native
       - build_arm64_qemu
-    if: needs.build_amd64.outputs.pushed == '1' && (needs.build_arm64_native.outputs.pushed == '1' || needs.build_arm64_qemu.outputs.pushed == '1')
+    if: always() && github.actor != 'dependabot[bot]' && needs.build_amd64.result == 'success' && (needs.build_arm64_native.result == 'success' || needs.build_arm64_qemu.result == 'success')
     permissions:
       contents: read
       packages: write

@@ -69,7 +69,7 @@ COPY main/ /app/main/
 RUN pnpm --filter ./main run build
 
 # 剔除 devDependencies，避免将构建工具（如 esbuild）带入运行时镜像
-RUN pnpm prune --prod
+RUN CI=true pnpm prune --prod
 
 # Frontend 使用预构建产物
 COPY web/dist/ /app/web/dist/
