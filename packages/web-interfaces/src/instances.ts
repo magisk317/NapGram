@@ -56,6 +56,22 @@ export default async function (fastify: FastifyInstance) {
     qqBot: qqBotSchema.optional(),
   })
 
+  const toJsonSafe = (value: any): any => {
+    if (typeof value === 'bigint')
+      return value.toString()
+    if (Array.isArray(value))
+      return value.map(toJsonSafe)
+    if (value && typeof value === 'object') {
+      if (value instanceof Date)
+        return value
+      const out: Record<string, any> = {}
+      for (const [key, val] of Object.entries(value))
+        out[key] = toJsonSafe(val)
+      return out
+    }
+    return value
+  }
+
   const createQqBotSchema = z.object({
     type: z.literal('napcat').default('napcat'),
     name: optionalString,
@@ -117,7 +133,7 @@ export default async function (fastify: FastifyInstance) {
         }
 
         return {
-          ...item,
+          ...toJsonSafe(item),
           owner,
           qqBot,
           ForwardPair: item.forwardPairs.map((pair: any) => ({
@@ -188,7 +204,7 @@ export default async function (fastify: FastifyInstance) {
     return {
       success: true,
       data: {
-        ...instance,
+        ...toJsonSafe(instance),
         owner,
         qqBot,
       },

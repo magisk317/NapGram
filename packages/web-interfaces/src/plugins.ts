@@ -199,7 +199,19 @@ export default async function (fastify: FastifyInstance) {
   })
 
   fastify.get('/api/admin/plugins/status', { preHandler: requirePluginAdmin }, async () => {
-    return ApiResponse.success(PluginRuntime.getLastReport())
+    const report = PluginRuntime.getLastReport()
+    // Avoid circular structures (plugin context can include DB schema objects)
+    const safeReport = {
+      enabled: report.enabled,
+      loaded: report.loaded,
+      failed: report.failed,
+      stats: report.stats,
+      loadedPlugins: (report.loadedPlugins || []).map((p: any) => ({
+        id: p.id,
+        plugin: p.plugin,
+      })),
+    }
+    return ApiResponse.success(safeReport)
   })
 
   const pluginCreateSchema = z.object({
