@@ -1,5 +1,0 @@
-export { default as convertWithFfmpeg } from './encoding/convertWithFfmpeg';
-export { default as tgsToGif } from './encoding/tgsToGif';
-export { default as silk } from './encoding/silk';
-export { default as convert } from './convert';
-export * as emoji from './emoji';

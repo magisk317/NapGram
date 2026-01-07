@@ -1,6 +1,0 @@
-export { Instance } from '@napgram/runtime-kit'
-export { CommandsFeature } from './features/commands/CommandsFeature'
-export { ForwardFeature } from './features/forward/ForwardFeature'
-export { MediaFeature } from './features/MediaFeature'
-export { RecallFeature } from './features/RecallFeature'
-export { ThreadIdExtractor } from './features/commands/services/ThreadIdExtractor'
