@@ -15,7 +15,7 @@ fi
 
 # Run Drizzle migrations (from installed package)
 echo "Applying Drizzle migrations..."
-"${ROOT_DIR}/node_modules/.bin/drizzle-kit" migrate --config "${SCRIPT_DIR}/drizzle.config.cjs"
+"$(pnpm -C "${ROOT_DIR}/main" bin)/drizzle-kit" migrate --config "${SCRIPT_DIR}/drizzle.config.cjs"
 
 echo "✅ Database migrations completed successfully"
 exit 0
