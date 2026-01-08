@@ -9,8 +9,8 @@ importers:
   .:
     dependencies:
       '@napgram/sdk':
-        specifier: ^0.1.6
-        version: 0.1.6
+        specifier: ^0.1.7
+        version: 0.1.7
     devDependencies:
       typescript:
         specifier: 5.9.3
@@ -1219,14 +1219,14 @@ packages:
   '@napgram/runtime-kit@0.1.5':
     resolution: {integrity: sha512-HXdQ3VdI5QziYCZjMyku4rL0aXq1TWzx8UHi/PZw5P1Z1jLFfrOyltStGCREe4sWv/zOV3nOQUwslwcoeZaoYw==, tarball: https://npm.pkg.github.com/download/@napgram/runtime-kit/0.1.5/f744a8addb3baf504dd9fe90f2dbcec55a015086}
 
-  '@napgram/sdk@0.1.6':
-    resolution: {integrity: sha512-LEYXgZo0DqD5sa3v3PRWTeXiwhknOx+LcDXAdIOKsURSPB42qX6xUfZK4aA5vkeil3EH7zswHwdhLuIxpX8wmw==, tarball: https://npm.pkg.github.com/download/@napgram/sdk/0.1.6/0a08466f171338718bfea44ab24e2487d86504ca}
+  '@napgram/sdk@0.1.7':
+    resolution: {integrity: sha512-KqS4mY+LD6yfQQAhheTG9/Me+aKVw3yfGT0S8BXlLEJezPJOiTAcfbCZ/+RLfKwzNKlsgfFA4rIw5Q6ztfsaDQ==, tarball: https://npm.pkg.github.com/download/@napgram/sdk/0.1.7/f45fb4f27524df6dc5e27ad9494d1252f675013c}
 
   '@napgram/telegram-client@0.1.5':
     resolution: {integrity: sha512-zl+m/kQSPJomad9wWKjmDE67uLWVLxmAtAelrkz3BujRKGtb9UBSWwZmYRbUK/FdxLtxx/3stwCg4ajdObNaKA==, tarball: https://npm.pkg.github.com/download/@napgram/telegram-client/0.1.5/f9ca16b68a96fc92cff14d65146f0d37877a016a}
 
-  '@napgram/utils@0.1.6':
-    resolution: {integrity: sha512-/35KO+8QLID5X8ND16DM+YW4DC77bGS9i9FI9bwpTVmfTuQPAir39WI2ZKrmYHgXlPlDq6IDdGOP76yTRmGiag==, tarball: https://npm.pkg.github.com/download/@napgram/utils/0.1.6/a17b62763d5bec0a116e493ac5850732deaf61c8}
+  '@napgram/utils@0.1.7':
+    resolution: {integrity: sha512-l37YmlaakvxMGsGiIUpGP5jroRDSnBLeSND9UE9drtr6+OpigCenrkdY9qMNJ79g8n3atPS++WdJ4OxB929gjw==, tarball: https://npm.pkg.github.com/download/@napgram/utils/0.1.7/9937ef0b95746b8b1abacd043ef52cc3f15571c1}
 
   '@napgram/web-interfaces@0.1.9':
     resolution: {integrity: sha512-HDa78y6Byw/C3s7IyPMs7inrDq4SW93evk/7c+EDg/rYX8znRwTzemnC5wdy1LohVDQ4yxsD1EZOG/ICA9dopg==, tarball: https://npm.pkg.github.com/download/@napgram/web-interfaces/0.1.9/07bde69104d12a135a07aee8a7523f96fed21868}
@@ -5675,7 +5675,7 @@ snapshots:
       '@napgram/marketplace-kit': 0.1.6(@electric-sql/pglite@0.3.2)(@opentelemetry/api@1.9.0)(@prisma/client@7.2.0(prisma@7.2.0(@types/react@19.2.7)(better-sqlite3@12.5.0)(magicast@0.3.5)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)(typescript@5.9.3))(typescript@5.9.3))(@types/pg@8.16.0)(better-sqlite3@12.5.0)(mysql2@3.15.3)(pg@8.16.3)(postgres@3.4.7)(prisma@7.2.0(@types/react@19.2.7)(better-sqlite3@12.5.0)(magicast@0.3.5)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)(typescript@5.9.3))(ws@8.19.0)
       '@napgram/message-kit': 0.1.5(@electric-sql/pglite@0.3.2)(@opentelemetry/api@1.9.0)(@prisma/client@7.2.0(prisma@7.2.0(@types/react@19.2.7)(better-sqlite3@12.5.0)(magicast@0.3.5)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)(typescript@5.9.3))(typescript@5.9.3))(@types/pg@8.16.0)(better-sqlite3@12.5.0)(mysql2@3.15.3)(pg@8.16.3)(postgres@3.4.7)(prisma@7.2.0(@types/react@19.2.7)(better-sqlite3@12.5.0)(magicast@0.3.5)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)(typescript@5.9.3))(ws@8.19.0)
       '@napgram/runtime-kit': 0.1.5(@electric-sql/pglite@0.3.2)(@opentelemetry/api@1.9.0)(@prisma/client@7.2.0(prisma@7.2.0(@types/react@19.2.7)(better-sqlite3@12.5.0)(magicast@0.3.5)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)(typescript@5.9.3))(typescript@5.9.3))(@types/pg@8.16.0)(better-sqlite3@12.5.0)(mysql2@3.15.3)(pg@8.16.3)(postgres@3.4.7)(prisma@7.2.0(@types/react@19.2.7)(better-sqlite3@12.5.0)(magicast@0.3.5)(react-dom@19.2.3(react@19.2.3))(react@19.2.3)(typescript@5.9.3))(ws@8.19.0)
-      '@napgram/sdk': 0.1.6
+      '@napgram/sdk': 0.1.7
       '@sentry/node': 10.32.1
       axios: 1.13.2
       semver: 7.7.3
@@ -5836,10 +5836,10 @@ snapshots:
       - utf-8-validate
       - ws
 
-  '@napgram/sdk@0.1.6':
+  '@napgram/sdk@0.1.7':
     dependencies:
       '@napgram/core': 0.1.5
-      '@napgram/utils': 0.1.6
+      '@napgram/utils': 0.1.7
 
   '@napgram/telegram-client@0.1.5(ws@8.19.0)':
     dependencies:
@@ -5849,7 +5849,7 @@ snapshots:
     transitivePeerDependencies:
       - ws
 
-  '@napgram/utils@0.1.6':
+  '@napgram/utils@0.1.7':
     dependencies:
       '@napgram/core': 0.1.5
 

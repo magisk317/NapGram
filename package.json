@@ -5,7 +5,7 @@
     "packageManager": "pnpm@10.27.0",
     "scripts": {},
     "dependencies": {
-        "@napgram/sdk": "^0.1.6"
+        "@napgram/sdk": "^0.1.7"
     },
     "pnpm": {
         "onlyBuiltDependencies": [
