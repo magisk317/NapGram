@@ -19,7 +19,7 @@ jobs:
       pushed: ${{ steps.pushed.outputs.pushed }}
     steps:
       - name: Checkout (dev)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ env.BUILD_REF }}
           fetch-depth: 0
@@ -45,7 +45,7 @@ jobs:
           fi
 
       - name: Checkout UI source
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: magisk317/napgram-ui-dist
           ref: main
@@ -53,7 +53,7 @@ jobs:
           path: web
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 25
 
@@ -130,7 +130,7 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build and push (amd64)
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: ./Dockerfile
@@ -167,7 +167,7 @@ jobs:
       pushed: ${{ steps.pushed.outputs.pushed }}
     steps:
       - name: Checkout (dev)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ env.BUILD_REF }}
           fetch-depth: 0
@@ -193,7 +193,7 @@ jobs:
           fi
 
       - name: Checkout UI source (private)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: magisk317/napgram-ui-dist
           ref: main
@@ -201,7 +201,7 @@ jobs:
           path: web
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 25
 
@@ -278,7 +278,7 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build and push (arm64 native)
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: ./Dockerfile
@@ -317,7 +317,7 @@ jobs:
       pushed: ${{ steps.pushed.outputs.pushed }}
     steps:
       - name: Checkout (dev)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ env.BUILD_REF }}
           fetch-depth: 0
@@ -343,7 +343,7 @@ jobs:
           fi
 
       - name: Checkout UI source (private)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           repository: magisk317/napgram-ui-dist
           ref: main
@@ -351,7 +351,7 @@ jobs:
           path: web
 
       - name: Set up Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 25
 
@@ -431,7 +431,7 @@ jobs:
           password: ${{ secrets.DOCKERHUB_TOKEN }}
 
       - name: Build and push (arm64 qemu)
-        uses: docker/build-push-action@v5
+        uses: docker/build-push-action@v6
         with:
           context: .
           file: ./Dockerfile
@@ -471,7 +471,7 @@ jobs:
       BUILD_REF_NAME: dev
     steps:
       - name: Checkout (dev)
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           ref: ${{ env.BUILD_REF }}
           fetch-depth: 0
