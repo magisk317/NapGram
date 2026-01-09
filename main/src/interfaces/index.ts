@@ -3,6 +3,7 @@ import cookie from '@fastify/cookie'
 import Fastify from 'fastify'
 import { env } from '@napgram/infra-kit'
 import { getLogger } from '@napgram/infra-kit'
+import { fileManagerRoutes } from '@napgram/web-interfaces'
 
 const log = getLogger('Web Api')
 const registeredWebPlugins = new Set<string>()
@@ -13,6 +14,9 @@ const fastify = Fastify({
 
 // Register cookie support
 fastify.register(cookie)
+
+// Register file manager routes
+fileManagerRoutes(fastify)
 
 // Global error handler
 fastify.setErrorHandler((error, request, reply) => {
