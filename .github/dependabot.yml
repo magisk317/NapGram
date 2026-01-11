@@ -4,6 +4,15 @@
 # https://docs.github.com/github/administering-a-repository/configuration-options-for-dependency-updates
 
 version: 2
+
+# 注册表配置
+registries:
+  # GitHub Packages 用于 @napgram/* scope 的内部包
+  github-packages:
+    type: npm-registry
+    url: https://npm.pkg.github.com
+    token: ${{secrets.GITHUB_TOKEN}}
+
 updates:
   # workspace 根目录 (npm lockfile)
   - package-ecosystem: "npm"
@@ -12,6 +21,10 @@ updates:
       interval: "daily"
     open-pull-requests-limit: 10
     target-branch: "dev"
+    
+    # 使用 GitHub Packages 注册表（用于 @napgram/* scope）
+    registries:
+      - github-packages
     
     # 显式指定 Commit 风格
     commit-message:
@@ -39,11 +52,6 @@ updates:
         update-types:
           - "minor"
           - "patch"
-    
-    # 只忽略外部链接的包
-    ignore:
-      - dependency-name: "@naplink/naplink"
-      - dependency-name: "@napgram/*"
 
   # main 应用 (使用 npm lockfile)
   - package-ecosystem: "npm"
@@ -52,6 +60,10 @@ updates:
       interval: "daily"
     open-pull-requests-limit: 10
     target-branch: "dev"
+    
+    # 使用 GitHub Packages 注册表（用于 @napgram/* scope）
+    registries:
+      - github-packages
     
     # 显式指定 Commit 风格
     commit-message:
@@ -84,7 +96,6 @@ updates:
     # 只忽略外部链接的包
     ignore:
       - dependency-name: "@naplink/naplink"
-      - dependency-name: "@napgram/*"
 
   - package-ecosystem: "github-actions"
     directory: "/"
