@@ -51,7 +51,7 @@ updates:
           - "minor"
           - "patch"
     
-    ignore: []
+
 
   - package-ecosystem: "github-actions"
     directory: "/"
