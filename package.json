@@ -2,7 +2,7 @@
     "name": "napgram-root",
     "version": "0.1.5",
     "private": true,
-    "packageManager": "pnpm@10.27.0",
+    "packageManager": "pnpm@10.28.0",
     "scripts": {},
     "dependencies": {
         "@napgram/sdk": "^0.1.15"
