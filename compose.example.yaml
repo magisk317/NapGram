@@ -47,6 +47,7 @@ services:
       LOG_LEVEL: "info"
       # 文件日志等级：用于写入 LOG_FILE 的日志阈值
       LOG_FILE_LEVEL: "debug"
+      LOG_RETENTION_DAYS: "30" # 日志保留天数，默认30天
       # 文件日志路径（确保目录可写）
       LOG_FILE: "/app/data/logs/app.log"
       # OICQ 相关日志等级（QQ 侧）
