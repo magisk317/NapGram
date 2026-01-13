@@ -12,6 +12,11 @@ registries:
     type: npm-registry
     url: https://npm.pkg.github.com
     token: ${{secrets.NPM_TOKEN}}
+  
+  # 公共 NPM 注册表 (明确指定，防止被 github-packages 覆盖默认行为)
+  npm-npmjs:
+    type: npm-registry
+    url: https://registry.npmjs.org
 
 updates:
   # workspace 根目录 (pnpm lockfile) - @napgram/* 走 GitHub Packages
@@ -23,6 +28,7 @@ updates:
     target-branch: "dev"
     registries:
       - github-packages
+      - npm-npmjs
     
     # 显式指定 Commit 风格
     commit-message:
