@@ -47,7 +47,7 @@ RUN apk add --no-cache \
     # 开发头文件 (Alpine 使用 -dev 后缀)
     pixman-dev cairo-dev pango-dev giflib-dev libjpeg-turbo-dev libpng-dev librsvg-dev vips-dev
 
-COPY pnpm-workspace.yaml pnpm-lock.yaml package.json* tsconfig.base.json .npmrc /app/
+COPY pnpm-workspace.yaml pnpm-lock.yaml package.json* tsconfig.base.json /app/
 COPY main/package.json /app/main/
 
 
@@ -58,7 +58,10 @@ COPY main/package.json /app/main/
 #    - silk-wasm 是纯 WASM，无需编译
 RUN --mount=type=cache,target=/pnpm-store \
     --mount=type=secret,id=npmrc \
-    if [ -f /run/secrets/npmrc ]; then cat /run/secrets/npmrc >> /app/.npmrc; fi && \
+    if [ -f /run/secrets/npmrc ]; then \
+        echo "@napgram:registry=https://npm.pkg.github.com" > /app/.npmrc; \
+        cat /run/secrets/npmrc >> /app/.npmrc; \
+    fi && \
     (pnpm install --frozen-lockfile --shamefully-hoist || pnpm install --no-frozen-lockfile --shamefully-hoist) && \
     rm -f /app/.npmrc
 
