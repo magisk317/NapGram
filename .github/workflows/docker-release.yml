@@ -6,14 +6,12 @@ on:
   workflow_dispatch:
     inputs:
       variant:
-        description: 'Build variant (or "all" for both)'
+        description: 'Build variant (default: alpine)'
         required: false
-        default: 'all'
+        default: 'alpine'
         type: choice
         options:
-          - all
           - alpine
-          - debian
 
 jobs:
   build-alpine:
@@ -56,7 +54,7 @@ jobs:
         uses: actions/checkout@v6
         with:
           repository: magisk317/napgram-ui-dist
-          ref: main
+          ref: dev
           token: ${{ secrets.UI_SRC_TOKEN }}
           path: web
 
@@ -157,147 +155,6 @@ jobs:
           Tag: ${{ github.ref_name }} @ ${{ env.BUILD_SHA }}
           Platforms: linux/amd64, linux/arm64
           Base: Alpine Linux
-          Images:
-          ${IMAGES}
-          EOF
-          )"
-          curl -fSs -X POST "https://api.telegram.org/bot${{ secrets.TELEGRAM_TOKEN }}/sendMessage" \
-            -d "chat_id=${{ secrets.TELEGRAM_TO_GROUP }}" \
-            -d "message_thread_id=${{ secrets.TELEGRAM_TOPIC_ID }}" \
-            --data-urlencode "text=$MESSAGE"
-
-  build-debian:
-    name: Build Debian multi-platform
-    if: |
-      github.event_name == 'release' || 
-      github.event.inputs.variant == 'all' || 
-      github.event.inputs.variant == 'debian'
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      packages: write
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v6
-        with:
-          fetch-depth: 0
-          submodules: recursive
-          token: ${{ secrets.SUBMODULE_TOKEN || secrets.UI_SRC_TOKEN || github.token }}
-
-
-      - name: Derive build info
-        run: echo "BUILD_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
-
-      - name: Derive Docker Hub target (optional)
-        run: |
-          if [ -n "${{ secrets.DOCKERHUB_USERNAME }}" ] && [ -n "${{ secrets.DOCKERHUB_TOKEN }}" ]; then
-            echo "DOCKERHUB_ENABLED=1" >> "$GITHUB_ENV"
-            if [ -n "${{ secrets.DOCKERHUB_IMAGE }}" ]; then
-              echo "DOCKERHUB_IMAGE=${{ secrets.DOCKERHUB_IMAGE }}" >> "$GITHUB_ENV"
-            else
-              echo "DOCKERHUB_IMAGE=docker.io/${{ secrets.DOCKERHUB_USERNAME }}/napgram" >> "$GITHUB_ENV"
-            fi
-          else
-            echo "DOCKERHUB_ENABLED=0" >> "$GITHUB_ENV"
-            echo "DOCKERHUB_IMAGE=" >> "$GITHUB_ENV"
-          fi
-
-      - name: Checkout UI source (private)
-        uses: actions/checkout@v6
-        with:
-          repository: magisk317/napgram-ui-dist
-          ref: main
-          token: ${{ secrets.UI_SRC_TOKEN }}
-          path: web
-
-      - name: Set up Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: 25
-
-      - name: Enable corepack
-        run: corepack enable
-
-      - name: Configure npm auth for GitHub Packages
-        run: |
-          cat <<'EOF' >> ~/.npmrc
-          @napgram:registry=https://npm.pkg.github.com
-          //npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}
-          EOF
-
-      - name: Install dependencies
-        run: pnpm install --no-frozen-lockfile
-
-      - name: Build web dist
-        run: |
-          pnpm -C web install --no-frozen-lockfile --ignore-workspace
-          pnpm -C web --ignore-workspace run build
-
-      - name: OCI meta (Debian)
-        id: meta
-        uses: docker/metadata-action@v5
-        with:
-          images: |
-            ghcr.io/${{ github.repository }}
-            ${{ env.DOCKERHUB_IMAGE }}
-          tags: |
-            type=raw,value=debian
-            type=semver,pattern=debian-v{{version}}
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to GHCR
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Login to Docker Hub
-        if: env.DOCKERHUB_ENABLED == '1' && github.actor != 'dependabot[bot]'
-        uses: docker/login-action@v3
-        with:
-          registry: docker.io
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-
-      - name: Build and push (Debian)
-        uses: docker/build-push-action@v6
-        with:
-          context: .
-          file: ./Dockerfile.debian
-          push: ${{ github.actor != 'dependabot[bot]' }}
-          tags: ${{ steps.meta.outputs.tags }}
-          labels: ${{ steps.meta.outputs.labels }}
-          platforms: linux/amd64,linux/arm64
-          cache-from: type=gha,scope=debian
-          cache-to: type=gha,mode=max,scope=debian
-          build-args: |
-            REPO=${{ github.repository }}
-            REF=${{ github.ref }}
-            COMMIT=${{ env.BUILD_SHA }}
-            USE_MIRROR=false
-            NODE_VERSION=25-slim
-          secrets: |
-            npmrc=//npm.pkg.github.com/:_authToken=${{ secrets.GITHUB_TOKEN }}
-
-      - name: Send Telegram Notification (Debian)
-        if: success()
-        env:
-          TAGS: ${{ steps.meta.outputs.tags }}
-        run: |
-          IMAGES="$(printf '%s\n' "$TAGS" | sed '/^$/d' | sed 's/^/  - /')"
-          MESSAGE="$(cat <<EOF
-          ✅ Docker Build Success (release - Debian)
-
-          Repo: ${{ github.repository }}
-          Tag: ${{ github.ref_name }} @ ${{ env.BUILD_SHA }}
-          Platforms: linux/amd64, linux/arm64
-          Base: Debian 12 Bookworm
           Images:
           ${IMAGES}
           EOF
