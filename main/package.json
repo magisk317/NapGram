@@ -95,7 +95,7 @@
     "@types/probe-image-size": "^7.2.5",
     "@types/tmp": "^0.2.6",
     "@types/ws": "^8.18.1",
-    "@vitest/coverage-v8": "4.0.16",
+    "@vitest/coverage-v8": "4.0.17",
     "esbuild": "^0.27.2",
     "eslint": "9.39.2",
     "tsx": "^4.21.0",
