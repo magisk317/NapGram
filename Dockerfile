@@ -49,7 +49,7 @@ RUN apk add --no-cache \
 
 COPY pnpm-workspace.yaml pnpm-lock.yaml package.json* tsconfig.base.json .npmrc /app/
 COPY main/package.json /app/main/
-COPY web/package.json /app/web/
+
 
 # 两步安装策略：
 # 1. 安装所有依赖并跳过脚本（避免 sharp 尝试源码编译）
@@ -59,7 +59,7 @@ COPY web/package.json /app/web/
 RUN --mount=type=cache,target=/pnpm-store \
     --mount=type=secret,id=npmrc \
     if [ -f /run/secrets/npmrc ]; then cat /run/secrets/npmrc >> /app/.npmrc; fi && \
-    pnpm install --frozen-lockfile --shamefully-hoist && \
+    (pnpm install --frozen-lockfile --shamefully-hoist || pnpm install --no-frozen-lockfile --shamefully-hoist) && \
     rm -f /app/.npmrc
 
 # 源码构建（后端）
