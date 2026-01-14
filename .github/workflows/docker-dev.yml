@@ -48,7 +48,7 @@ jobs:
         uses: actions/checkout@v6
         with:
           repository: magisk317/napgram-ui-dist
-          ref: main
+          ref: dev
           token: ${{ secrets.UI_SRC_TOKEN }}
           path: web
 
@@ -194,7 +194,7 @@ jobs:
         uses: actions/checkout@v6
         with:
           repository: magisk317/napgram-ui-dist
-          ref: main
+          ref: dev
           token: ${{ secrets.UI_SRC_TOKEN }}
           path: web
 
@@ -342,7 +342,7 @@ jobs:
         uses: actions/checkout@v6
         with:
           repository: magisk317/napgram-ui-dist
-          ref: main
+          ref: dev
           token: ${{ secrets.UI_SRC_TOKEN }}
           path: web
 
