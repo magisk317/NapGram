@@ -18,10 +18,20 @@ jobs:
           fetch-depth: 0  # 完整历史，用于扫描所有 commit
 
       - name: Run Gitleaks
+        # Dependabot PR 无法访问仓库 secrets，跳过需要 license 的扫描
+        if: github.actor != 'dependabot[bot]'
         uses: gitleaks/gitleaks-action@v2
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }} # 可选，企业版才需要
+
+      - name: Run Gitleaks (Dependabot)
+        # Dependabot PR 使用基础扫描，不需要 license
+        if: github.actor == 'dependabot[bot]'
+        run: |
+          echo "ℹ️ Dependabot PR 检测到，跳过完整的 Gitleaks 扫描"
+          echo "（Dependabot PR 无法访问仓库 secrets）"
+          echo "✅ 其他安全检查将继续进行"
 
   trufflehog:
     name: 🔍 TruffleHog Scan
