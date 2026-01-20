@@ -173,15 +173,12 @@ jobs:
             console.log('--- Checking for vulnerabilities via pnpm audit ---');
             try {
               // Run pnpm audit
-              // Note: pnpm audit returns exit code 1 if vulnerabilities are found, so we must catch the error
               let auditJson;
               try {
                  execSync('pnpm audit --json', { encoding: 'utf8', stdio: 'pipe' });
                  console.log('pnpm audit Clean. No action needed.');
                  auditJson = { advisories: {} };
               } catch (e) {
-                 // pnpm audit failed (found vulnerabilities), which is what we want
-                 // stdout contains the JSON
                  try {
                     auditJson = JSON.parse(e.stdout);
                  } catch (parseError) {
@@ -198,8 +195,8 @@ jobs:
                 const patchedVer = advisory.patched_versions;
                 const severity = advisory.severity;
 
-                // Focus on High/Critical only to minimize noise
-                if (severity !== 'high' && severity !== 'critical') {
+                // Allow moderate, high, and critical
+                if (severity !== 'moderate' && severity !== 'high' && severity !== 'critical') {
                     console.log(`Skipping ${severity} severity for ${pkgName}`);
                     continue;
                 }
@@ -207,8 +204,6 @@ jobs:
                 if (!patchedVer) continue;
                 if (overrides[pkgName]) continue; // Already overridden
 
-                // clean up version string (e.g. ">=1.2.3")
-                // pnpm audit often returns ">=1.2.3" or ">= 1.2.3"
                 const cleanVer = patchedVer.replace(' ', '');
 
                 console.log(`Found alert for ${pkgName}, patched in ${cleanVer}`);
@@ -223,23 +218,67 @@ jobs:
                 tempPkg.pnpm.overrides[pkgName] = cleanVer;
                 writePackageJson(tempPkg);
 
-                if (run('pnpm install') !== null) {
+                // Run install and Capture output/errors clearly
+                try {
+                   console.log(`Attempting pnpm install with override ${pkgName}@${cleanVer}...`);
+                   execSync('pnpm install', { encoding: 'utf8', stdio: 'pipe' }); // stdio pipe to capture
                    console.log('Override installation successful.');
-                   // Restore
+                   
+                   // Prepare PR (restore old lock first to simulate clean state? NO. We want the new lock!)
+                   // Wait, the logic below was restoring backup then doing install? 
+                   // The logic was: 
+                   // 1. Modify pkg & install -> Success
+                   // 2. Restore pkg & lock (why? to keep "clean slate" for NEXT iteration loop? Yes.)
+                   // 3. run install (to reset)
+                   // 4. createPR (this function internally creates a branch, re-applies changes? No.)
+                   
+                   // Ah, `createPR` helper logic:
+                   // checks out new branch, `git add package.json pnpm-lock.yaml`, commit.
+                   // It assumes the CURRENT working directory has the changes.
+                   // BUT my previous logic was REVERSING the changes before calling createPR??
+                   /*
                    fs.writeFileSync('package.json', backupPkg);
                    run('mv pnpm-lock.yaml.bak pnpm-lock.yaml');
                    run('pnpm install');
-
+                   await createPR(...) 
+                   */
+                   // ^ This looks WRONG! I was undoing the changes, THEN calling createPR. 
+                   // createPR just commits what is on disk. If I undid it, it commits nothing (or old files).
+                   // Oh, wait. `createPR` logic:
+                   /*
+                   run(`git checkout -b ${branchName}`);
+                   run('git add package.json pnpm-lock.yaml');
+                   if (run('git commit ...') === null) ...
+                   */
+                   // Yes! I was reverting changes BEFORE createPR ran. That's why "No changes to commit" probably happened? 
+                   // Or in this case `pnpm install` failed so it went to `else` block. 
+                   // But if it had succeeded, I would have reverted it. 
+                   
+                   // CORRECT LOGIC:
+                   // 1. Modify & Install.
+                   // 2. If Success:
+                   //    a. createPR (commits CURRENT state).
+                   //    b. Restore backup (to continue loop clean).
+                   
                    await createPR(
                      `chore(deps): override ${pkgName} to fix security alert`,
                      `Fixes ${advisory.title} (${advisory.cves.join(', ')}). Forces ${pkgName} to ${cleanVer}.`,
                      `janitor/add-override/${pkgName}`
                    );
-                } else {
-                  console.log(`Failed to apply override for ${pkgName}. Restoration...`);
-                  fs.writeFileSync('package.json', backupPkg);
-                  run('mv pnpm-lock.yaml.bak pnpm-lock.yaml');
-                  run('pnpm install');
+
+                   // Restore state for next iteration
+                   console.log('Restoring state for next iteration...');
+                   fs.writeFileSync('package.json', backupPkg);
+                   run('mv pnpm-lock.yaml.bak pnpm-lock.yaml');
+                   run('pnpm install');
+
+                } catch (installErr) {
+                   console.error(`Failed to apply override for ${pkgName}. Error:\n${installErr.message}\n${installErr.stdout}\n${installErr.stderr}`);
+                   // Restore
+                   fs.writeFileSync('package.json', backupPkg);
+                   run('mv pnpm-lock.yaml.bak pnpm-lock.yaml');
+                   // Use run() to tolerate errors during cleanup
+                   run('pnpm install');
                 }
               }
             } catch (e) {
