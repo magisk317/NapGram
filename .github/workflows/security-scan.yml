@@ -7,6 +7,10 @@ on:
     branches: [dev, main]
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   gitleaks:
     name: 🔒 Scan for Secrets
@@ -148,7 +152,7 @@ jobs:
           git fetch origin ${{ github.base_ref }}
           
           # 检查新增的行
-          SUSPICIOUS_LINES=$(git diff origin/${{ github.base_ref }}...HEAD | grep "^+" | grep -iE "(token|password|secret|key|hash).*[:=].*['\"]")
+          SUSPICIOUS_LINES=$(git diff origin/${{ github.base_ref }}...HEAD | grep "^+" | grep -iE "(token|password|secret|key|hash).*[:=].*['\"]" || true)
           
           if [ ! -z "$SUSPICIOUS_LINES" ]; then
             echo "⚠️ 在 PR 中发现可疑的新增行："

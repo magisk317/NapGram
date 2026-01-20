@@ -9,6 +9,10 @@ on:
       - 'web/**'
   workflow_dispatch: # 允许手动触发
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   deploy-ui:
     runs-on: ubuntu-latest

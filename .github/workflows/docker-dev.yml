@@ -5,6 +5,10 @@ on:
     - cron: '30 15 * * *' # 每天 UTC 15:30(=北京 23:30)
   workflow_dispatch:
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build_amd64:
     name: Build dev image (amd64)
