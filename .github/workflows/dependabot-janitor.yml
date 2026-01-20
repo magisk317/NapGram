@@ -97,6 +97,7 @@ jobs:
               // Create Pull Request
                 // Use patOctokit/github to trigger subsequent workflows (Auto-Merge)
                 // 'github' client is now authenticated with GH_PAT via 'with.github-token'
+              try {
                 const { data: pr } = await github.rest.pulls.create({
                   owner: context.repo.owner,
                   repo: context.repo.repo,
