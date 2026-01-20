@@ -9,7 +9,8 @@
     },
     "pnpm": {
         "overrides": {
-            "tar": ">=7.5.3"
+            "tar": ">=7.5.3",
+            "esbuild": ">=0.25.0"
         },
         "onlyBuiltDependencies": [
             "better-sqlite3",
