@@ -27,20 +27,20 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Setup Node.js
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: 25
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v3
+        uses: pnpm/action-setup@v4
         with:
           version: 10.28.0
 
       - name: Janitor Logic
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         env:
           # GITHUB_TOKEN is still useful for other things if needed, but script will use PAT.
           # actually 'github' client uses the input 'github-token'.
