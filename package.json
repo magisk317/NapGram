@@ -10,7 +10,8 @@
     "pnpm": {
         "overrides": {
             "tar": ">=7.5.3",
-            "hono": ">=4.11.4"
+            "hono": ">=4.11.4",
+            "esbuild": ">=0.25.0"
         },
         "onlyBuiltDependencies": [
             "better-sqlite3",
