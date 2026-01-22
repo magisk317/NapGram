@@ -73,7 +73,7 @@
     "@napgram/telegram-client": "^0.1.5",
     "@napgram/web-interfaces": "^0.2.2",
     "@naplink/naplink": "^0.0.3",
-    "@sentry/node": "10.35.0",
+    "@sentry/node": "10.36.0",
     "drizzle-kit": "^0.31.8",
     "fastify": "5.7.1",
     "fflate": "^0.8.2",
